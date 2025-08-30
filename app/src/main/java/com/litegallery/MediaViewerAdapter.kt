@@ -17,6 +17,7 @@ class MediaViewerAdapter(
     private var onZoomChange: ((Float) -> Unit)? = null
     
     fun setVideoDoubleClickListener(listener: () -> Unit) {
+        android.util.Log.d("MediaViewerAdapter", "Video double-click listener set")
         onVideoDoubleClick = listener
     }
     
@@ -124,7 +125,18 @@ class MediaViewerAdapter(
     }
     
     fun getCurrentVideoHolder(): VideoViewHolder? {
-        return currentVideoHolder?.videoViewHolder
+        val videoHolder = currentVideoHolder?.videoViewHolder
+        android.util.Log.d("MediaViewerAdapter", "getCurrentVideoHolder: currentVideoHolder=${currentVideoHolder != null}, videoViewHolder=${videoHolder != null}")
+        return videoHolder
+    }
+    
+    fun getCurrentMediaViewHolder(): MediaViewHolder? {
+        return currentVideoHolder
+    }
+    
+    fun setCurrentVideoHolder(holder: MediaViewHolder?) {
+        android.util.Log.d("MediaViewerAdapter", "Manually setting current video holder: ${holder != null}")
+        currentVideoHolder = holder
     }
 
     inner class MediaViewHolder(private val binding: ItemMediaViewerBinding) :
@@ -149,8 +161,10 @@ class MediaViewerAdapter(
                 videoViewHolder = VideoViewHolder(binding, onMediaClick)
                 videoViewHolder?.bind(mediaItem)
                 
-                // Set up gesture detection for videos
+                // CRITICAL: Set up gesture detection for videos AFTER player is ready
                 setupVideoGestures()
+                
+                android.util.Log.d("MediaViewerAdapter", "Video gestures setup completed for: ${mediaItem.name}")
                     
             } else {
                 // Show image, hide video container
@@ -182,39 +196,70 @@ class MediaViewerAdapter(
         }
         
         private fun setupVideoGestures() {
+            android.util.Log.d("MediaViewerAdapter", "Setting up video gestures")
+            
             // Set up gesture detection for videos without interfering with ViewPager2
             val gestureDetector = android.view.GestureDetector(binding.root.context, object : android.view.GestureDetector.SimpleOnGestureListener() {
                 override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
+                    android.util.Log.d("MediaViewerAdapter", "Single tap detected on gesture detector")
                     onMediaClick()
                     return true
                 }
                 
                 override fun onDoubleTap(e: android.view.MotionEvent): Boolean {
-                    onVideoDoubleClick?.invoke()
+                    android.util.Log.d("MediaViewerAdapter", "Double tap detected on gesture detector")
+                    onVideoDoubleClick?.let { callback ->
+                        android.util.Log.d("MediaViewerAdapter", "Invoking double-click callback")
+                        callback.invoke()
+                    } ?: run {
+                        android.util.Log.w("MediaViewerAdapter", "Double-click callback is null!")
+                    }
                     return true
                 }
             })
             
-            // Set up gesture listeners on ZoomablePlayerView
+            // PRIORITY 1: Set up gesture listeners directly on ZoomablePlayerView (most important)
             (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
+                android.util.Log.d("MediaViewerAdapter", "Setting up ZoomablePlayerView gestures")
+                
                 zoomablePlayerView.setOnVideoClickListener {
+                    android.util.Log.d("MediaViewerAdapter", "Single tap detected on ZoomablePlayerView")
                     onMediaClick()
                 }
                 
                 zoomablePlayerView.setOnVideoDoubleClickListener {
-                    onVideoDoubleClick?.invoke()
+                    android.util.Log.d("MediaViewerAdapter", "Double tap detected on ZoomablePlayerView")
+                    onVideoDoubleClick?.let { callback ->
+                        android.util.Log.d("MediaViewerAdapter", "Invoking ZoomablePlayerView double-click callback")
+                        callback.invoke()
+                    } ?: run {
+                        android.util.Log.w("MediaViewerAdapter", "ZoomablePlayerView double-click callback is null!")
+                    }
                 }
                 
                 zoomablePlayerView.setOnZoomChangeListener { zoomLevel ->
+                    android.util.Log.d("MediaViewerAdapter", "Zoom change detected: $zoomLevel")
                     onZoomChange?.invoke(zoomLevel)
                 }
+            } ?: run {
+                android.util.Log.w("MediaViewerAdapter", "PlayerView is not ZoomablePlayerView!")
             }
             
-            // Also add gesture detection to video thumbnail for when player isn't ready
+            // PRIORITY 2: Add gesture detection to video thumbnail for when player isn't ready
             binding.videoThumbnail?.setOnTouchListener { _, event ->
+                android.util.Log.d("MediaViewerAdapter", "Touch event on video thumbnail")
                 gestureDetector.onTouchEvent(event)
                 true // Consume the event for video-specific gestures
             }
+            
+            // PRIORITY 3: Add gesture detection to video container as fallback
+            binding.videoContainer.setOnTouchListener { _, event ->
+                android.util.Log.d("MediaViewerAdapter", "Touch event on video container")
+                gestureDetector.onTouchEvent(event)
+                false // Don't consume to allow child views to handle
+            }
+            
+            android.util.Log.d("MediaViewerAdapter", "Video gesture setup completed")
         }
 
         fun releasePlayer() {
@@ -240,6 +285,10 @@ class MediaViewerAdapter(
         
         fun resetPhotoZoom() {
             getZoomImageView()?.resetZoom()
+        }
+        
+        fun getZoomablePlayerView(): com.litegallery.ZoomablePlayerView? {
+            return videoViewHolder?.getZoomablePlayerView()
         }
         
         fun prepareForNewContent(mediaItem: MediaItem) {
