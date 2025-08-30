@@ -56,8 +56,22 @@ class MediaViewerActivity : AppCompatActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
+        android.util.Log.d("MediaViewerActivity", "ACTIVITY DESTROY - thorough cleanup")
+        
         stopProgressUpdate()
+        
+        // Thorough cleanup of all resources
         mediaViewerAdapter.releaseAllPlayers()
+        
+        // Clear ViewPager2 adapter to help with cleanup
+        binding.viewPager.adapter = null
+        
+        // Force aggressive garbage collection
+        System.gc()
+        System.runFinalization()
+        System.gc() // Double GC for thorough cleanup
+        
+        android.util.Log.d("MediaViewerActivity", "Activity cleanup completed")
     }
     
     override fun onLowMemory() {

@@ -34,64 +34,75 @@ class MediaViewerAdapter(
     override fun onBindViewHolder(holder: MediaViewHolder, position: Int) {
         val mediaItem = getItem(position)
         
-        // Always pause and release any current video player first
-        currentVideoHolder?.let { currentHolder ->
-            if (currentHolder != holder) {
-                android.util.Log.d("MediaViewerAdapter", "Releasing previous video player for large file switching")
-                currentHolder.onPause()
-                currentHolder.releasePlayer()
+        android.util.Log.d("MediaViewerAdapter", "Binding ViewHolder for: ${mediaItem.name} (position: $position)")
+        
+        // Log memory status before cleanup
+        logMemoryStatus("BEFORE cleanup")
+        
+        // Only release previous video player if this holder had one
+        if (currentVideoHolder == holder) {
+            android.util.Log.d("MediaViewerAdapter", "Releasing current video holder player")
+            holder.releasePlayer()
+        }
+        
+        // Selective state reset - only reset what's necessary
+        holder.prepareForNewContent(mediaItem)
+        
+        // Bind the new content
+        holder.bind(mediaItem)
+        
+        // Track video holder for management
+        if (mediaItem.isVideo) {
+            currentVideoHolder = holder
+        } else {
+            // Clear video holder reference for photos
+            if (currentVideoHolder == holder) {
                 currentVideoHolder = null
-                
-                // Check memory usage before proceeding
-                val runtime = Runtime.getRuntime()
-                val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-                val maxMemory = runtime.maxMemory()
-                val memoryUsagePercent = (usedMemory.toFloat() / maxMemory * 100).toInt()
-                
-                android.util.Log.d("MediaViewerAdapter", "Memory usage after release: $memoryUsagePercent%")
-                
-                // Extra aggressive cleanup for large video files
-                for (i in 0..2) {
-                    System.gc()
-                    System.runFinalization()
-                    try {
-                        Thread.sleep(50)
-                    } catch (e: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        break
-                    }
-                }
-                
-                // Longer wait for surface buffer cleanup
-                try {
-                    Thread.sleep(250) // Extended wait for surface cleanup
-                } catch (e: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                }
-                
-                android.util.Log.d("MediaViewerAdapter", "Surface cleanup complete, proceeding with new video")
             }
         }
         
-        // Bind content immediately for images, delay for videos
-        if (mediaItem.isVideo) {
-            // For large video files, add extended delay to ensure surface buffers are fully released
-            holder.itemView.postDelayed({
-                android.util.Log.d("MediaViewerAdapter", "Starting video binding after surface cleanup")
-                holder.bind(mediaItem)
-                currentVideoHolder = holder
-            }, 400) // Increased delay for large video file surface buffer management
-        } else {
-            holder.bind(mediaItem)
-        }
+        // Log memory status after setup
+        logMemoryStatus("AFTER setup")
+    }
+    
+    private fun logMemoryStatus(stage: String) {
+        val runtime = Runtime.getRuntime()
+        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
+        val maxMemory = runtime.maxMemory()
+        val memoryUsagePercent = (usedMemory.toFloat() / maxMemory * 100).toInt()
+        android.util.Log.d("MediaViewerAdapter", 
+            "$stage - Memory: $memoryUsagePercent% (${usedMemory / 1024 / 1024}MB / ${maxMemory / 1024 / 1024}MB)")
     }
 
     override fun onViewRecycled(holder: MediaViewHolder) {
         super.onViewRecycled(holder)
+        android.util.Log.d("MediaViewerAdapter", "ViewHolder recycled - selective cleanup")
+        
+        // Release player if this holder has one
         holder.releasePlayer()
+        
+        // Clear current video holder reference
         if (currentVideoHolder == holder) {
+            android.util.Log.d("MediaViewerAdapter", "Clearing current video holder reference")
             currentVideoHolder = null
         }
+        
+        // Clear Glide image cache for this holder
+        holder.clearGlideCache()
+        
+        android.util.Log.d("MediaViewerAdapter", "ViewHolder selective cleanup completed")
+    }
+    
+    override fun onViewAttachedToWindow(holder: MediaViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        android.util.Log.d("MediaViewerAdapter", "ViewHolder attached to window")
+    }
+    
+    override fun onViewDetachedFromWindow(holder: MediaViewHolder) {
+        super.onViewDetachedFromWindow(holder)
+        android.util.Log.d("MediaViewerAdapter", "ViewHolder detached from window")
+        // Pause any active video when detached
+        holder.onPause()
     }
     
     fun pauseAllVideos() {
@@ -99,8 +110,17 @@ class MediaViewerAdapter(
     }
     
     fun releaseAllPlayers() {
-        currentVideoHolder?.releasePlayer()
+        android.util.Log.d("MediaViewerAdapter", "Releasing current video player only")
+        
+        // Release current video holder only
+        currentVideoHolder?.let { holder ->
+            android.util.Log.d("MediaViewerAdapter", "Releasing current video holder")
+            holder.releasePlayer()
+            holder.videoViewHolder?.releasePlayer()
+        }
         currentVideoHolder = null
+        
+        android.util.Log.d("MediaViewerAdapter", "Current video player released")
     }
     
     fun getCurrentVideoHolder(): VideoViewHolder? {
@@ -212,6 +232,113 @@ class MediaViewerAdapter(
         
         fun getZoomImageView(): com.litegallery.ZoomImageView? {
             return binding.photoImageView as? com.litegallery.ZoomImageView
+        }
+        
+        fun clearGlideCache() {
+            com.bumptech.glide.Glide.with(binding.root.context).clear(binding.photoImageView)
+        }
+        
+        fun resetPhotoZoom() {
+            getZoomImageView()?.resetZoom()
+        }
+        
+        fun prepareForNewContent(mediaItem: MediaItem) {
+            android.util.Log.d("MediaViewerAdapter", "Preparing ViewHolder for new content: ${mediaItem.name}")
+            
+            // Only reset what's actually needed based on content type
+            if (mediaItem.isVideo) {
+                // Prepare for video content
+                if (binding.videoContainer.visibility != View.VISIBLE) {
+                    // Clear any existing image content
+                    com.bumptech.glide.Glide.with(binding.root.context).clear(binding.photoImageView)
+                    binding.photoImageView.visibility = View.GONE
+                    binding.videoContainer.visibility = View.VISIBLE
+                }
+                
+                // Reset video-specific UI elements
+                binding.videoThumbnail?.visibility = View.VISIBLE
+                binding.playButton?.visibility = View.VISIBLE
+                
+                // Only reset PlayerView zoom if it exists
+                (binding.playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+                
+            } else {
+                // Prepare for photo content
+                if (binding.photoImageView.visibility != View.VISIBLE) {
+                    // Release any existing video player only if switching from video
+                    releasePlayer()
+                    binding.photoImageView.visibility = View.VISIBLE
+                    binding.videoContainer.visibility = View.GONE
+                }
+                
+                // Reset photo-specific zoom
+                resetPhotoZoom()
+            }
+            
+            // Clear any pending callbacks
+            binding.root.handler?.removeCallbacksAndMessages(null)
+        }
+        
+        fun forceCompleteReset() {
+            android.util.Log.d("MediaViewerAdapter", "Force complete reset of ViewHolder")
+            
+            // Release any existing video player
+            releasePlayer()
+            
+            // Reset all UI elements to default state
+            binding.photoImageView.visibility = View.VISIBLE
+            binding.videoContainer.visibility = View.GONE
+            binding.videoThumbnail?.visibility = View.VISIBLE
+            binding.playButton?.visibility = View.VISIBLE
+            
+            // Clear image from Glide
+            com.bumptech.glide.Glide.with(binding.root.context).clear(binding.photoImageView)
+            
+            // Reset zoom states
+            resetPhotoZoom()
+            
+            // Force PlayerView reset
+            binding.playerView?.let { playerView ->
+                playerView.player = null
+                (playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+            }
+            
+            // Clear any pending callbacks
+            binding.root.handler?.removeCallbacksAndMessages(null)
+        }
+        
+        fun clearAllReferences() {
+            android.util.Log.d("MediaViewerAdapter", "Clearing all ViewHolder references")
+            
+            // Clear VideoViewHolder reference completely
+            videoViewHolder?.let { vh ->
+                vh.releasePlayer()
+                videoViewHolder = null
+            }
+            
+            // Clear all touch listeners that might hold references
+            binding.root.setOnTouchListener(null)
+            binding.photoImageView.setOnTouchListener(null)
+            binding.playerView?.setOnTouchListener(null)
+            binding.playButton?.setOnClickListener(null)
+            
+            // Clear gesture listeners
+            (binding.photoImageView as? com.litegallery.ZoomImageView)?.let { zoomImageView ->
+                zoomImageView.setOnImageClickListener {}
+                zoomImageView.setOnZoomChangeListener {}
+            }
+            
+            (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomPlayerView ->
+                zoomPlayerView.setOnVideoClickListener {}
+                zoomPlayerView.setOnVideoDoubleClickListener {}
+                zoomPlayerView.setOnZoomChangeListener {}
+            }
+            
+            // Force clear any cached bitmaps in ImageViews
+            binding.photoImageView.setImageDrawable(null)
+            binding.videoThumbnail?.setImageDrawable(null)
+            
+            android.util.Log.d("MediaViewerAdapter", "All ViewHolder references cleared")
         }
     }
 

@@ -75,7 +75,7 @@ class ZoomImageView @JvmOverloads constructor(
         resetZoom()
     }
     
-    private fun resetZoom() {
+    fun resetZoom() {
         currentScale = 1f
         currentZoomLevelIndex = 0
         imageMatrix.reset()
