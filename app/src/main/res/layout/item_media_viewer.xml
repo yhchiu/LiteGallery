@@ -36,7 +36,7 @@
             android:scaleType="centerCrop"
             android:visibility="visible" />
 
-        <!-- Play button overlay -->
+        <!-- Play button overlay (only shown before first play) -->
         <ImageView
             android:id="@+id/playButton"
             android:layout_width="72dp"
@@ -46,6 +46,7 @@
             android:padding="16dp"
             android:src="@drawable/ic_play"
             android:scaleType="centerInside"
+            android:visibility="visible"
             app:tint="@color/white" />
 
     </FrameLayout>

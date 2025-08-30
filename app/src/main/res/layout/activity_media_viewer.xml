@@ -76,6 +76,48 @@
         android:orientation="vertical"
         android:visibility="gone">
 
+        <!-- Video Progress Bar (separate row) -->
+        <LinearLayout
+            android:id="@+id/videoProgressBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:background="@drawable/gradient_bottom"
+            android:visibility="gone"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/currentTimeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:minWidth="40dp"
+                android:gravity="center" />
+
+            <SeekBar
+                android:id="@+id/progressSeekBar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_weight="1"
+                android:progressTint="@color/white"
+                android:thumbTint="@color/white" />
+
+            <TextView
+                android:id="@+id/durationText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:minWidth="40dp"
+                android:gravity="center" />
+
+        </LinearLayout>
+
         <!-- Video Controls (only visible for videos) -->
         <LinearLayout
             android:id="@+id/videoControls"
@@ -83,7 +125,9 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:padding="16dp"
-            android:visibility="gone">
+            android:background="@drawable/gradient_bottom"
+            android:visibility="gone"
+            android:orientation="horizontal">
 
             <ImageButton
                 android:id="@+id/playPauseButton"
@@ -94,35 +138,35 @@
                 android:src="@drawable/ic_play"
                 app:tint="@color/white" />
 
-            <SeekBar
-                android:id="@+id/progressSeekBar"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="12dp"
-                android:layout_weight="1" />
-
             <ImageButton
                 android:id="@+id/frameBackButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/frame_backward"
                 android:src="@drawable/ic_skip_previous"
+                android:layout_marginStart="12dp"
                 app:tint="@color/white" />
 
             <ImageButton
                 android:id="@+id/frameForwardButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/frame_forward"
                 android:src="@drawable/ic_skip_next"
+                android:layout_marginStart="4dp"
                 app:tint="@color/white" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
             <ImageButton
                 android:id="@+id/expandControlsButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/expand_controls"
                 android:src="@drawable/ic_expand_more"
