@@ -83,8 +83,11 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
     
     fun cycleZoom() {
+        android.util.Log.d("ZoomablePlayerView", "cycleZoom called - current index: $currentZoomLevelIndex, scale: $currentScale")
         currentZoomLevelIndex = (currentZoomLevelIndex + 1) % zoomLevels.size
         val targetScale = zoomLevels[currentZoomLevelIndex]
+        
+        android.util.Log.d("ZoomablePlayerView", "Target scale: $targetScale, currentScale: $currentScale")
         
         if (targetScale != currentScale) {
             val scaleFactor = targetScale / currentScale
@@ -98,6 +101,9 @@ class ZoomablePlayerView @JvmOverloads constructor(
             constrainTransform()
             applyTransformToVideoSurface()
             onZoomChangeListener?.invoke(currentScale)
+            android.util.Log.d("ZoomablePlayerView", "Zoom cycled to ${currentScale}x")
+        } else {
+            android.util.Log.d("ZoomablePlayerView", "Scale unchanged")
         }
     }
     
@@ -112,16 +118,21 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
     
     private fun applyTransformToVideoSurface() {
+        android.util.Log.d("ZoomablePlayerView", "applyTransformToVideoSurface called, scale: $currentScale")
         // Find the TextureView or SurfaceView within this PlayerView
         val videoSurface = findVideoSurface(this)
+        android.util.Log.d("ZoomablePlayerView", "Video surface found: ${videoSurface != null}, type: ${videoSurface?.javaClass?.simpleName}")
+        
         videoSurface?.let { surface ->
             when (surface) {
                 is TextureView -> {
+                    android.util.Log.d("ZoomablePlayerView", "Applying transform to TextureView")
                     surface.setTransform(transformMatrix)
                 }
                 // SurfaceView doesn't support matrix transforms directly
                 // We handle this through the parent view's transformation
                 else -> {
+                    android.util.Log.d("ZoomablePlayerView", "Applying scale to SurfaceView")
                     // For SurfaceView, we need to transform the container
                     surface.scaleX = currentScale
                     surface.scaleY = currentScale

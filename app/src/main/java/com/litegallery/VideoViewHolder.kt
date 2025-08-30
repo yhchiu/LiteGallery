@@ -262,7 +262,9 @@ class VideoViewHolder(
     }
     
     fun getZoomablePlayerView(): com.litegallery.ZoomablePlayerView? {
-        return binding.playerView as? com.litegallery.ZoomablePlayerView
+        val zoomableView = binding.playerView as? com.litegallery.ZoomablePlayerView
+        android.util.Log.d("VideoViewHolder", "getZoomablePlayerView: ${zoomableView != null}, player: ${exoPlayer != null}, isPlaying: ${exoPlayer?.isPlaying}")
+        return zoomableView
     }
     
     private fun forceCompleteStateReset() {
