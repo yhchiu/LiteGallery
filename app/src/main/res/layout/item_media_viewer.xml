@@ -6,11 +6,10 @@
     android:background="@color/black">
 
     <!-- Photo ImageView with zoom support -->
-    <ImageView
+    <com.litegallery.ZoomImageView
         android:id="@+id/photoImageView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitCenter"
         android:visibility="visible" />
 
     <!-- Video Container -->
@@ -20,8 +19,8 @@
         android:layout_height="match_parent"
         android:visibility="gone">
 
-        <!-- ExoPlayer PlayerView -->
-        <com.google.android.exoplayer2.ui.PlayerView
+        <!-- ExoPlayer PlayerView with zoom support -->
+        <com.litegallery.ZoomablePlayerView
             android:id="@+id/playerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

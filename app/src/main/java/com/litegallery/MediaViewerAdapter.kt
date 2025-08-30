@@ -14,9 +14,14 @@ class MediaViewerAdapter(
 ) : ListAdapter<MediaItem, MediaViewerAdapter.MediaViewHolder>(MediaItemDiffCallback()) {
     
     private var onVideoDoubleClick: (() -> Unit)? = null
+    private var onZoomChange: ((Float) -> Unit)? = null
     
     fun setVideoDoubleClickListener(listener: () -> Unit) {
         onVideoDoubleClick = listener
+    }
+    
+    fun setZoomChangeListener(listener: (Float) -> Unit) {
+        onZoomChange = listener
     }
 
     private var currentVideoHolder: MediaViewHolder? = null
@@ -141,9 +146,14 @@ class MediaViewerAdapter(
                     .fitCenter()
                     .into(binding.photoImageView)
 
-                // Set click listener for photos - use imageView specifically to avoid conflicts
-                binding.photoImageView.setOnClickListener {
+                // Set click listener for photos using ZoomImageView's method
+                binding.photoImageView.setOnImageClickListener {
                     onMediaClick()
+                }
+                
+                // Set zoom change listener for photos
+                binding.photoImageView.setOnZoomChangeListener { zoomLevel ->
+                    onZoomChange?.invoke(zoomLevel)
                 }
                 
                 // Remove any touch listeners that might interfere
@@ -165,10 +175,19 @@ class MediaViewerAdapter(
                 }
             })
             
-            // Set touch listener only on the video-specific views to avoid ViewPager2 conflicts
-            binding.playerView?.setOnTouchListener { _, event ->
-                gestureDetector.onTouchEvent(event)
-                true // Consume the event for video-specific gestures
+            // Set up gesture listeners on ZoomablePlayerView
+            (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
+                zoomablePlayerView.setOnVideoClickListener {
+                    onMediaClick()
+                }
+                
+                zoomablePlayerView.setOnVideoDoubleClickListener {
+                    onVideoDoubleClick?.invoke()
+                }
+                
+                zoomablePlayerView.setOnZoomChangeListener { zoomLevel ->
+                    onZoomChange?.invoke(zoomLevel)
+                }
             }
             
             // Also add gesture detection to video thumbnail for when player isn't ready
@@ -189,6 +208,10 @@ class MediaViewerAdapter(
 
         fun onPause() {
             videoViewHolder?.onPause()
+        }
+        
+        fun getZoomImageView(): com.litegallery.ZoomImageView? {
+            return binding.photoImageView as? com.litegallery.ZoomImageView
         }
     }
 
