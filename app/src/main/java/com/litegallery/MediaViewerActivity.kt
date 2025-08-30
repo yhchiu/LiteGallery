@@ -17,6 +17,12 @@ class MediaViewerActivity : AppCompatActivity() {
         const val EXTRA_MEDIA_PATH = "extra_media_path"
         const val EXTRA_FOLDER_PATH = "extra_folder_path"
         const val EXTRA_CURRENT_POSITION = "extra_current_position"
+        
+        // Rename history constants
+        private const val RENAME_HISTORY_PREFS = "rename_history"
+        private const val RENAME_PREFIXES_KEY = "prefixes_list"
+        private const val RENAME_SUFFIXES_KEY = "suffixes_list"
+        private const val MAX_HISTORY_SIZE = 8
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -474,23 +480,63 @@ class MediaViewerActivity : AppCompatActivity() {
             return
         }
         
-        // Create input dialog
-        val input = android.widget.EditText(this)
-        input.setText(currentFile.nameWithoutExtension)
-        input.selectAll()
+        // Inflate custom dialog layout
+        val dialogView = layoutInflater.inflate(R.layout.dialog_rename_file, null)
+        val editText = dialogView.findViewById<android.widget.EditText>(R.id.renameEditText)
+        val dropdownButton = dialogView.findViewById<android.widget.ImageButton>(R.id.dropdownButton)
+        val addPrefixButton = dialogView.findViewById<android.widget.Button>(R.id.addPrefixButton)
+        val addSuffixButton = dialogView.findViewById<android.widget.Button>(R.id.addSuffixButton)
         
-        android.app.AlertDialog.Builder(this)
+        // Set current filename
+        val originalName = currentFile.nameWithoutExtension
+        editText.setText(originalName)
+        editText.selectAll()
+        
+        // Get history data
+        val prefixes = getRenamePrefixes()
+        val suffixes = getRenameSuffixes()
+        
+        // Create dialog
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.rename_file)
-            .setMessage("Enter new name:")
-            .setView(input)
-            .setPositiveButton(R.string.ok) { _, _ ->
-                val newName = input.text.toString().trim()
-                if (newName.isNotEmpty() && newName != currentFile.nameWithoutExtension) {
-                    performRename(currentFile, newName)
-                }
-            }
+            .setView(dialogView)
+            .setPositiveButton(R.string.ok, null) // Set null to handle manually
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+        
+        // Handle dropdown button click
+        dropdownButton.setOnClickListener {
+            showRenameOptionsMenu(editText, prefixes, suffixes, originalName)
+        }
+        
+        // Handle quick prefix button
+        addPrefixButton.setOnClickListener {
+            showPrefixSuffixDialog(editText, originalName, isPrefix = true, prefixes)
+        }
+        
+        // Handle quick suffix button
+        addSuffixButton.setOnClickListener {
+            showPrefixSuffixDialog(editText, originalName, isPrefix = false, suffixes)
+        }
+        
+        // Show dialog
+        dialog.show()
+        
+        // Handle OK button manually to prevent auto-dismiss
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val newName = editText.text.toString().trim()
+            if (newName.isNotEmpty() && newName != originalName) {
+                analyzeRename(originalName, newName)
+                performRename(currentFile, newName)
+                dialog.dismiss()
+            } else {
+                android.widget.Toast.makeText(this, "Please enter a different name", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // Focus and show keyboard
+        editText.requestFocus()
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
     }
     
     private fun performRename(originalFile: java.io.File, newName: String) {
@@ -565,5 +611,154 @@ class MediaViewerActivity : AppCompatActivity() {
             arrayOf(newPath),
             null
         ) { _, _ -> }
+    }
+    
+    private fun getRenamePrefixes(): MutableList<String> {
+        val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
+        val prefixesSet = prefs.getStringSet(RENAME_PREFIXES_KEY, emptySet()) ?: emptySet()
+        return prefixesSet.toMutableList().sortedBy { it.lowercase() }.toMutableList()
+    }
+    
+    private fun getRenameSuffixes(): MutableList<String> {
+        val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
+        val suffixesSet = prefs.getStringSet(RENAME_SUFFIXES_KEY, emptySet()) ?: emptySet()
+        return suffixesSet.toMutableList().sortedBy { it.lowercase() }.toMutableList()
+    }
+    
+    private fun saveRenamePrefixes(prefixes: List<String>) {
+        val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(RENAME_PREFIXES_KEY, prefixes.toSet()).apply()
+    }
+    
+    private fun saveRenameSuffixes(suffixes: List<String>) {
+        val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(RENAME_SUFFIXES_KEY, suffixes.toSet()).apply()
+    }
+    
+    private fun addToHistory(item: String, isPrefix: Boolean) {
+        if (item.isBlank()) return
+        
+        val (currentList, saveFunction) = if (isPrefix) {
+            getRenamePrefixes() to ::saveRenamePrefixes
+        } else {
+            getRenameSuffixes() to ::saveRenameSuffixes
+        }
+        
+        currentList.remove(item)
+        currentList.add(0, item)
+        
+        if (currentList.size > MAX_HISTORY_SIZE) {
+            currentList.removeAt(currentList.size - 1)
+        }
+        
+        saveFunction(currentList)
+    }
+    
+    private fun analyzeRename(originalName: String, newName: String) {
+        // Detect if it's a prefix addition
+        if (newName.endsWith(originalName) && newName != originalName) {
+            val prefix = newName.substring(0, newName.length - originalName.length)
+            if (prefix.isNotBlank()) {
+                addToHistory(prefix, isPrefix = true)
+            }
+        }
+        // Detect if it's a suffix addition
+        else if (newName.startsWith(originalName) && newName != originalName) {
+            val suffix = newName.substring(originalName.length)
+            if (suffix.isNotBlank()) {
+                addToHistory(suffix, isPrefix = false)
+            }
+        }
+    }
+    
+    private fun showRenameOptionsMenu(editText: android.widget.EditText, prefixes: List<String>, suffixes: List<String>, originalName: String) {
+        val options = mutableListOf<String>()
+        
+        // Add prefixes section
+        if (prefixes.isNotEmpty()) {
+            options.add("--- PREFIXES ---")
+            prefixes.forEach { prefix ->
+                options.add("+ $prefix (→ $prefix$originalName)")
+            }
+        }
+        
+        // Add suffixes section
+        if (suffixes.isNotEmpty()) {
+            if (options.isNotEmpty()) options.add("")
+            options.add("--- SUFFIXES ---")
+            suffixes.forEach { suffix ->
+                options.add("+ $suffix (→ $originalName$suffix)")
+            }
+        }
+        
+        if (options.isEmpty()) {
+            android.widget.Toast.makeText(this, "No rename history yet", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        // Show popup menu
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Quick Rename Options")
+            .setItems(options.toTypedArray()) { _, which ->
+                val selectedOption = options[which]
+                if (!selectedOption.startsWith("---") && selectedOption.isNotBlank()) {
+                    when {
+                        selectedOption.startsWith("+ ") && selectedOption.contains("(→ ") -> {
+                            val newName = selectedOption.substringAfter("(→ ").substringBefore(")")
+                            editText.setText(newName)
+                            editText.setSelection(newName.length)
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+    
+    private fun showPrefixSuffixDialog(editText: android.widget.EditText, originalName: String, isPrefix: Boolean, existingItems: List<String>) {
+        val input = android.widget.EditText(this)
+        input.hint = if (isPrefix) "Enter prefix to add" else "Enter suffix to add"
+        
+        val dialogTitle = if (isPrefix) "Add Prefix" else "Add Suffix"
+        val previewText = android.widget.TextView(this)
+        previewText.textSize = 14f
+        previewText.setPadding(0, 16, 0, 0)
+        
+        // Create container layout
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 40)
+            addView(input)
+            addView(previewText)
+        }
+        
+        // Update preview as user types
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val preview = if (isPrefix) "${s}$originalName" else "$originalName$s"
+                previewText.text = "Preview: $preview"
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+        
+        android.app.AlertDialog.Builder(this)
+            .setTitle(dialogTitle)
+            .setView(container)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                val addition = input.text.toString().trim()
+                if (addition.isNotEmpty()) {
+                    val newName = if (isPrefix) "$addition$originalName" else "$originalName$addition"
+                    editText.setText(newName)
+                    editText.setSelection(newName.length)
+                    
+                    // Add to history
+                    addToHistory(addition, isPrefix)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+            
+        input.requestFocus()
     }
 }
