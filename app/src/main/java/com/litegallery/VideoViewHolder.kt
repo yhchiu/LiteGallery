@@ -22,6 +22,9 @@ class VideoViewHolder(
         // Reset for new video
         hasBeenPlayed = false
         
+        // Reset zoom for new video
+        (binding.playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+        
         // Hide photo view, show video container
         binding.photoImageView.visibility = View.GONE
         binding.videoContainer.visibility = View.VISIBLE
@@ -181,6 +184,8 @@ class VideoViewHolder(
                         
                         override fun onVideoSizeChanged(videoSize: com.google.android.exoplayer2.video.VideoSize) {
                             android.util.Log.d("VideoViewHolder", "Video size changed: ${videoSize.width}x${videoSize.height}")
+                            // Update the ZoomablePlayerView with video dimensions
+                            (binding.playerView as? com.litegallery.ZoomablePlayerView)?.setVideoSize(videoSize.width, videoSize.height)
                         }
                     })
                 }
@@ -261,6 +266,10 @@ class VideoViewHolder(
     
     fun onPause() {
         exoPlayer?.pause()
+    }
+    
+    fun getZoomablePlayerView(): com.litegallery.ZoomablePlayerView? {
+        return binding.playerView as? com.litegallery.ZoomablePlayerView
     }
     
     fun releasePlayer() {

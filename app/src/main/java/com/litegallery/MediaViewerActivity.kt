@@ -36,6 +36,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private var progressUpdateHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var progressUpdateRunnable: Runnable? = null
     private var isUserSeeking = false
+    private var isZoomed = false
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -178,6 +179,13 @@ class MediaViewerActivity : AppCompatActivity() {
             toggleVideoPlayback()
         }
         
+        // Set up zoom change listener
+        mediaViewerAdapter.setZoomChangeListener { zoomLevel ->
+            isZoomed = zoomLevel > 1f
+            setViewPagerSwipingEnabled(!isZoomed)
+            updateZoomLevelDisplay(zoomLevel)
+        }
+        
         binding.viewPager.adapter = mediaViewerAdapter
         
         // Add page change callback to handle video transitions
@@ -269,6 +277,11 @@ class MediaViewerActivity : AppCompatActivity() {
         
         binding.expandControlsButton.setOnClickListener {
             toggleAdvancedControls()
+        }
+        
+        // Zoom button
+        binding.zoomButton.setOnClickListener {
+            cycleZoom()
         }
     }
     
@@ -421,6 +434,10 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun updateFileName(position: Int) {
         if (position < mediaItems.size) {
             binding.fileNameTextView.text = mediaItems[position].name
+            // Reset zoom level display when switching media
+            updateZoomLevelDisplay(1f)
+            isZoomed = false
+            setViewPagerSwipingEnabled(true)
         }
     }
     
@@ -446,6 +463,9 @@ class MediaViewerActivity : AppCompatActivity() {
             binding.videoProgressBar.visibility = View.GONE
             binding.videoControls.visibility = View.GONE
         }
+        
+        // Initialize zoom level display
+        updateZoomLevelDisplay(1f)
         
         // Show system UI temporarily with proper insets handling
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -493,6 +513,38 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun toggleAdvancedControls() {
         val isVisible = binding.advancedControls.visibility == View.VISIBLE
         binding.advancedControls.visibility = if (isVisible) View.GONE else View.VISIBLE
+    }
+    
+    private fun cycleZoom() {
+        val currentItem = mediaViewerAdapter.currentList.getOrNull(currentPosition) ?: return
+        
+        if (currentItem.isVideo) {
+            // Handle video zoom
+            val currentVideoHolder = getCurrentVideoHolder()
+            currentVideoHolder?.getZoomablePlayerView()?.cycleZoom()
+        } else {
+            // Handle photo zoom
+            val currentViewHolder = getCurrentPhotoHolder()
+            currentViewHolder?.getZoomImageView()?.cycleZoom()
+        }
+    }
+    
+    private fun getCurrentPhotoHolder(): MediaViewerAdapter.MediaViewHolder? {
+        val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
+        return recyclerView?.findViewHolderForAdapterPosition(currentPosition) as? MediaViewerAdapter.MediaViewHolder
+    }
+    
+    private fun setViewPagerSwipingEnabled(enabled: Boolean) {
+        binding.viewPager.isUserInputEnabled = enabled
+    }
+    
+    private fun updateZoomLevelDisplay(zoomLevel: Float) {
+        val displayText = if (zoomLevel == zoomLevel.toInt().toFloat()) {
+            "${zoomLevel.toInt()}x"
+        } else {
+            String.format("%.1fx", zoomLevel)
+        }
+        binding.zoomLevelText.text = displayText
     }
     
     private fun setupVideoControls() {

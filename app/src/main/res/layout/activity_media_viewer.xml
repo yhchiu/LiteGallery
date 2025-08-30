@@ -163,6 +163,35 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
+            <!-- Zoom control group -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginEnd="8dp"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/zoomButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Zoom"
+                    android:src="@drawable/ic_zoom"
+                    app:tint="@color/white" />
+
+                <TextView
+                    android:id="@+id/zoomLevelText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1x"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginStart="-8dp" />
+
+            </LinearLayout>
+
             <ImageButton
                 android:id="@+id/expandControlsButton"
                 android:layout_width="40dp"
