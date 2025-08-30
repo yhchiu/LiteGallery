@@ -19,20 +19,31 @@ class VideoViewHolder(
     private var hasBeenPlayed = false // Track if video has ever been played
     
     fun bind(mediaItem: com.litegallery.MediaItem) {
-        // Reset for new video
-        hasBeenPlayed = false
+        android.util.Log.d("VideoViewHolder", "=== BIND START: ${mediaItem.name} ===")
         
-        // Reset zoom for new video
-        (binding.playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+        // Only reset if we don't have a clean state already
+        if (exoPlayer != null) {
+            android.util.Log.d("VideoViewHolder", "Previous player exists - releasing it")
+            releasePlayer()
+        }
+        
+        // Reset internal state
+        isPlayerReady = false
+        hasBeenPlayed = false
         
         // Hide photo view, show video container
         binding.photoImageView.visibility = View.GONE
         binding.videoContainer.visibility = View.VISIBLE
         
-        // Show play button initially for new video
+        // Show thumbnail initially
+        binding.videoThumbnail?.visibility = View.VISIBLE
         binding.playButton?.visibility = View.VISIBLE
         
+        // Setup player immediately - no delay needed for TextureView
+        android.util.Log.d("VideoViewHolder", "Setting up video player for: ${mediaItem.name}")
         setupVideoPlayer(mediaItem)
+        
+        android.util.Log.d("VideoViewHolder", "=== BIND COMPLETE: ${mediaItem.name} ===")
         
         // Set click listener
         binding.root.setOnClickListener {
@@ -46,13 +57,17 @@ class VideoViewHolder(
     }
     
     private fun setupVideoPlayer(mediaItem: com.litegallery.MediaItem) {
-        android.util.Log.d("VideoViewHolder", "Setting up video player for: ${mediaItem.name}")
+        android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP: ${mediaItem.name} ===")
         
-        releasePlayer()
+        // Ensure we start completely fresh - no reuse of any previous state
+        if (exoPlayer != null) {
+            android.util.Log.w("VideoViewHolder", "Player still exists - forcing release")
+            releasePlayer()
+        }
         
-        // Add longer delay to ensure surface is completely free
-        binding.root.postDelayed({
-            // Check available memory before creating ExoPlayer
+        // TextureView setup with guaranteed fresh state
+        try {
+            // Check available memory before creating ExoPlayer (more lenient check)
             val runtime = Runtime.getRuntime()
             val usedMemory = runtime.totalMemory() - runtime.freeMemory()
             val maxMemory = runtime.maxMemory()
@@ -62,16 +77,16 @@ class VideoViewHolder(
             android.util.Log.d("VideoViewHolder", 
                 "Memory check before ExoPlayer creation: $memoryUsagePercent% used, ${availableMemory / 1024 / 1024}MB available")
             
-            // If memory usage is critically high, don't create player
-            if (memoryUsagePercent > 85 || availableMemory < 50 * 1024 * 1024) { // Less than 50MB available
-                android.util.Log.w("VideoViewHolder", "Insufficient memory for video playback - showing thumbnail only")
+            // Only prevent player creation if memory is critically low
+            if (memoryUsagePercent > 95 || availableMemory < 20 * 1024 * 1024) { // Less than 20MB available
+                android.util.Log.w("VideoViewHolder", "Critically low memory for video playback - showing thumbnail only")
                 binding.videoThumbnail?.visibility = View.VISIBLE
-                binding.playButton?.visibility = View.VISIBLE // Show play button on error
-                return@postDelayed
+                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+                return
             }
             
             try {
-                android.util.Log.d("VideoViewHolder", "Creating new ExoPlayer instance...")
+                android.util.Log.d("VideoViewHolder", "Creating BRAND NEW ExoPlayer instance for: ${mediaItem.name}")
                 
                 exoPlayer = ExoPlayer.Builder(binding.root.context)
                     .setLoadControl(
@@ -156,20 +171,10 @@ class VideoViewHolder(
                             // Check if this is an OutOfMemoryError
                             val cause = error.cause
                             if (cause is OutOfMemoryError || error.message?.contains("OutOfMemory") == true) {
-                                android.util.Log.e("VideoViewHolder", "OutOfMemoryError detected - performing aggressive cleanup")
+                                android.util.Log.e("VideoViewHolder", "OutOfMemoryError detected - performing cleanup")
                                 
-                                // Emergency memory cleanup
+                                // Basic cleanup for OOM
                                 releasePlayer()
-                                System.gc()
-                                System.runFinalization() 
-                                System.gc()
-                                
-                                // Clear Glide cache
-                                try {
-                                    com.bumptech.glide.Glide.get(binding.root.context).clearMemory()
-                                } catch (e: Exception) {
-                                    android.util.Log.w("VideoViewHolder", "Error clearing Glide cache: ${e.message}")
-                                }
                                 
                                 // Show error message to user
                                 android.util.Log.w("VideoViewHolder", "Video too large for available memory - showing thumbnail instead")
@@ -177,7 +182,8 @@ class VideoViewHolder(
                                 binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                                 
                             } else {
-                                // Try to recover by releasing and recreating player for other errors
+                                // Try to recover by releasing player for other errors
+                                android.util.Log.w("VideoViewHolder", "Playback error - releasing player: ${error.message}")
                                 releasePlayer()
                             }
                         }
@@ -190,50 +196,33 @@ class VideoViewHolder(
                     })
                 }
                 
-                // Wait longer before attaching to surface for large video files
-                binding.root.postDelayed({
+                // Attach fresh player to TextureView
+                binding.playerView?.let { playerView ->
                     try {
-                        // Attach player to PlayerView, then prepare
-                        binding.playerView?.let { playerView ->
-                            android.util.Log.d("VideoViewHolder", "Attaching player to PlayerView for large video file")
-                            
-                            // Ensure surface is ready before attachment
-                            if (playerView.visibility != View.VISIBLE) {
-                                playerView.visibility = View.VISIBLE
-                            }
-                            
-                            // Force layout to ensure surface is created
-                            playerView.requestLayout()
-                            playerView.invalidate()
-                            
-                            // Short delay to ensure surface is ready
-                            playerView.post {
-                                try {
-                                    playerView.player = exoPlayer
-                                    playerView.useController = false // We'll use custom controls
-                                    
-                                    // Prepare after surface attachment
-                                    playerView.post {
-                                        try {
-                                            exoPlayer?.prepare()
-                                            android.util.Log.d("VideoViewHolder", "ExoPlayer prepared successfully")
-                                        } catch (prepareError: Exception) {
-                                            android.util.Log.e("VideoViewHolder", "Error preparing ExoPlayer: ${prepareError.message}")
-                                            releasePlayer()
-                                        }
-                                    }
-                                } catch (attachError: Exception) {
-                                    android.util.Log.e("VideoViewHolder", "Error attaching to surface: ${attachError.message}")
-                                    releasePlayer()
-                                }
-                            }
+                        android.util.Log.d("VideoViewHolder", "Attaching FRESH ExoPlayer to TextureView for: ${mediaItem.name}")
+                        
+                        // Ensure PlayerView is clean before attachment
+                        if (playerView.player != null) {
+                            android.util.Log.w("VideoViewHolder", "PlayerView still has old player attached!")
+                            playerView.player = null
                         }
                         
+                        playerView.player = exoPlayer
+                        playerView.useController = false // We'll use custom controls
+                        
+                        // Prepare immediately - TextureView doesn't need complex surface management
+                        exoPlayer?.prepare()
+                        android.util.Log.d("VideoViewHolder", "✅ FRESH ExoPlayer prepared successfully for: ${mediaItem.name}")
+                        
                     } catch (e: Exception) {
-                        android.util.Log.e("VideoViewHolder", "Error in surface attachment sequence: ${e.message}")
+                        android.util.Log.e("VideoViewHolder", "❌ Error setting up fresh TextureView player: ${e.message}")
                         releasePlayer()
                     }
-                }, 200) // Increased delay for large video file surface management
+                } ?: run {
+                    android.util.Log.e("VideoViewHolder", "❌ PlayerView is null!")
+                }
+                
+                android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP COMPLETE: ${mediaItem.name} ===")
                 
             } catch (e: Exception) {
                 android.util.Log.e("VideoViewHolder", "Error creating ExoPlayer: ${e.message}")
@@ -241,7 +230,11 @@ class VideoViewHolder(
                 binding.videoThumbnail?.visibility = View.VISIBLE
                 binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
             }
-        }, 150)
+        } catch (setupError: Exception) {
+            android.util.Log.e("VideoViewHolder", "Error in TextureView setup: ${setupError.message}")
+            binding.videoThumbnail?.visibility = View.VISIBLE
+            binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+        }
     }
     
     private fun togglePlayback() {
@@ -272,70 +265,71 @@ class VideoViewHolder(
         return binding.playerView as? com.litegallery.ZoomablePlayerView
     }
     
+    private fun forceCompleteStateReset() {
+        android.util.Log.d("VideoViewHolder", "Complete state reset")
+        
+        // Release any existing player completely
+        releasePlayer()
+        
+        // Reset all internal state variables
+        isPlayerReady = false
+        hasBeenPlayed = false
+        
+        // Clear PlayerView completely
+        binding.playerView?.let { playerView ->
+            playerView.player = null
+            (playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+        }
+        
+        // Reset UI state
+        binding.videoThumbnail?.visibility = View.VISIBLE
+        binding.playButton?.visibility = View.VISIBLE
+        
+        // Cancel any pending operations
+        binding.root.handler?.removeCallbacksAndMessages(null)
+        
+        android.util.Log.d("VideoViewHolder", "Complete state reset finished")
+    }
+    
     fun releasePlayer() {
         exoPlayer?.let { player ->
             try {
-                android.util.Log.d("VideoViewHolder", "Releasing ExoPlayer with aggressive surface cleanup...")
+                android.util.Log.d("VideoViewHolder", "Releasing ExoPlayer (TextureView mode)...")
                 
-                // Stop playback immediately and pause first
-                if (player.isPlaying) {
-                    player.pause()
-                }
-                player.stop()
+                // Detach from PlayerView first
+                binding.playerView?.player = null
                 
-                // Detach from PlayerView with more aggressive surface management
-                binding.playerView?.let { playerView ->
-                    android.util.Log.d("VideoViewHolder", "Detaching player from surface...")
-                    
-                    // First detach the player
-                    playerView.player = null
-                    
-                    // Force surface destruction and recreation with longer delays
-                    playerView.visibility = View.INVISIBLE
-                    playerView.post {
-                        // Wait longer for surface cleanup
-                        playerView.postDelayed({
-                            playerView.visibility = View.VISIBLE
-                            // Force surface view recreation
-                            playerView.invalidate()
-                            playerView.requestLayout()
-                        }, 200)
+                // Stop and release player
+                try {
+                    if (player.isPlaying) {
+                        player.pause()
                     }
+                    player.stop()
+                    player.clearMediaItems()
+                    player.release()
+                    android.util.Log.d("VideoViewHolder", "ExoPlayer released successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("VideoViewHolder", "Error during player release: ${e.message}")
                 }
-                
-                // Wait before clearing media items to ensure surface is detached
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    try {
-                        player.clearMediaItems()
-                        player.release()
-                        android.util.Log.d("VideoViewHolder", "ExoPlayer released successfully")
-                    } catch (e: Exception) {
-                        android.util.Log.e("VideoViewHolder", "Error in delayed release: ${e.message}")
-                    }
-                }, 100)
                 
             } catch (e: Exception) {
-                android.util.Log.e("VideoViewHolder", "Error releasing player: ${e.message}")
-                // Force release even if error occurs
+                android.util.Log.e("VideoViewHolder", "Error in release process: ${e.message}")
+                // Emergency cleanup
                 try {
+                    binding.playerView?.player = null
                     player.release()
-                } catch (releaseError: Exception) {
-                    android.util.Log.e("VideoViewHolder", "Error in force release: ${releaseError.message}")
+                } catch (emergencyError: Exception) {
+                    android.util.Log.e("VideoViewHolder", "Emergency release failed: ${emergencyError.message}")
                 }
             } finally {
                 exoPlayer = null
                 isPlayerReady = false
-                // Don't reset hasBeenPlayed - it should persist for this video instance
                 
                 // Reset UI state
                 binding.videoThumbnail?.visibility = View.VISIBLE
                 binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                 
-                // Force multiple layout passes to ensure surface cleanup
-                binding.root.post {
-                    binding.root.requestLayout()
-                    binding.root.invalidate()
-                }
+                android.util.Log.d("VideoViewHolder", "TextureView player cleanup completed")
             }
         }
     }
