@@ -13,13 +13,21 @@ class VideoViewHolder(
     private val onMediaClick: () -> Unit
 ) : RecyclerView.ViewHolder(binding.root) {
     
-    private var exoPlayer: ExoPlayer? = null
+    var exoPlayer: ExoPlayer? = null
+        private set
     private var isPlayerReady = false
+    private var hasBeenPlayed = false // Track if video has ever been played
     
     fun bind(mediaItem: com.litegallery.MediaItem) {
+        // Reset for new video
+        hasBeenPlayed = false
+        
         // Hide photo view, show video container
         binding.photoImageView.visibility = View.GONE
         binding.videoContainer.visibility = View.VISIBLE
+        
+        // Show play button initially for new video
+        binding.playButton?.visibility = View.VISIBLE
         
         setupVideoPlayer(mediaItem)
         
@@ -28,7 +36,7 @@ class VideoViewHolder(
             onMediaClick()
         }
         
-        // Play button click
+        // Set up play button click (only for initial play)
         binding.playButton?.setOnClickListener {
             togglePlayback()
         }
@@ -54,8 +62,8 @@ class VideoViewHolder(
             // If memory usage is critically high, don't create player
             if (memoryUsagePercent > 85 || availableMemory < 50 * 1024 * 1024) { // Less than 50MB available
                 android.util.Log.w("VideoViewHolder", "Insufficient memory for video playback - showing thumbnail only")
-                binding.playButton?.visibility = View.GONE
                 binding.videoThumbnail?.visibility = View.VISIBLE
+                binding.playButton?.visibility = View.VISIBLE // Show play button on error
                 return@postDelayed
             }
             
@@ -105,33 +113,40 @@ class VideoViewHolder(
                             when (playbackState) {
                                 Player.STATE_READY -> {
                                     isPlayerReady = true
-                                    binding.playButton?.visibility = View.VISIBLE
                                     binding.videoThumbnail?.visibility = View.GONE
+                                    // Show play button only if video has never been played
+                                    binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                                 }
                                 Player.STATE_BUFFERING -> {
+                                    // Hide play button during buffering
                                     binding.playButton?.visibility = View.GONE
                                 }
                                 Player.STATE_ENDED -> {
-                                    binding.playButton?.visibility = View.VISIBLE
                                     seekTo(0) // Reset to beginning
                                     pause() // Ensure it's paused
+                                    // Don't show play button - video has been played
                                 }
                                 Player.STATE_IDLE -> {
                                     // Reset UI state
-                                    binding.playButton?.visibility = View.VISIBLE
                                     binding.videoThumbnail?.visibility = View.VISIBLE
+                                    binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                                 }
                             }
                         }
                         
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             updatePlayButton(isPlaying)
+                            // Mark as played when video starts playing
+                            if (isPlaying && !hasBeenPlayed) {
+                                hasBeenPlayed = true
+                                binding.playButton?.visibility = View.GONE
+                            }
                         }
                         
                         override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
                             // Handle playback errors gracefully
-                            binding.playButton?.visibility = View.VISIBLE
                             binding.videoThumbnail?.visibility = View.VISIBLE
+                            binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                             
                             android.util.Log.e("VideoViewHolder", "Playback error: ${error.message}")
                             
@@ -156,7 +171,7 @@ class VideoViewHolder(
                                 // Show error message to user
                                 android.util.Log.w("VideoViewHolder", "Video too large for available memory - showing thumbnail instead")
                                 binding.videoThumbnail?.visibility = View.VISIBLE
-                                binding.playButton?.visibility = View.GONE // Hide play button for failed videos
+                                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                                 
                             } else {
                                 // Try to recover by releasing and recreating player for other errors
@@ -218,8 +233,8 @@ class VideoViewHolder(
             } catch (e: Exception) {
                 android.util.Log.e("VideoViewHolder", "Error creating ExoPlayer: ${e.message}")
                 // Show thumbnail and play button as fallback
-                binding.playButton?.visibility = View.VISIBLE
                 binding.videoThumbnail?.visibility = View.VISIBLE
+                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
             }
         }, 150)
     }
@@ -235,15 +250,9 @@ class VideoViewHolder(
     }
     
     private fun updatePlayButton(isPlaying: Boolean) {
-        binding.playButton?.let { button ->
-            if (isPlaying) {
-                button.setImageResource(R.drawable.ic_pause)
-                button.visibility = View.GONE // Hide during playback
-            } else {
-                button.setImageResource(R.drawable.ic_play)
-                button.visibility = View.VISIBLE
-            }
-        }
+        // Center play button is only shown before first play
+        // Once video has been played, it's never shown again
+        binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
     }
     
     fun onResume() {
@@ -307,10 +316,11 @@ class VideoViewHolder(
             } finally {
                 exoPlayer = null
                 isPlayerReady = false
+                // Don't reset hasBeenPlayed - it should persist for this video instance
                 
                 // Reset UI state
-                binding.playButton?.visibility = View.VISIBLE
                 binding.videoThumbnail?.visibility = View.VISIBLE
+                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                 
                 // Force multiple layout passes to ensure surface cleanup
                 binding.root.post {

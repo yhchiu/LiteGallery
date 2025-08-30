@@ -12,6 +12,12 @@ import com.litegallery.databinding.ItemMediaViewerBinding
 class MediaViewerAdapter(
     private val onMediaClick: () -> Unit
 ) : ListAdapter<MediaItem, MediaViewerAdapter.MediaViewHolder>(MediaItemDiffCallback()) {
+    
+    private var onVideoDoubleClick: (() -> Unit)? = null
+    
+    fun setVideoDoubleClickListener(listener: () -> Unit) {
+        onVideoDoubleClick = listener
+    }
 
     private var currentVideoHolder: MediaViewHolder? = null
 
@@ -91,11 +97,16 @@ class MediaViewerAdapter(
         currentVideoHolder?.releasePlayer()
         currentVideoHolder = null
     }
+    
+    fun getCurrentVideoHolder(): VideoViewHolder? {
+        return currentVideoHolder?.videoViewHolder
+    }
 
     inner class MediaViewHolder(private val binding: ItemMediaViewerBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        private var videoViewHolder: VideoViewHolder? = null
+        var videoViewHolder: VideoViewHolder? = null
+            private set
 
         fun bind(mediaItem: MediaItem) {
             if (mediaItem.isVideo) {
@@ -112,6 +123,9 @@ class MediaViewerAdapter(
                 // Set up video player
                 videoViewHolder = VideoViewHolder(binding, onMediaClick)
                 videoViewHolder?.bind(mediaItem)
+                
+                // Set up gesture detection for videos
+                setupVideoGestures()
                     
             } else {
                 // Show image, hide video container
@@ -127,10 +141,40 @@ class MediaViewerAdapter(
                     .fitCenter()
                     .into(binding.photoImageView)
 
-                // Set click listener for photos
-                binding.root.setOnClickListener {
+                // Set click listener for photos - use imageView specifically to avoid conflicts
+                binding.photoImageView.setOnClickListener {
                     onMediaClick()
                 }
+                
+                // Remove any touch listeners that might interfere
+                binding.root.setOnTouchListener(null)
+            }
+        }
+        
+        private fun setupVideoGestures() {
+            // Set up gesture detection for videos without interfering with ViewPager2
+            val gestureDetector = android.view.GestureDetector(binding.root.context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
+                    onMediaClick()
+                    return true
+                }
+                
+                override fun onDoubleTap(e: android.view.MotionEvent): Boolean {
+                    onVideoDoubleClick?.invoke()
+                    return true
+                }
+            })
+            
+            // Set touch listener only on the video-specific views to avoid ViewPager2 conflicts
+            binding.playerView?.setOnTouchListener { _, event ->
+                gestureDetector.onTouchEvent(event)
+                true // Consume the event for video-specific gestures
+            }
+            
+            // Also add gesture detection to video thumbnail for when player isn't ready
+            binding.videoThumbnail?.setOnTouchListener { _, event ->
+                gestureDetector.onTouchEvent(event)
+                true // Consume the event for video-specific gestures
             }
         }
 

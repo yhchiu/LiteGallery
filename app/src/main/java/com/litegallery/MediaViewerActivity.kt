@@ -32,6 +32,11 @@ class MediaViewerActivity : AppCompatActivity() {
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentPosition = 0
     
+    // Video control variables
+    private var progressUpdateHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var progressUpdateRunnable: Runnable? = null
+    private var isUserSeeking = false
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
@@ -50,6 +55,7 @@ class MediaViewerActivity : AppCompatActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
+        stopProgressUpdate()
         mediaViewerAdapter.releaseAllPlayers()
     }
     
@@ -161,9 +167,17 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun setupViewPager() {
         mediaScanner = MediaScanner(this)
+        
+        // Restore original callback for single tap
         mediaViewerAdapter = MediaViewerAdapter {
             toggleUI()
         }
+        
+        // Set up double-tap listener for videos
+        mediaViewerAdapter.setVideoDoubleClickListener {
+            toggleVideoPlayback()
+        }
+        
         binding.viewPager.adapter = mediaViewerAdapter
         
         // Add page change callback to handle video transitions
@@ -250,10 +264,8 @@ class MediaViewerActivity : AppCompatActivity() {
             // TODO: Implement menu functionality
         }
         
-        // Video controls (placeholder)
-        binding.playPauseButton.setOnClickListener {
-            // TODO: Implement play/pause for videos
-        }
+        // Video controls
+        setupVideoControls()
         
         binding.expandControlsButton.setOnClickListener {
             toggleAdvancedControls()
@@ -425,6 +437,16 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.topOverlay.visibility = View.VISIBLE
         binding.bottomOverlay.visibility = View.VISIBLE
         
+        // Show video controls if current item is a video
+        if (currentPosition < mediaItems.size && mediaItems[currentPosition].isVideo) {
+            binding.videoProgressBar.visibility = View.VISIBLE
+            binding.videoControls.visibility = View.VISIBLE
+            startProgressUpdate()
+        } else {
+            binding.videoProgressBar.visibility = View.GONE
+            binding.videoControls.visibility = View.GONE
+        }
+        
         // Show system UI temporarily with proper insets handling
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             val controller = window.insetsController
@@ -443,6 +465,11 @@ class MediaViewerActivity : AppCompatActivity() {
         isUIVisible = false
         binding.topOverlay.visibility = View.GONE
         binding.bottomOverlay.visibility = View.GONE
+        binding.videoProgressBar.visibility = View.GONE
+        binding.videoControls.visibility = View.GONE
+        
+        // Stop progress updates when UI is hidden
+        stopProgressUpdate()
         
         // Hide system UI with proper insets handling
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -466,6 +493,138 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun toggleAdvancedControls() {
         val isVisible = binding.advancedControls.visibility == View.VISIBLE
         binding.advancedControls.visibility = if (isVisible) View.GONE else View.VISIBLE
+    }
+    
+    private fun setupVideoControls() {
+        // Play/Pause button
+        binding.playPauseButton.setOnClickListener {
+            toggleVideoPlayback()
+        }
+        
+        // SeekBar listener
+        binding.progressSeekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val currentVideoHolder = getCurrentVideoHolder()
+                    currentVideoHolder?.exoPlayer?.let { player ->
+                        val seekPosition = (progress.toFloat() / 100f * player.duration).toLong()
+                        binding.currentTimeText.text = formatTime(seekPosition)
+                    }
+                }
+            }
+            
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {
+                isUserSeeking = true
+            }
+            
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {
+                isUserSeeking = false
+                val currentVideoHolder = getCurrentVideoHolder()
+                currentVideoHolder?.exoPlayer?.let { player ->
+                    val seekPosition = (seekBar!!.progress.toFloat() / 100f * player.duration).toLong()
+                    player.seekTo(seekPosition)
+                }
+            }
+        })
+        
+        // Frame navigation buttons
+        binding.frameBackButton.setOnClickListener {
+            seekFrameBackward()
+        }
+        
+        binding.frameForwardButton.setOnClickListener {
+            seekFrameForward()
+        }
+    }
+    
+    private fun toggleVideoPlayback() {
+        val currentVideoHolder = getCurrentVideoHolder()
+        currentVideoHolder?.let { holder ->
+            holder.exoPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.pause()
+                    binding.playPauseButton.setImageResource(R.drawable.ic_play)
+                } else {
+                    player.play()
+                    binding.playPauseButton.setImageResource(R.drawable.ic_pause)
+                }
+            }
+        }
+    }
+    
+    private fun seekFrameBackward() {
+        val currentVideoHolder = getCurrentVideoHolder()
+        currentVideoHolder?.exoPlayer?.let { player ->
+            val frameDuration = 1000L / 30L // Assume 30fps, seek by ~33ms
+            val newPosition = maxOf(0, player.currentPosition - frameDuration)
+            player.seekTo(newPosition)
+        }
+    }
+    
+    private fun seekFrameForward() {
+        val currentVideoHolder = getCurrentVideoHolder()
+        currentVideoHolder?.exoPlayer?.let { player ->
+            val frameDuration = 1000L / 30L // Assume 30fps, seek by ~33ms
+            val newPosition = minOf(player.duration, player.currentPosition + frameDuration)
+            player.seekTo(newPosition)
+        }
+    }
+    
+    private fun getCurrentVideoHolder(): VideoViewHolder? {
+        // We need to access the current video holder from the adapter
+        return mediaViewerAdapter.getCurrentVideoHolder()
+    }
+    
+    private fun startProgressUpdate() {
+        stopProgressUpdate()
+        progressUpdateRunnable = object : Runnable {
+            override fun run() {
+                updateVideoProgress()
+                progressUpdateHandler.postDelayed(this, 100) // Update every 100ms
+            }
+        }
+        progressUpdateHandler.post(progressUpdateRunnable!!)
+    }
+    
+    private fun stopProgressUpdate() {
+        progressUpdateRunnable?.let {
+            progressUpdateHandler.removeCallbacks(it)
+            progressUpdateRunnable = null
+        }
+    }
+    
+    private fun updateVideoProgress() {
+        if (isUserSeeking) return
+        
+        val currentVideoHolder = getCurrentVideoHolder()
+        currentVideoHolder?.exoPlayer?.let { player ->
+            val currentPosition = player.currentPosition
+            val duration = player.duration
+            
+            if (duration > 0) {
+                val progress = (currentPosition.toFloat() / duration.toFloat() * 100).toInt()
+                binding.progressSeekBar.progress = progress
+                binding.currentTimeText.text = formatTime(currentPosition)
+                binding.durationText.text = formatTime(duration)
+                
+                // Update play/pause button icon
+                binding.playPauseButton.setImageResource(
+                    if (player.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+                )
+            }
+        }
+    }
+    
+    private fun formatTime(timeMs: Long): String {
+        val seconds = (timeMs / 1000) % 60
+        val minutes = (timeMs / (1000 * 60)) % 60
+        val hours = timeMs / (1000 * 60 * 60)
+        
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
+        }
     }
     
     private fun showRenameDialog() {
