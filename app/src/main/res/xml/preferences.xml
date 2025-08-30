@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="@string/display_settings">
+
+        <ListPreference
+            android:defaultValue="date_desc"
+            android:entries="@array/sort_entries"
+            android:entryValues="@array/sort_values"
+            android:key="default_sort_order"
+            android:summary="@string/sort_by_date_desc"
+            android:title="@string/default_sort_order" />
+
+        <ListPreference
+            android:defaultValue="grid"
+            android:entries="@array/view_mode_entries"
+            android:entryValues="@array/view_mode_values"
+            android:key="default_view_mode"
+            android:summary="@string/thumbnail_view"
+            android:title="@string/default_view_mode" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/action_bar_settings">
+
+        <Preference
+            android:key="customize_action_bar"
+            android:summary="@string/customize_action_bar_summary"
+            android:title="@string/customize_action_bar" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/general_settings">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="restore_brightness"
+            android:summary="@string/restore_brightness_summary"
+            android:title="@string/restore_brightness_title" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="restore_volume"
+            android:summary="@string/restore_volume_summary"
+            android:title="@string/restore_volume_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

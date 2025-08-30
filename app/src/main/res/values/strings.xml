@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiteGallery</string>
+    <string name="settings_title">Settings</string>
+    <string name="trash_bin_title">Trash Bin</string>
+    
+    <!-- Main Activity -->
+    <string name="no_media_folders">No media folders found</string>
+    <string name="loading">Loading…</string>
+    <string name="permission_required">Storage permission required</string>
+    <string name="grant_permission">Grant Permission</string>
+    
+    <!-- Folder View -->
+    <string name="items_count">%d items</string>
+    <string name="thumbnail_view">Thumbnail View</string>
+    <string name="list_view">List View</string>
+    <string name="detailed_view">Detailed View</string>
+    
+    <!-- Media Viewer -->
+    <string name="delete">Delete</string>
+    <string name="share">Share</string>
+    <string name="edit">Edit</string>
+    <string name="properties">Properties</string>
+    <string name="rename">Rename</string>
+    <string name="copy">Copy</string>
+    <string name="move">Move</string>
+    <string name="rotate">Rotate</string>
+    <string name="rotate_screen">Rotate Screen</string>
+    
+    <!-- File Operations -->
+    <string name="file_conflict_title">File Conflict</string>
+    <string name="file_conflict_message">A file with this name already exists. What would you like to do?</string>
+    <string name="overwrite">Overwrite</string>
+    <string name="use_new_name">Use New Name</string>
+    <string name="cancel">Cancel</string>
+    <string name="rename_file">Rename File</string>
+    <string name="new_name">New name</string>
+    <string name="ok">OK</string>
+    
+    <!-- Delete/Trash -->
+    <string name="delete_confirmation">Delete this file?</string>
+    <string name="move_to_trash">Move to Trash</string>
+    <string name="delete_permanently">Delete Permanently</string>
+    <string name="restore">Restore</string>
+    <string name="empty_trash">Empty Trash</string>
+    <string name="empty_trash_confirmation">Permanently delete all files in trash?</string>
+    
+    <!-- Properties -->
+    <string name="file_name">File Name</string>
+    <string name="file_size">File Size</string>
+    <string name="file_date">Date</string>
+    <string name="file_path">Path</string>
+    <string name="resolution">Resolution</string>
+    <string name="duration">Duration</string>
+    
+    <!-- Settings -->
+    <string name="default_sort_order">Default Sort Order</string>
+    <string name="sort_by_date">Sort by Date</string>
+    <string name="sort_by_name">Sort by Name</string>
+    <string name="ascending">Ascending</string>
+    <string name="descending">Descending</string>
+    <string name="customize_action_bar">Customize Action Bar</string>
+    <string name="action_bar_buttons">Action Bar Buttons</string>
+    
+    <!-- General -->
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="done">Done</string>
+    <string name="error">Error</string>
+    <string name="success">Success</string>
+    
+    <!-- Additional strings -->
+    <string name="no_media_found">No media found</string>
+    <string name="refresh">Refresh</string>
+    <string name="view_mode">View Mode</string>
+    <string name="sort">Sort</string>
+    <string name="menu">Menu</string>
+    <string name="play_pause">Play/Pause</string>
+    <string name="frame_backward">Frame Backward</string>
+    <string name="frame_forward">Frame Forward</string>
+    <string name="expand_controls">Expand Controls</string>
+    <string name="brightness">Brightness</string>
+    <string name="contrast">Contrast</string>
+    
+    <!-- Trash Bin -->
+    <string name="trash_bin_empty">Trash bin is empty</string>
+    <string name="restore_all">Restore All</string>
+    
+    <!-- Settings -->
+    <string name="display_settings">Display Settings</string>
+    <string name="action_bar_settings">Action Bar Settings</string>
+    <string name="general_settings">General Settings</string>
+    <string name="default_view_mode">Default View Mode</string>
+    <string name="customize_action_bar_summary">Customize button order and visibility</string>
+    <string name="restore_brightness_title">Restore Brightness</string>
+    <string name="restore_brightness_summary">Restore original brightness when exiting app</string>
+    <string name="restore_volume_title">Restore Volume</string>
+    <string name="restore_volume_summary">Restore original volume when exiting app</string>
+    <string name="sort_by_date_desc">Sort by Date (Newest First)</string>
+    <string name="sort_by_date_asc">Sort by Date (Oldest First)</string>
+    <string name="sort_by_name_asc">Sort by Name (A-Z)</string>
+    <string name="sort_by_name_desc">Sort by Name (Z-A)</string>
+</resources>
