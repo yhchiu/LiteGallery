@@ -22,7 +22,7 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val RENAME_HISTORY_PREFS = "rename_history"
         private const val RENAME_PREFIXES_KEY = "prefixes_list"
         private const val RENAME_SUFFIXES_KEY = "suffixes_list"
-        private const val MAX_HISTORY_SIZE = 20
+        private const val MAX_HISTORY_SIZE = 30
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -973,50 +973,140 @@ class MediaViewerActivity : AppCompatActivity() {
     }
     
     private fun showRenameOptionsMenu(editText: android.widget.EditText, prefixes: List<String>, suffixes: List<String>, originalName: String) {
+        val inflater = layoutInflater
+        val dialogView = inflater.inflate(R.layout.dialog_quick_rename_options, null)
+        val listView = dialogView.findViewById<android.widget.ListView>(R.id.optionsListView)
+        val sortKeySpinner = dialogView.findViewById<android.widget.Spinner>(R.id.sortKeySpinner)
+        val orderAscButton = dialogView.findViewById<android.widget.ImageButton>(R.id.orderAscButton)
+        val orderDescButton = dialogView.findViewById<android.widget.ImageButton>(R.id.orderDescButton)
+        val closeButton = dialogView.findViewById<android.widget.Button>(R.id.closeButton)
+
+        // Prepare adapters for spinners (Chinese labels per requirement)
+        val sortKeyOptions = listOf("時間", "文字", "文字(忽略英數字)")
+        // Use dropdown layout for better visibility in dialogs
+        sortKeySpinner.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sortKeyOptions).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        // Defaults: 時間 + 降冪 (newest-to-oldest)
+        sortKeySpinner.setSelection(0)
+        var isDesc = true
+        fun updateOrderButtons() {
+            // Highlight selected order; use alpha for simplicity
+            if (isDesc) {
+                orderDescButton.alpha = 1.0f
+                orderAscButton.alpha = 0.5f
+            } else {
+                orderDescButton.alpha = 0.5f
+                orderAscButton.alpha = 1.0f
+            }
+        }
+        updateOrderButtons()
+
+        // Backing data and mapping for actions
         val options = mutableListOf<String>()
-        val actions = mutableListOf<((String) -> String)?>()
-        
-        // Add prefixes section (newest first)
-        if (prefixes.isNotEmpty()) {
-            options.add("--- PREFIXES ---")
-            actions.add(null)
-            prefixes.forEach { prefix ->
-                options.add(prefix)
-                actions.add { name -> prefix + name }
-            }
-        }
-        
-        // Add suffixes section (newest first)
-        if (suffixes.isNotEmpty()) {
-            if (options.isNotEmpty()) {
-                options.add("")
-                actions.add(null)
-            }
-            options.add("--- SUFFIXES ---")
-            actions.add(null)
-            suffixes.forEach { suffix ->
-                options.add(suffix)
-                actions.add { name -> name + suffix }
-            }
-        }
-        
-        if (options.isEmpty()) {
-            android.widget.Toast.makeText(this, "No rename history yet", android.widget.Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        android.app.AlertDialog.Builder(this)
-            .setTitle("Quick Rename Options")
-            .setItems(options.toTypedArray()) { _, which ->
-                val action = actions.getOrNull(which)
-                if (action != null) {
-                    val newName = action.invoke(originalName)
-                    editText.setText(newName)
-                    editText.setSelection(newName.length)
+        val actions = mutableListOf<((String) -> String)? >()
+
+        fun buildList(sortKeyIndex: Int, orderIndex: Int) {
+            options.clear()
+            actions.clear()
+
+            fun sorted(list: List<String>): List<String> {
+                return when (sortKeyIndex) {
+                    0 -> { // 時間
+                        if (orderIndex == 0) list // 降冪: newest -> oldest (stored order)
+                        else list.asReversed()    // 升冪: oldest -> newest
+                    }
+                    1 -> { // 文字
+                        val cmp = compareBy<String> { it.lowercase() }
+                        val s = list.sortedWith(cmp)
+                        if (orderIndex == 0) s.asReversed() else s
+                    }
+                    2 -> { // 文字(忽略英數字)
+                        val regex = "[A-Za-z0-9]".toRegex()
+                        val cmp = compareBy<String> { it.replace(regex, "").lowercase() }
+                        val s = list.sortedWith(cmp)
+                        if (orderIndex == 0) s.asReversed() else s
+                    }
+                    else -> list
                 }
             }
-            .setNegativeButton("Close", null)
-            .show()
+
+            val sortedPrefixes = sorted(prefixes)
+            val sortedSuffixes = sorted(suffixes)
+
+            if (sortedPrefixes.isNotEmpty()) {
+                options.add("--- PREFIXES ---")
+                actions.add(null)
+                sortedPrefixes.forEach { prefix ->
+                    options.add(prefix)
+                    actions.add { name -> prefix + name }
+                }
+            }
+
+            if (sortedSuffixes.isNotEmpty()) {
+                if (options.isNotEmpty()) {
+                    options.add("")
+                    actions.add(null)
+                }
+                options.add("--- SUFFIXES ---")
+                actions.add(null)
+                sortedSuffixes.forEach { suffix ->
+                    options.add(suffix)
+                    actions.add { name -> name + suffix }
+                }
+            }
+        }
+
+        fun refresh() {
+            val orderIndex = if (isDesc) 0 else 1
+            buildList(sortKeySpinner.selectedItemPosition, orderIndex)
+            val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, options)
+            listView.adapter = adapter
+        }
+
+        // Initial population
+        refresh()
+
+        // Sorting listeners
+        sortKeySpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                refresh()
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+        orderAscButton.setOnClickListener {
+            isDesc = false
+            updateOrderButtons()
+            refresh()
+        }
+        orderDescButton.setOnClickListener {
+            isDesc = true
+            updateOrderButtons()
+            refresh()
+        }
+
+        // Prepare holder for dialog so we can dismiss on item click
+        var activeDialog: android.app.AlertDialog? = null
+
+        // Item click handling (auto close when an item is applied)
+        listView.setOnItemClickListener { _, _, which, _ ->
+            val action = actions.getOrNull(which)
+            if (action != null) {
+                val newName = action.invoke(originalName)
+                editText.setText(newName)
+                editText.setSelection(newName.length)
+                activeDialog?.dismiss()
+            }
+        }
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Quick Rename Options")
+            .setView(dialogView)
+            .create()
+
+        closeButton.setOnClickListener { dialog.dismiss() }
+        activeDialog = dialog
+        dialog.show()
     }
     
     private fun showPrefixSuffixDialog(editText: android.widget.EditText, originalName: String, isPrefix: Boolean, existingItems: List<String>) {
