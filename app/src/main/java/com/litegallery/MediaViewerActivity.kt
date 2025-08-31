@@ -55,12 +55,16 @@ class MediaViewerActivity : AppCompatActivity() {
         mediaViewerAdapter.pauseAllVideos()
         // Ensure every visible video gets paused (not just the tracked one)
         pauseAllVisibleVideos()
+        // Stop progress updates to avoid background handler churn and logs
+        stopProgressUpdate()
     }
 
     override fun onStop() {
         super.onStop()
         // When activity is no longer visible, fully release to free resources
         releaseAllVisibleVideos()
+        // Ensure progress updates are stopped
+        stopProgressUpdate()
     }
 
     override fun onUserLeaveHint() {
@@ -73,6 +77,10 @@ class MediaViewerActivity : AppCompatActivity() {
         super.onStart()
         // Re-initialize players if user returns to the app (remain paused)
         prepareVisibleVideosIfNeeded()
+        // Resume progress updates only if UI is visible and current item is a video
+        if (isUIVisible && currentPosition < mediaItems.size && mediaItems[currentPosition].isVideo) {
+            startProgressUpdate()
+        }
     }
     
     override fun onDestroy() {
