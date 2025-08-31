@@ -22,7 +22,7 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val RENAME_HISTORY_PREFS = "rename_history"
         private const val RENAME_PREFIXES_KEY = "prefixes_list"
         private const val RENAME_SUFFIXES_KEY = "suffixes_list"
-        private const val MAX_HISTORY_SIZE = 8
+        private const val MAX_HISTORY_SIZE = 20
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -898,24 +898,42 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun getRenamePrefixes(): MutableList<String> {
         val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
-        val prefixesSet = prefs.getStringSet(RENAME_PREFIXES_KEY, emptySet()) ?: emptySet()
-        return prefixesSet.toMutableList().sortedBy { it.lowercase() }.toMutableList()
+        val anyVal = prefs.all[RENAME_PREFIXES_KEY]
+        return when (anyVal) {
+            is String -> anyVal.split('\n').filter { it.isNotBlank() }.toMutableList()
+            is Set<*> -> {
+                val list = anyVal.filterIsInstance<String>().toMutableList()
+                // Migrate to ordered String storage (newest-first maintained by addToHistory)
+                prefs.edit().putString(RENAME_PREFIXES_KEY, list.joinToString("\n")).apply()
+                list
+            }
+            else -> mutableListOf()
+        }
     }
     
     private fun getRenameSuffixes(): MutableList<String> {
         val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
-        val suffixesSet = prefs.getStringSet(RENAME_SUFFIXES_KEY, emptySet()) ?: emptySet()
-        return suffixesSet.toMutableList().sortedBy { it.lowercase() }.toMutableList()
+        val anyVal = prefs.all[RENAME_SUFFIXES_KEY]
+        return when (anyVal) {
+            is String -> anyVal.split('\n').filter { it.isNotBlank() }.toMutableList()
+            is Set<*> -> {
+                val list = anyVal.filterIsInstance<String>().toMutableList()
+                // Migrate to ordered String storage
+                prefs.edit().putString(RENAME_SUFFIXES_KEY, list.joinToString("\n")).apply()
+                list
+            }
+            else -> mutableListOf()
+        }
     }
     
     private fun saveRenamePrefixes(prefixes: List<String>) {
         val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(RENAME_PREFIXES_KEY, prefixes.toSet()).apply()
+        prefs.edit().putString(RENAME_PREFIXES_KEY, prefixes.joinToString("\n")).apply()
     }
     
     private fun saveRenameSuffixes(suffixes: List<String>) {
         val prefs = getSharedPreferences(RENAME_HISTORY_PREFS, android.content.Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(RENAME_SUFFIXES_KEY, suffixes.toSet()).apply()
+        prefs.edit().putString(RENAME_SUFFIXES_KEY, suffixes.joinToString("\n")).apply()
     }
     
     private fun addToHistory(item: String, isPrefix: Boolean) {
@@ -956,21 +974,29 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun showRenameOptionsMenu(editText: android.widget.EditText, prefixes: List<String>, suffixes: List<String>, originalName: String) {
         val options = mutableListOf<String>()
+        val actions = mutableListOf<((String) -> String)?>()
         
-        // Add prefixes section
+        // Add prefixes section (newest first)
         if (prefixes.isNotEmpty()) {
             options.add("--- PREFIXES ---")
+            actions.add(null)
             prefixes.forEach { prefix ->
-                options.add("+ $prefix (→ $prefix$originalName)")
+                options.add(prefix)
+                actions.add { name -> prefix + name }
             }
         }
         
-        // Add suffixes section
+        // Add suffixes section (newest first)
         if (suffixes.isNotEmpty()) {
-            if (options.isNotEmpty()) options.add("")
+            if (options.isNotEmpty()) {
+                options.add("")
+                actions.add(null)
+            }
             options.add("--- SUFFIXES ---")
+            actions.add(null)
             suffixes.forEach { suffix ->
-                options.add("+ $suffix (→ $originalName$suffix)")
+                options.add(suffix)
+                actions.add { name -> name + suffix }
             }
         }
         
@@ -979,19 +1005,14 @@ class MediaViewerActivity : AppCompatActivity() {
             return
         }
         
-        // Show popup menu
         android.app.AlertDialog.Builder(this)
             .setTitle("Quick Rename Options")
             .setItems(options.toTypedArray()) { _, which ->
-                val selectedOption = options[which]
-                if (!selectedOption.startsWith("---") && selectedOption.isNotBlank()) {
-                    when {
-                        selectedOption.startsWith("+ ") && selectedOption.contains("(→ ") -> {
-                            val newName = selectedOption.substringAfter("(→ ").substringBefore(")")
-                            editText.setText(newName)
-                            editText.setSelection(newName.length)
-                        }
-                    }
+                val action = actions.getOrNull(which)
+                if (action != null) {
+                    val newName = action.invoke(originalName)
+                    editText.setText(newName)
+                    editText.setSelection(newName.length)
                 }
             }
             .setNegativeButton("Close", null)
