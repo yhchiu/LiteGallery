@@ -43,6 +43,11 @@ class ZoomablePlayerView @JvmOverloads constructor(
     // Original video dimensions
     private var videoWidth = 0f
     private var videoHeight = 0f
+
+    // Fitted content size within the view at scale=1 (resize_mode="fit")
+    private var baseContentWidth = 0f
+    private var baseContentHeight = 0f
+    private var fitScale = 1f
     
     // Click listeners
     private var onVideoClickListener: (() -> Unit)? = null
@@ -79,6 +84,7 @@ class ZoomablePlayerView @JvmOverloads constructor(
         transformMatrix.reset()
         applyTransformToVideoSurface()
         onZoomChangeListener?.invoke(currentScale)
+        // Ensure redraw even when video is paused
         invalidate()
     }
     
@@ -92,16 +98,21 @@ class ZoomablePlayerView @JvmOverloads constructor(
         if (targetScale != currentScale) {
             val scaleFactor = targetScale / currentScale
             
-            // Center the zoom
+            // Center the zoom (convert view center to TextureView-local coordinates)
             val centerX = viewBounds.centerX()
             val centerY = viewBounds.centerY()
-            
-            transformMatrix.postScale(scaleFactor, scaleFactor, centerX - viewBounds.centerX(), centerY - viewBounds.centerY())
+            val tvLeft = (viewBounds.width() - baseContentWidth) / 2f
+            val tvTop = (viewBounds.height() - baseContentHeight) / 2f
+            val localPivotX = if (baseContentWidth > 0f) centerX - tvLeft else centerX
+            val localPivotY = if (baseContentHeight > 0f) centerY - tvTop else centerY
+            transformMatrix.postScale(scaleFactor, scaleFactor, localPivotX, localPivotY)
             currentScale = targetScale
             constrainTransform()
             applyTransformToVideoSurface()
             onZoomChangeListener?.invoke(currentScale)
             android.util.Log.d("ZoomablePlayerView", "Zoom cycled to ${currentScale}x")
+            // Ensure redraw when paused
+            invalidate()
         } else {
             android.util.Log.d("ZoomablePlayerView", "Scale unchanged")
         }
@@ -114,6 +125,7 @@ class ZoomablePlayerView @JvmOverloads constructor(
     fun setVideoSize(width: Int, height: Int) {
         videoWidth = width.toFloat()
         videoHeight = height.toFloat()
+        recomputeBaseContentSize()
         resetZoom()
     }
     
@@ -128,6 +140,8 @@ class ZoomablePlayerView @JvmOverloads constructor(
                 is TextureView -> {
                     android.util.Log.d("ZoomablePlayerView", "Applying transform to TextureView")
                     surface.setTransform(transformMatrix)
+                    // Force redraw so transform applies even when paused
+                    surface.invalidate()
                 }
                 // SurfaceView doesn't support matrix transforms directly
                 // We handle this through the parent view's transformation
@@ -145,9 +159,27 @@ class ZoomablePlayerView @JvmOverloads constructor(
                     
                     surface.translationX = translateX
                     surface.translationY = translateY
+                    surface.invalidate()
                 }
             }
         }
+        // Also invalidate this container view to ensure UI redraw
+        invalidate()
+    }
+
+    private fun recomputeBaseContentSize() {
+        if (videoWidth <= 0f || videoHeight <= 0f || viewBounds.width() <= 0f || viewBounds.height() <= 0f) {
+            baseContentWidth = 0f
+            baseContentHeight = 0f
+            fitScale = 1f
+            return
+        }
+        // Fit scale reflects how PlayerView fits the video into the view when scale=1
+        val scaleX = viewBounds.width() / videoWidth
+        val scaleY = viewBounds.height() / videoHeight
+        fitScale = min(scaleX, scaleY)
+        baseContentWidth = videoWidth * fitScale
+        baseContentHeight = videoHeight * fitScale
     }
     
     private fun findVideoSurface(view: android.view.View): android.view.View? {
@@ -168,10 +200,16 @@ class ZoomablePlayerView @JvmOverloads constructor(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         viewBounds.set(0f, 0f, w.toFloat(), h.toFloat())
+        recomputeBaseContentSize()
         resetZoom()
     }
     
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Prevent parent (e.g., ViewPager2) from intercepting when zooming/dragging
+        if (currentScale > minScale || scaleGestureDetector.isInProgress || isDragging) {
+            parent?.requestDisallowInterceptTouchEvent(true)
+        }
+
         var handled = false
         
         // Handle scale gestures first
@@ -226,57 +264,60 @@ class ZoomablePlayerView @JvmOverloads constructor(
     
     private fun constrainTransform() {
         if (videoWidth <= 0 || videoHeight <= 0) return
-        
-        // Calculate scaled video dimensions
-        val scaledWidth = videoWidth * currentScale
-        val scaledHeight = videoHeight * currentScale
-        
-        // Get current transform values
-        val values = FloatArray(9)
-        transformMatrix.getValues(values)
-        var translateX = values[Matrix.MTRANS_X]
-        var translateY = values[Matrix.MTRANS_Y]
-        
-        // Calculate video position within view
-        val viewCenterX = viewBounds.centerX()
-        val viewCenterY = viewBounds.centerY()
-        val videoCenterX = viewCenterX + translateX
-        val videoCenterY = viewCenterY + translateY
-        
-        val videoLeft = videoCenterX - scaledWidth / 2
-        val videoRight = videoCenterX + scaledWidth / 2
-        val videoTop = videoCenterY - scaledHeight / 2
-        val videoBottom = videoCenterY + scaledHeight / 2
-        
+
+        // Ensure base content size is known
+        if (baseContentWidth == 0f || baseContentHeight == 0f) {
+            recomputeBaseContentSize()
+        }
+
+        // TextureView is laid out as baseContentWidth/Height centered inside the view
+        val tvLeft = (viewBounds.width() - baseContentWidth) / 2f
+        val tvTop = (viewBounds.height() - baseContentHeight) / 2f
+
+        // Work in TextureView local coordinates for mapping
+        val baseLocalRect = RectF(0f, 0f, baseContentWidth, baseContentHeight)
+        val mappedLocalRect = RectF()
+        transformMatrix.mapRect(mappedLocalRect, baseLocalRect)
+        // Convert to parent (PlayerView) coordinates
+        val mappedRect = RectF(
+            mappedLocalRect.left + tvLeft,
+            mappedLocalRect.top + tvTop,
+            mappedLocalRect.right + tvLeft,
+            mappedLocalRect.bottom + tvTop
+        )
+
         var deltaX = 0f
         var deltaY = 0f
-        
-        // Constrain horizontal movement
-        if (scaledWidth <= viewBounds.width()) {
-            // Video is smaller than view, center it
-            deltaX = viewCenterX - videoCenterX
+
+        val viewW = viewBounds.width()
+        val viewH = viewBounds.height()
+
+        // Horizontal constraint
+        if (mappedRect.width() <= viewW) {
+            // Center horizontally
+            val targetLeft = (viewW - mappedRect.width()) / 2f
+            deltaX = targetLeft - mappedRect.left
         } else {
-            // Video is larger than view, prevent showing blank space
-            if (videoLeft > viewBounds.left) {
-                deltaX = viewBounds.left - videoLeft
-            } else if (videoRight < viewBounds.right) {
-                deltaX = viewBounds.right - videoRight
+            if (mappedRect.left > 0f) {
+                deltaX = -mappedRect.left
+            } else if (mappedRect.right < viewW) {
+                deltaX = viewW - mappedRect.right
             }
         }
-        
-        // Constrain vertical movement
-        if (scaledHeight <= viewBounds.height()) {
-            // Video is smaller than view, center it
-            deltaY = viewCenterY - videoCenterY
+
+        // Vertical constraint
+        if (mappedRect.height() <= viewH) {
+            // Center vertically
+            val targetTop = (viewH - mappedRect.height()) / 2f
+            deltaY = targetTop - mappedRect.top
         } else {
-            // Video is larger than view, prevent showing blank space
-            if (videoTop > viewBounds.top) {
-                deltaY = viewBounds.top - videoTop
-            } else if (videoBottom < viewBounds.bottom) {
-                deltaY = viewBounds.bottom - videoBottom
+            if (mappedRect.top > 0f) {
+                deltaY = -mappedRect.top
+            } else if (mappedRect.bottom < viewH) {
+                deltaY = viewH - mappedRect.bottom
             }
         }
-        
+
         if (deltaX != 0f || deltaY != 0f) {
             transformMatrix.postTranslate(deltaX, deltaY)
         }
@@ -303,16 +344,19 @@ class ZoomablePlayerView @JvmOverloads constructor(
             if (constrainedScaleFactor != 1f) {
                 transformMatrix.set(savedMatrix)
                 
-                // Calculate focus point relative to view center
-                val focusX = detector.focusX - viewBounds.centerX()
-                val focusY = detector.focusY - viewBounds.centerY()
-                
+                // Convert gesture focus from view to TextureView-local coordinates
+                val tvLeft = (viewBounds.width() - baseContentWidth) / 2f
+                val tvTop = (viewBounds.height() - baseContentHeight) / 2f
+                val focusX = detector.focusX - tvLeft
+                val focusY = detector.focusY - tvTop
                 transformMatrix.postScale(constrainedScaleFactor, constrainedScaleFactor, focusX, focusY)
                 
                 currentScale = newScale.coerceIn(minScale, maxScale)
                 constrainTransform()
                 applyTransformToVideoSurface()
                 onZoomChangeListener?.invoke(currentScale)
+                // Ensure redraw when paused
+                invalidate()
             }
             
             return true
