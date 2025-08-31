@@ -199,21 +199,22 @@ class MediaViewerAdapter(
             android.util.Log.d("MediaViewerAdapter", "Setting up video gestures")
             
             // Set up gesture detection for videos without interfering with ViewPager2
+            // SWAPPED: Single-tap -> play/pause, Double-tap -> show/hide UI
             val gestureDetector = android.view.GestureDetector(binding.root.context, object : android.view.GestureDetector.SimpleOnGestureListener() {
                 override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
-                    android.util.Log.d("MediaViewerAdapter", "Single tap detected on gesture detector")
-                    onMediaClick()
+                    android.util.Log.d("MediaViewerAdapter", "Single tap detected on gesture detector -> toggle playback")
+                    onVideoDoubleClick?.let { callback ->
+                        android.util.Log.d("MediaViewerAdapter", "Invoking single-tap playback toggle")
+                        callback.invoke()
+                    } ?: run {
+                        android.util.Log.w("MediaViewerAdapter", "Playback toggle callback is null!")
+                    }
                     return true
                 }
                 
                 override fun onDoubleTap(e: android.view.MotionEvent): Boolean {
-                    android.util.Log.d("MediaViewerAdapter", "Double tap detected on gesture detector")
-                    onVideoDoubleClick?.let { callback ->
-                        android.util.Log.d("MediaViewerAdapter", "Invoking double-click callback")
-                        callback.invoke()
-                    } ?: run {
-                        android.util.Log.w("MediaViewerAdapter", "Double-click callback is null!")
-                    }
+                    android.util.Log.d("MediaViewerAdapter", "Double tap detected on gesture detector -> toggle UI")
+                    onMediaClick()
                     return true
                 }
             })
@@ -222,19 +223,20 @@ class MediaViewerAdapter(
             (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
                 android.util.Log.d("MediaViewerAdapter", "Setting up ZoomablePlayerView gestures")
                 
+                // SWAPPED: Single-tap -> playback, Double-tap -> UI
                 zoomablePlayerView.setOnVideoClickListener {
-                    android.util.Log.d("MediaViewerAdapter", "Single tap detected on ZoomablePlayerView")
-                    onMediaClick()
+                    android.util.Log.d("MediaViewerAdapter", "Single tap on ZoomablePlayerView -> toggle playback")
+                    onVideoDoubleClick?.let { callback ->
+                        android.util.Log.d("MediaViewerAdapter", "Invoking playback toggle from single-tap")
+                        callback.invoke()
+                    } ?: run {
+                        android.util.Log.w("MediaViewerAdapter", "Playback toggle callback is null!")
+                    }
                 }
                 
                 zoomablePlayerView.setOnVideoDoubleClickListener {
-                    android.util.Log.d("MediaViewerAdapter", "Double tap detected on ZoomablePlayerView")
-                    onVideoDoubleClick?.let { callback ->
-                        android.util.Log.d("MediaViewerAdapter", "Invoking ZoomablePlayerView double-click callback")
-                        callback.invoke()
-                    } ?: run {
-                        android.util.Log.w("MediaViewerAdapter", "ZoomablePlayerView double-click callback is null!")
-                    }
+                    android.util.Log.d("MediaViewerAdapter", "Double tap on ZoomablePlayerView -> toggle UI")
+                    onMediaClick()
                 }
                 
                 zoomablePlayerView.setOnZoomChangeListener { zoomLevel ->
