@@ -538,50 +538,29 @@ class MediaViewerActivity : AppCompatActivity() {
         val currentItem = mediaViewerAdapter.currentList.getOrNull(currentPosition) ?: return
         
         if (currentItem.isVideo) {
-            // Handle video zoom - try multiple approaches
+            // Prefer the visible ViewHolder at currentPosition
             android.util.Log.d("MediaViewerActivity", "Cycling zoom for video")
-            
-            // Method 1: Try through VideoViewHolder
-            val currentVideoHolder = getCurrentVideoHolder()
-            val zoomablePlayerView1 = currentVideoHolder?.getZoomablePlayerView()
-            android.util.Log.d("MediaViewerActivity", "Method 1 - Video holder: ${currentVideoHolder != null}, ZoomablePlayerView: ${zoomablePlayerView1 != null}")
-            
-            if (zoomablePlayerView1 != null) {
-                zoomablePlayerView1.cycleZoom()
-                android.util.Log.d("MediaViewerActivity", "Video zoom cycled via Method 1")
-                return
-            }
-            
-            // Method 2 & 3: Try through MediaViewHolder directly (reuse variables)
             val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
             val mediaViewHolder = recyclerView?.findViewHolderForAdapterPosition(currentPosition) as? MediaViewerAdapter.MediaViewHolder
-            val zoomablePlayerView2 = mediaViewHolder?.getZoomablePlayerView()
-            android.util.Log.d("MediaViewerActivity", "Method 2 - MediaViewHolder: ${mediaViewHolder != null}, ZoomablePlayerView: ${zoomablePlayerView2 != null}")
-            
-            if (zoomablePlayerView2 != null) {
-                zoomablePlayerView2.cycleZoom()
-                android.util.Log.d("MediaViewerActivity", "Video zoom cycled via Method 2")
+            val visibleZoomable = mediaViewHolder?.getZoomablePlayerView()
+            android.util.Log.d("MediaViewerActivity", "Visible holder: ${mediaViewHolder != null}, Zoomable: ${visibleZoomable != null}")
+            if (visibleZoomable != null) {
+                visibleZoomable.cycleZoom()
+                android.util.Log.d("MediaViewerActivity", "Video zoom cycled on visible holder")
                 return
             }
-            
-            // Method 3: Last resort - force refresh current video holder (reuse same variables)
-            android.util.Log.d("MediaViewerActivity", "Attempting to refresh video holder connection")
-            
-            if (mediaViewHolder != null) {
-                android.util.Log.d("MediaViewerActivity", "Found MediaViewHolder, setting as current video holder")
-                // Update the adapter's current video holder reference
-                mediaViewerAdapter.setCurrentVideoHolder(mediaViewHolder)
-                
-                // Try zoom again with refreshed reference
-                val refreshedZoomablePlayerView = mediaViewHolder.getZoomablePlayerView()
-                if (refreshedZoomablePlayerView != null) {
-                    refreshedZoomablePlayerView.cycleZoom()
-                    android.util.Log.d("MediaViewerActivity", "Video zoom cycled via refreshed reference")
-                    return
-                }
+
+            // Fallback: use adapter-tracked holder
+            val adapterVideoHolder = mediaViewerAdapter.getCurrentVideoHolder()
+            val adapterZoomable = adapterVideoHolder?.getZoomablePlayerView()
+            android.util.Log.d("MediaViewerActivity", "Adapter holder: ${adapterVideoHolder != null}, Zoomable: ${adapterZoomable != null}")
+            if (adapterZoomable != null) {
+                adapterZoomable.cycleZoom()
+                android.util.Log.d("MediaViewerActivity", "Video zoom cycled on adapter holder")
+                return
             }
-            
-            android.util.Log.e("MediaViewerActivity", "All methods failed to find ZoomablePlayerView")
+
+            android.util.Log.e("MediaViewerActivity", "Failed to find ZoomablePlayerView for current video")
             
         } else {
             // Handle photo zoom
@@ -699,22 +678,25 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun getCurrentVideoHolder(): VideoViewHolder? {
         android.util.Log.d("MediaViewerActivity", "Getting current video holder for position: $currentPosition")
-        
-        // Try to get from adapter first
-        val adapterVideoHolder = mediaViewerAdapter.getCurrentVideoHolder()
-        if (adapterVideoHolder != null) {
-            android.util.Log.d("MediaViewerActivity", "Found video holder from adapter")
-            return adapterVideoHolder
-        }
-        
-        // Fallback: try to get directly from ViewPager2
+
+        // Prefer the visible ViewHolder at currentPosition
         val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
         val mediaViewHolder = recyclerView?.findViewHolderForAdapterPosition(currentPosition) as? MediaViewerAdapter.MediaViewHolder
-        
-        val videoHolder = mediaViewHolder?.videoViewHolder
-        android.util.Log.d("MediaViewerActivity", "Fallback method - MediaViewHolder: ${mediaViewHolder != null}, VideoViewHolder: ${videoHolder != null}")
-        
-        return videoHolder
+        val visibleVideoHolder = mediaViewHolder?.videoViewHolder
+        if (visibleVideoHolder != null) {
+            android.util.Log.d("MediaViewerActivity", "Using visible video holder")
+            return visibleVideoHolder
+        }
+
+        // Fallback: adapter-tracked holder
+        val adapterVideoHolder = mediaViewerAdapter.getCurrentVideoHolder()
+        if (adapterVideoHolder != null) {
+            android.util.Log.d("MediaViewerActivity", "Using adapter-tracked video holder")
+            return adapterVideoHolder
+        }
+
+        android.util.Log.w("MediaViewerActivity", "No current video holder found")
+        return null
     }
     
     private fun startProgressUpdate() {
