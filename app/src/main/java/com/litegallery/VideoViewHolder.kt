@@ -17,6 +17,7 @@ class VideoViewHolder(
         private set
     private var isPlayerReady = false
     private var hasBeenPlayed = false // Track if video has ever been played
+    private var boundMediaItem: com.litegallery.MediaItem? = null
     
     fun bind(mediaItem: com.litegallery.MediaItem) {
         android.util.Log.d("VideoViewHolder", "=== BIND START: ${mediaItem.name} ===")
@@ -26,6 +27,7 @@ class VideoViewHolder(
             android.util.Log.d("VideoViewHolder", "Previous player exists - releasing it")
             releasePlayer()
         }
+        boundMediaItem = mediaItem
         
         // Reset internal state
         isPlayerReady = false
@@ -53,6 +55,15 @@ class VideoViewHolder(
         // Set up play button click (only for initial play)
         binding.playButton?.setOnClickListener {
             togglePlayback()
+        }
+    }
+
+    fun ensurePreparedIfNeeded() {
+        if (exoPlayer == null) {
+            boundMediaItem?.let {
+                android.util.Log.d("VideoViewHolder", "Re-preparing player after release for: ${it.name}")
+                setupVideoPlayer(it)
+            }
         }
     }
     

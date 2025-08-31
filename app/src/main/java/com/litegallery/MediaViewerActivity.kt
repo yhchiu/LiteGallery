@@ -51,7 +51,28 @@ class MediaViewerActivity : AppCompatActivity() {
     
     override fun onPause() {
         super.onPause()
+        // Pause the currently tracked video
         mediaViewerAdapter.pauseAllVideos()
+        // Ensure every visible video gets paused (not just the tracked one)
+        pauseAllVisibleVideos()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // When activity is no longer visible, fully release to free resources
+        releaseAllVisibleVideos()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // User left the app (e.g., Home key) – pause playback
+        pauseAllVisibleVideos()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Re-initialize players if user returns to the app (remain paused)
+        prepareVisibleVideosIfNeeded()
     }
     
     override fun onDestroy() {
@@ -255,6 +276,39 @@ class MediaViewerActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    private fun pauseAllVisibleVideos() {
+        val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView ?: return
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
+            val mediaHolder = holder as? MediaViewerAdapter.MediaViewHolder
+            mediaHolder?.videoViewHolder?.onPause()
+        }
+        // Also pause the adapter-tracked holder just in case it's not visible
+        mediaViewerAdapter.getCurrentVideoHolder()?.onPause()
+    }
+
+    private fun releaseAllVisibleVideos() {
+        val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView ?: return
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
+            val mediaHolder = holder as? MediaViewerAdapter.MediaViewHolder
+            mediaHolder?.videoViewHolder?.releasePlayer()
+        }
+        mediaViewerAdapter.getCurrentVideoHolder()?.releasePlayer()
+    }
+
+    private fun prepareVisibleVideosIfNeeded() {
+        val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView ?: return
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
+            val mediaHolder = holder as? MediaViewerAdapter.MediaViewHolder
+            mediaHolder?.videoViewHolder?.ensurePreparedIfNeeded()
+        }
     }
     
     private fun setupUI() {
