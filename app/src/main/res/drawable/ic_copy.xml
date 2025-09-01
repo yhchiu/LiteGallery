@@ -5,11 +5,13 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="@color/white">
-    <!-- Stylized 'T' to indicate text rename -->
+    <!-- Back sheet -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M4,6h16v2H4z"/>
+        android:pathData="M8,3h10v13h-10z"/>
+    <!-- Front sheet -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M11,8h2v10h-2z"/>
-</vector>
+        android:pathData="M3,8h10v13h-10z"/>
+  </vector>
+

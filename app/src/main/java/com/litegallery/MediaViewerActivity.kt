@@ -82,6 +82,12 @@ class MediaViewerActivity : AppCompatActivity() {
             startProgressUpdate()
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-apply action bar customization in case user changed settings
+        applyActionBarCustomization()
+    }
     
     override fun onDestroy() {
         super.onDestroy()
@@ -323,29 +329,42 @@ class MediaViewerActivity : AppCompatActivity() {
         // Initially hide UI overlays
         hideUI()
         
-        // Set up action buttons (placeholder implementations)
+        // Set up action buttons
         binding.deleteButton.setOnClickListener {
-            // TODO: Implement delete functionality
+            confirmAndDeleteCurrent()
         }
         
         binding.shareButton.setOnClickListener {
-            // TODO: Implement share functionality
+            shareCurrent()
         }
         
         binding.editButton.setOnClickListener {
-            // TODO: Implement edit functionality
+            editCurrent()
         }
         
         binding.renameButton.setOnClickListener {
             showRenameDialog()
         }
         
+        // Rotate screen orientation
         binding.rotateButton.setOnClickListener {
-            // TODO: Implement rotate functionality
+            toggleScreenOrientation()
         }
         
         binding.propertiesButton.setOnClickListener {
-            // TODO: Implement properties dialog
+            showPropertiesDialog()
+        }
+
+        binding.rotatePhotoButton?.setOnClickListener {
+            rotatePhotoPreview()
+        }
+
+        binding.copyButton?.setOnClickListener {
+            android.widget.Toast.makeText(this, "Copy: coming soon", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        
+        binding.moveButton?.setOnClickListener {
+            android.widget.Toast.makeText(this, "Move: coming soon", android.widget.Toast.LENGTH_SHORT).show()
         }
         
         binding.menuButton.setOnClickListener {
@@ -363,6 +382,153 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.zoomButton.setOnClickListener {
             cycleZoom()
         }
+
+        // Build action bar per user customization
+        applyActionBarCustomization()
+    }
+
+    private fun applyActionBarCustomization() {
+        val prefs = getSharedPreferences("action_bar_prefs", MODE_PRIVATE)
+        val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move")
+        val order = (prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() } ?: defaultOrder)
+        val visible = (prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: defaultOrder.toSet())
+
+        val container = binding.actionButtonsContainer
+        container.removeAllViews()
+
+        val map = mutableMapOf<String, android.view.View?>()
+        map["delete"] = binding.deleteButton
+        map["share"] = binding.shareButton
+        map["edit"] = binding.editButton
+        map["rename"] = binding.renameButton
+        map["rotate_screen"] = binding.rotateButton
+        map["properties"] = binding.propertiesButton
+        map["rotate_photo"] = binding.rotatePhotoButton
+        map["copy"] = binding.copyButton
+        map["move"] = binding.moveButton
+
+        // Add in the specified order, respecting visibility
+        order.forEach { key ->
+            val v = map[key]
+            if (v != null) {
+                v.visibility = if (visible.contains(key)) android.view.View.VISIBLE else android.view.View.GONE
+                if (v.visibility == android.view.View.VISIBLE) {
+                    // Ensure proper layout params
+                    if (v.parent != null) (v.parent as? android.view.ViewGroup)?.removeView(v)
+                    container.addView(v)
+                }
+            }
+        }
+        // Include any remaining visible items not present in order
+        map.forEach { (key, v) ->
+            if (v != null && v.parent == null && visible.contains(key)) {
+                container.addView(v)
+            }
+        }
+    }
+
+    private fun getCurrentMediaItem(): MediaItem? = mediaItems.getOrNull(currentPosition)
+
+    private fun confirmAndDeleteCurrent() {
+        val item = getCurrentMediaItem() ?: return
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.delete)
+            .setMessage(R.string.delete_confirmation)
+            .setPositiveButton(R.string.delete) { _, _ ->
+                try {
+                    val file = java.io.File(item.path)
+                    val ok = file.delete()
+                    if (ok) {
+                        android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
+                        notifyMediaScanner(item.path, item.path)
+                        // Remove from list and update
+                        val newList = mediaItems.toMutableList()
+                        val idx = currentPosition
+                        if (idx in newList.indices) newList.removeAt(idx)
+                        mediaItems = newList
+                        mediaViewerAdapter.submitList(mediaItems)
+                        if (currentPosition >= mediaItems.size) currentPosition = (mediaItems.size - 1).coerceAtLeast(0)
+                        if (mediaItems.isNotEmpty()) updateFileName(currentPosition) else finish()
+                    } else {
+                        android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MediaViewerActivity", "Delete failed: ${e.message}")
+                    android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun shareCurrent() {
+        val item = getCurrentMediaItem() ?: return
+        try {
+            val uri = if (item.path.startsWith("content://")) android.net.Uri.parse(item.path) else android.net.Uri.fromFile(java.io.File(item.path))
+            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = item.mimeType
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(android.content.Intent.createChooser(shareIntent, getString(R.string.share)))
+        } catch (e: Exception) {
+            android.util.Log.e("MediaViewerActivity", "Share failed: ${e.message}")
+        }
+    }
+
+    private fun editCurrent() {
+        val item = getCurrentMediaItem() ?: return
+        try {
+            val uri = if (item.path.startsWith("content://")) android.net.Uri.parse(item.path) else android.net.Uri.fromFile(java.io.File(item.path))
+            val editIntent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {
+                setDataAndType(uri, item.mimeType)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(editIntent)
+        } catch (e: Exception) {
+            android.util.Log.e("MediaViewerActivity", "Edit failed: ${e.message}")
+        }
+    }
+
+    private fun toggleScreenOrientation() {
+        val current = requestedOrientation
+        requestedOrientation = if (current == android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+    }
+
+    private fun rotatePhotoPreview() {
+        val holder = getCurrentPhotoHolder() ?: return
+        val ziv = holder.getZoomImageView() ?: return
+        // Apply temporary display rotation by 90 degrees
+        val currentRotation = ziv.rotation
+        ziv.rotation = (currentRotation + 90f) % 360f
+    }
+
+    private fun showPropertiesDialog() {
+        val item = getCurrentMediaItem() ?: return
+        val file = java.io.File(item.path)
+        val name = item.name
+        val size = if (file.exists()) file.length() else 0L
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(file.lastModified()))
+        val builder = StringBuilder()
+        builder.append(getString(R.string.file_name)).append(": ").append(name).append('\n')
+        builder.append(getString(R.string.file_size)).append(": ").append(formatSize(size)).append('\n')
+        builder.append(getString(R.string.file_date)).append(": ").append(date).append('\n')
+        builder.append(getString(R.string.file_path)).append(": ").append(item.path)
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.properties)
+            .setMessage(builder.toString())
+            .setPositiveButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun formatSize(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+        val z = (63 - java.lang.Long.numberOfLeadingZeros(bytes)) / 10
+        return String.format(java.util.Locale.US, "%.1f %sB", bytes / (1L shl (z * 10)).toDouble(), " KMGTPE"[z])
     }
     
     private fun loadMedia() {

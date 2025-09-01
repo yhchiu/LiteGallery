@@ -316,6 +316,37 @@
                     android:src="@drawable/ic_info"
                     app:tint="@color/white" />
 
+                <!-- Additional actions per spec -->
+                <ImageButton
+                    android:id="@+id/rotatePhotoButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/rotate"
+                    android:src="@drawable/ic_rotate_right"
+                    app:tint="@color/white" />
+
+                <ImageButton
+                    android:id="@+id/copyButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/copy"
+                    android:src="@drawable/ic_copy"
+                    app:tint="@color/white" />
+
+                <ImageButton
+                    android:id="@+id/moveButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/move"
+                    android:src="@drawable/ic_move"
+                    app:tint="@color/white" />
+
             </LinearLayout>
 
         </HorizontalScrollView>
