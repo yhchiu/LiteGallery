@@ -41,6 +41,14 @@
             android:summary="@string/theme_summary"
             android:title="@string/theme_title" />
 
+        <com.litegallery.ColorThemePreference
+            android:defaultValue="blue"
+            android:entries="@array/color_theme_entries"
+            android:entryValues="@array/color_theme_values"
+            android:key="color_theme_preference"
+            android:summary="@string/color_theme_summary"
+            android:title="@string/color_theme_title" />
+
         <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="restore_brightness"

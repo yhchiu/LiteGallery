@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Blue Theme Dark (Default) -->
+    <color name="blue_primary">#90CAF9</color>
+    <color name="blue_primary_container">#1565C0</color>
+    <color name="blue_on_primary_container">#E3F2FD</color>
+    <color name="blue_secondary">#FFAB91</color>
+    <color name="blue_secondary_container">#D84315</color>
+    <color name="blue_on_secondary_container">#FFE0DB</color>
+
+    <!-- Green Theme Dark -->
+    <color name="green_primary">#66BB6A</color>
+    <color name="green_primary_container">#2E7D32</color>
+    <color name="green_on_primary_container">#C8E6C9</color>
+    <color name="green_secondary">#4DB6AC</color>
+    <color name="green_secondary_container">#00695C</color>
+    <color name="green_on_secondary_container">#B2DFDB</color>
+
+    <!-- Purple Theme Dark -->
+    <color name="purple_primary">#B388FF</color>
+    <color name="purple_primary_container">#6A1B9A</color>
+    <color name="purple_on_primary_container">#E1BEE7</color>
+    <color name="purple_secondary">#F48FB1</color>
+    <color name="purple_secondary_container">#C2185B</color>
+    <color name="purple_on_secondary_container">#F8BBD9</color>
+
+    <!-- Orange Theme Dark -->
+    <color name="orange_primary">#FFB74D</color>
+    <color name="orange_primary_container">#F57C00</color>
+    <color name="orange_on_primary_container">#FFE0B2</color>
+    <color name="orange_secondary">#FF8A65</color>
+    <color name="orange_secondary_container">#E64A19</color>
+    <color name="orange_on_secondary_container">#FFCCBC</color>
+
+    <!-- Red Theme Dark -->
+    <color name="red_primary">#EF5350</color>
+    <color name="red_primary_container">#C62828</color>
+    <color name="red_on_primary_container">#FFCDD2</color>
+    <color name="red_secondary">#F06292</color>
+    <color name="red_secondary_container">#C2185B</color>
+    <color name="red_on_secondary_container">#F8BBD9</color>
+
+    <!-- Teal Theme Dark -->
+    <color name="teal_primary">#4DB6AC</color>
+    <color name="teal_primary_container">#00695C</color>
+    <color name="teal_on_primary_container">#B2DFDB</color>
+    <color name="teal_secondary">#80CBC4</color>
+    <color name="teal_secondary_container">#004D40</color>
+    <color name="teal_on_secondary_container">#E0F2F1</color>
+
+    <!-- Indigo Theme Dark -->
+    <color name="indigo_primary">#7986CB</color>
+    <color name="indigo_primary_container">#303F9F</color>
+    <color name="indigo_on_primary_container">#C5CAE9</color>
+    <color name="indigo_secondary">#FF4081</color>
+    <color name="indigo_secondary_container">#AD1457</color>
+    <color name="indigo_on_secondary_container">#F8BBD9</color>
+
+    <!-- Pink Theme Dark -->
+    <color name="pink_primary">#F06292</color>
+    <color name="pink_primary_container">#C2185B</color>
+    <color name="pink_on_primary_container">#F8BBD9</color>
+    <color name="pink_secondary">#FF4081</color>
+    <color name="pink_secondary_container">#AD1457</color>
+    <color name="pink_on_secondary_container">#FCE4EC</color>
+</resources>

@@ -42,4 +42,27 @@
         <item>dark</item>
     </string-array>
     
+    <!-- Color Theme Options -->
+    <string-array name="color_theme_entries">
+        <item>@string/color_theme_blue</item>
+        <item>@string/color_theme_green</item>
+        <item>@string/color_theme_purple</item>
+        <item>@string/color_theme_orange</item>
+        <item>@string/color_theme_red</item>
+        <item>@string/color_theme_teal</item>
+        <item>@string/color_theme_indigo</item>
+        <item>@string/color_theme_pink</item>
+    </string-array>
+    
+    <string-array name="color_theme_values">
+        <item>blue</item>
+        <item>green</item>
+        <item>purple</item>
+        <item>orange</item>
+        <item>red</item>
+        <item>teal</item>
+        <item>indigo</item>
+        <item>pink</item>
+    </string-array>
+    
 </resources>

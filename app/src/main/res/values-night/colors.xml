@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Dark mode colors -->
-    <color name="primary">#90CAF9</color>
-    <color name="primary_container">#1565C0</color>
-    <color name="on_primary_container">#E3F2FD</color>
-    <color name="secondary">#FFAB91</color>
-    <color name="secondary_container">#D84315</color>
-    <color name="on_secondary_container">#FFE0DB</color>
+    <!-- Dynamic color references - will be updated by theme selection -->
+    <color name="primary">@color/blue_primary</color>
+    <color name="primary_container">@color/blue_primary_container</color>
+    <color name="on_primary_container">@color/blue_on_primary_container</color>
+    <color name="secondary">@color/blue_secondary</color>
+    <color name="secondary_container">@color/blue_secondary_container</color>
+    <color name="on_secondary_container">@color/blue_on_secondary_container</color>
     <color name="surface">#121212</color>
     <color name="on_surface">#E0E0E0</color>
     <color name="background">#0D0D0D</color>
