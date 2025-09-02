@@ -179,7 +179,6 @@ class MainActivity : AppCompatActivity() {
     private fun showPermissionRequired() {
         binding.progressBar.visibility = View.GONE
         binding.emptyView.apply {
-            text = getString(R.string.permission_required)
             visibility = View.VISIBLE
             setOnClickListener {
                 requestStoragePermissions()
