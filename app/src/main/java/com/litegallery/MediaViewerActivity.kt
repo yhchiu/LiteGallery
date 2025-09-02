@@ -37,19 +37,41 @@ class MediaViewerActivity : AppCompatActivity() {
     private var progressUpdateRunnable: Runnable? = null
     private var isUserSeeking = false
     private var isZoomed = false
+    private var currentColorTheme: String? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme before setting content view
+        // Apply theme and color theme before setting content view
         ThemeHelper.applyTheme(this)
+        ThemeHelper.applyColorTheme(this)
         
         super.onCreate(savedInstanceState)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
+        // Initialize current color theme
+        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        
         setupFullScreen()
         setupViewPager()
         setupUI()
         loadMedia()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Apply theme in case it was changed in settings
+        ThemeHelper.applyTheme(this)
+        
+        // Check if color theme changed and recreate if necessary
+        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+            recreate()
+            return
+        }
+        currentColorTheme = newColorTheme
+        
+        // Re-apply action bar customization in case user changed settings
+        applyActionBarCustomization()
     }
     
     override fun onPause() {
@@ -86,11 +108,6 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Re-apply action bar customization in case user changed settings
-        applyActionBarCustomization()
-    }
     
     override fun onDestroy() {
         super.onDestroy()

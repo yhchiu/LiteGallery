@@ -107,4 +107,16 @@
     <string name="theme_auto">Follow System</string>
     <string name="theme_light">Light Mode</string>
     <string name="theme_dark">Dark Mode</string>
+    
+    <!-- Color Theme Settings -->
+    <string name="color_theme_title">Color Theme</string>
+    <string name="color_theme_summary">Choose app color scheme</string>
+    <string name="color_theme_blue">Blue (Material)</string>
+    <string name="color_theme_green">Green (WhatsApp)</string>
+    <string name="color_theme_purple">Purple (Discord)</string>
+    <string name="color_theme_orange">Orange (VLC)</string>
+    <string name="color_theme_red">Red (YouTube)</string>
+    <string name="color_theme_teal">Teal (Messages)</string>
+    <string name="color_theme_indigo">Indigo (Facebook)</string>
+    <string name="color_theme_pink">Pink (Dribbble)</string>
 </resources>

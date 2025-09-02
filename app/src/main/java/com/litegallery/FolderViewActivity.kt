@@ -25,10 +25,12 @@ class FolderViewActivity : AppCompatActivity() {
     private var folderPath: String = ""
     private var folderName: String = ""
     private var mediaItems: List<MediaItem> = emptyList()
+    private var currentColorTheme: String? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme before setting content view
+        // Apply theme and color theme before setting content view
         ThemeHelper.applyTheme(this)
+        ThemeHelper.applyColorTheme(this)
         
         super.onCreate(savedInstanceState)
         binding = ActivityFolderViewBinding.inflate(layoutInflater)
@@ -37,11 +39,28 @@ class FolderViewActivity : AppCompatActivity() {
         folderPath = intent.getStringExtra(EXTRA_FOLDER_PATH) ?: ""
         folderName = intent.getStringExtra(EXTRA_FOLDER_NAME) ?: ""
         
+        // Initialize current color theme
+        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        
         setupToolbar()
         setupRecyclerView()
         
         mediaScanner = MediaScanner(this)
         loadMediaItems()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Apply theme in case it was changed in settings
+        ThemeHelper.applyTheme(this)
+        
+        // Check if color theme changed and recreate if necessary
+        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+            recreate()
+            return
+        }
+        currentColorTheme = newColorTheme
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

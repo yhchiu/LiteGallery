@@ -11,8 +11,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme before setting content view
+        // Apply theme and color theme before setting content view
         ThemeHelper.applyTheme(this)
+        ThemeHelper.applyColorTheme(this)
         
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
@@ -65,6 +66,20 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
+            // Handle color theme preference change
+            findPreference<ColorThemePreference>("color_theme_preference")?.setOnPreferenceChangeListener { _, newValue ->
+                val colorTheme = newValue as String
+                ThemeHelper.setColorTheme(requireContext(), colorTheme)
+                
+                // Update summary to show selected color theme
+                val preference = findPreference<ColorThemePreference>("color_theme_preference")
+                preference?.summary = ThemeHelper.getColorThemeDisplayName(requireContext(), colorTheme)
+                
+                // Recreate activity to apply color theme immediately
+                activity?.recreate()
+                true
+            }
+
             // Handle Customize Action Bar click
             findPreference<androidx.preference.Preference>("customize_action_bar")?.setOnPreferenceClickListener {
                 showCustomizeActionBarDialog()
@@ -79,6 +94,10 @@ class SettingsActivity : AppCompatActivity() {
             val themePreference = findPreference<androidx.preference.ListPreference>("theme_preference")
             val currentTheme = ThemeHelper.getCurrentTheme(requireContext())
             themePreference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), currentTheme)
+            
+            val colorThemePreference = findPreference<ColorThemePreference>("color_theme_preference")
+            val currentColorTheme = ThemeHelper.getCurrentColorTheme(requireContext())
+            colorThemePreference?.summary = ThemeHelper.getColorThemeDisplayName(requireContext(), currentColorTheme)
         }
 
         private fun showCustomizeActionBarDialog() {

@@ -12,18 +12,37 @@ class TrashBinActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityTrashBinBinding
     private lateinit var mediaAdapter: MediaAdapter
+    private var currentColorTheme: String? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme before setting content view
+        // Apply theme and color theme before setting content view
         ThemeHelper.applyTheme(this)
+        ThemeHelper.applyColorTheme(this)
         
         super.onCreate(savedInstanceState)
         binding = ActivityTrashBinBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
+        // Initialize current color theme
+        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        
         setupToolbar()
         setupRecyclerView()
         loadTrashItems()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Apply theme in case it was changed in settings
+        ThemeHelper.applyTheme(this)
+        
+        // Check if color theme changed and recreate if necessary
+        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+            recreate()
+            return
+        }
+        currentColorTheme = newColorTheme
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

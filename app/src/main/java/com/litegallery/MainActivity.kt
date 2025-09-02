@@ -32,8 +32,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme before setting content view
+        // Apply theme and color theme before setting content view
         ThemeHelper.applyTheme(this)
+        ThemeHelper.applyColorTheme(this)
         
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -41,16 +42,29 @@ class MainActivity : AppCompatActivity() {
         
         setSupportActionBar(binding.toolbar)
         
+        // Initialize current color theme
+        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        
         mediaScanner = MediaScanner(this)
         setupRecyclerView()
         
         checkPermissionsAndLoad()
     }
     
+    private var currentColorTheme: String? = null
+
     override fun onResume() {
         super.onResume()
         // Apply theme in case it was changed in settings
         ThemeHelper.applyTheme(this)
+        
+        // Check if color theme changed and recreate if necessary
+        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+            recreate()
+            return
+        }
+        currentColorTheme = newColorTheme
         
         // Check permissions again when returning from settings
         if (!hasStoragePermissions()) {
