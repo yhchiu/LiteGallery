@@ -152,10 +152,13 @@ class MediaViewerAdapter(
                 binding.videoContainer.visibility = View.VISIBLE
                 
                 // Load video thumbnail as fallback
-                Glide.with(binding.root.context)
-                    .load(mediaItem.path)
-                    .centerCrop()
-                    .into(binding.videoThumbnail)
+                val context = binding.root.context
+                if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                    Glide.with(context)
+                        .load(mediaItem.path)
+                        .centerCrop()
+                        .into(binding.videoThumbnail)
+                }
                 
                 // Set up video player
                 videoViewHolder = VideoViewHolder(binding, onMediaClick)
@@ -175,10 +178,13 @@ class MediaViewerAdapter(
                 releasePlayer()
                 
                 // Load image with Glide
-                Glide.with(binding.root.context)
-                    .load(mediaItem.path)
-                    .fitCenter()
-                    .into(binding.photoImageView)
+                val context = binding.root.context
+                if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                    Glide.with(context)
+                        .load(mediaItem.path)
+                        .fitCenter()
+                        .into(binding.photoImageView)
+                }
 
                 // Set click listener for photos using ZoomImageView's method
                 binding.photoImageView.setOnImageClickListener {
@@ -282,7 +288,10 @@ class MediaViewerAdapter(
         }
         
         fun clearGlideCache() {
-            com.bumptech.glide.Glide.with(binding.root.context).clear(binding.photoImageView)
+            val context = binding.root.context
+            if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
+            }
         }
         
         fun resetPhotoZoom() {
@@ -301,7 +310,10 @@ class MediaViewerAdapter(
                 // Prepare for video content
                 if (binding.videoContainer.visibility != View.VISIBLE) {
                     // Clear any existing image content
-                    com.bumptech.glide.Glide.with(binding.root.context).clear(binding.photoImageView)
+                    val context = binding.root.context
+                    if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                        com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
+                    }
                     binding.photoImageView.visibility = View.GONE
                     binding.videoContainer.visibility = View.VISIBLE
                 }
@@ -343,7 +355,10 @@ class MediaViewerAdapter(
             binding.playButton?.visibility = View.VISIBLE
             
             // Clear image from Glide
-            com.bumptech.glide.Glide.with(binding.root.context).clear(binding.photoImageView)
+            val context = binding.root.context
+            if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                com.bumptech.glide.Glide.with(context).clear(binding.photoImageView)
+            }
             
             // Reset zoom states
             resetPhotoZoom()
