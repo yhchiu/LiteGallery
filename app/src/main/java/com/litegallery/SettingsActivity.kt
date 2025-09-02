@@ -11,6 +11,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply theme before setting content view
+        ThemeHelper.applyTheme(this)
+        
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -48,11 +51,34 @@ class SettingsActivity : AppCompatActivity() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)
 
+            // Handle theme preference change
+            findPreference<androidx.preference.ListPreference>("theme_preference")?.setOnPreferenceChangeListener { _, newValue ->
+                val theme = newValue as String
+                ThemeHelper.setTheme(requireContext(), theme)
+                
+                // Update summary to show selected theme
+                val preference = findPreference<androidx.preference.ListPreference>("theme_preference")
+                preference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), theme)
+                
+                // Recreate activity to apply theme immediately
+                activity?.recreate()
+                true
+            }
+
             // Handle Customize Action Bar click
             findPreference<androidx.preference.Preference>("customize_action_bar")?.setOnPreferenceClickListener {
                 showCustomizeActionBarDialog()
                 true
             }
+            
+            // Set initial theme summary
+            updateThemeSummary()
+        }
+        
+        private fun updateThemeSummary() {
+            val themePreference = findPreference<androidx.preference.ListPreference>("theme_preference")
+            val currentTheme = ThemeHelper.getCurrentTheme(requireContext())
+            themePreference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), currentTheme)
         }
 
         private fun showCustomizeActionBarDialog() {

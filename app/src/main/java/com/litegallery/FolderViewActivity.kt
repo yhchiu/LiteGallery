@@ -27,6 +27,9 @@ class FolderViewActivity : AppCompatActivity() {
     private var mediaItems: List<MediaItem> = emptyList()
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply theme before setting content view
+        ThemeHelper.applyTheme(this)
+        
         super.onCreate(savedInstanceState)
         binding = ActivityFolderViewBinding.inflate(layoutInflater)
         setContentView(binding.root)

@@ -14,6 +14,9 @@ class TrashBinActivity : AppCompatActivity() {
     private lateinit var mediaAdapter: MediaAdapter
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply theme before setting content view
+        ThemeHelper.applyTheme(this)
+        
         super.onCreate(savedInstanceState)
         binding = ActivityTrashBinBinding.inflate(layoutInflater)
         setContentView(binding.root)

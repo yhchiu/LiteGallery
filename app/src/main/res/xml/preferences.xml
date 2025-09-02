@@ -33,6 +33,14 @@
 
     <PreferenceCategory android:title="@string/general_settings">
 
+        <ListPreference
+            android:defaultValue="auto"
+            android:entries="@array/theme_entries"
+            android:entryValues="@array/theme_values"
+            android:key="theme_preference"
+            android:summary="@string/theme_summary"
+            android:title="@string/theme_title" />
+
         <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="restore_brightness"
