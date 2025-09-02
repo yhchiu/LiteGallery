@@ -39,6 +39,9 @@ class MediaViewerActivity : AppCompatActivity() {
     private var isZoomed = false
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply theme before setting content view
+        ThemeHelper.applyTheme(this)
+        
         super.onCreate(savedInstanceState)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)

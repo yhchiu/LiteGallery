@@ -32,6 +32,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply theme before setting content view
+        ThemeHelper.applyTheme(this)
+        
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -46,6 +49,9 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
+        // Apply theme in case it was changed in settings
+        ThemeHelper.applyTheme(this)
+        
         // Check permissions again when returning from settings
         if (!hasStoragePermissions()) {
             showPermissionRequired()

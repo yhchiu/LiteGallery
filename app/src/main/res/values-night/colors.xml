@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode colors -->
+    <color name="primary">#90CAF9</color>
+    <color name="primary_container">#1565C0</color>
+    <color name="on_primary_container">#E3F2FD</color>
+    <color name="secondary">#FFAB91</color>
+    <color name="secondary_container">#D84315</color>
+    <color name="on_secondary_container">#FFE0DB</color>
+    <color name="surface">#121212</color>
+    <color name="on_surface">#E0E0E0</color>
+    <color name="background">#0D0D0D</color>
+    <color name="surface_variant">#1F1F1F</color>
+    <color name="on_surface_variant">#B0B0B0</color>
+    <color name="accent">#4DD0E1</color>
+    <color name="error">#CF6679</color>
+    <color name="outline">#9E9E9E</color>
+    <color name="outline_variant">#424242</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+    <color name="semi_transparent_black">#80000000</color>
+    <color name="semi_transparent_white">#80FFFFFF</color>
+</resources>
