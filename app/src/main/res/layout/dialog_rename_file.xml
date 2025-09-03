@@ -40,7 +40,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical">
 
         <TextView
             android:layout_width="wrap_content"
@@ -55,10 +57,10 @@
             android:id="@+id/addPrefixButton"
             style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="32dp"
+            android:layout_height="wrap_content"
+            android:minHeight="32dp"
             android:text="+ Prefix"
             android:textSize="12sp"
-            android:minHeight="0dp"
             android:paddingHorizontal="12dp"
             android:layout_marginEnd="8dp" />
 
@@ -66,10 +68,10 @@
             android:id="@+id/addSuffixButton"
             style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="32dp"
+            android:layout_height="wrap_content"
+            android:minHeight="32dp"
             android:text="+ Suffix"
             android:textSize="12sp"
-            android:minHeight="0dp"
             android:paddingHorizontal="12dp" />
 
         <!-- Spacer to push dropdown to the far right -->
