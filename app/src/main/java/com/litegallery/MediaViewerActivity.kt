@@ -892,6 +892,32 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.frameForwardModeSwitch.setOnCheckedChangeListener { _, isChecked ->
             isFrameForwardModeEnabled = isChecked
         }
+        
+        // Prevent single-tap triggers on video control areas to avoid accidental activation
+        setupVideoControlTouchBlocking()
+    }
+    
+    private fun setupVideoControlTouchBlocking() {
+        // Block touch events on video progress bar area to prevent accidental single-tap triggers
+        binding.videoProgressBar.setOnTouchListener { _, _ ->
+            // Consume the touch event to prevent it from reaching the video player
+            true
+        }
+        
+        // Block touch events on video controls area to prevent accidental single-tap triggers  
+        binding.videoControls.setOnTouchListener { _, _ ->
+            // Consume the touch event to prevent it from reaching the video player
+            true
+        }
+        
+        // Block touch events on advanced controls area
+        binding.advancedControls.setOnTouchListener { _, _ ->
+            // Consume the touch event to prevent it from reaching the video player
+            true
+        }
+        
+        // Note: Individual buttons within these containers will still receive their click events
+        // because they are processed before the parent container's touch listener
     }
     
     private fun toggleVideoPlayback() {
