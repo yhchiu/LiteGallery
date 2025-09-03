@@ -65,4 +65,40 @@
         <item>pink</item>
     </string-array>
     
+    <!-- Quick Rename History Count Options -->
+    <string-array name="rename_history_count_entries">
+        <item>10 items</item>
+        <item>20 items</item>
+        <item>30 items</item>
+        <item>50 items</item>
+        <item>100 items</item>
+    </string-array>
+    
+    <string-array name="rename_history_count_values">
+        <item>10</item>
+        <item>20</item>
+        <item>30</item>
+        <item>50</item>
+        <item>100</item>
+    </string-array>
+    
+    <!-- Quick Rename Sort Options -->
+    <string-array name="rename_sort_entries">
+        <item>@string/time_descending</item>
+        <item>@string/time_ascending</item>
+        <item>@string/text_ascending</item>
+        <item>@string/text_descending</item>
+        <item>@string/text_ignore_alphanum_ascending</item>
+        <item>@string/text_ignore_alphanum_descending</item>
+    </string-array>
+    
+    <string-array name="rename_sort_values">
+        <item>time_desc</item>
+        <item>time_asc</item>
+        <item>text_asc</item>
+        <item>text_desc</item>
+        <item>text_ignore_asc</item>
+        <item>text_ignore_desc</item>
+    </string-array>
+    
 </resources>

@@ -22,7 +22,6 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val RENAME_HISTORY_PREFS = "rename_history"
         private const val RENAME_PREFIXES_KEY = "prefixes_list"
         private const val RENAME_SUFFIXES_KEY = "suffixes_list"
-        private const val MAX_HISTORY_SIZE = 30
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -1236,11 +1235,22 @@ class MediaViewerActivity : AppCompatActivity() {
         currentList.remove(item)
         currentList.add(0, item)
         
-        if (currentList.size > MAX_HISTORY_SIZE) {
+        val maxHistorySize = getMaxHistorySize()
+        if (currentList.size > maxHistorySize) {
             currentList.removeAt(currentList.size - 1)
         }
         
         saveFunction(currentList)
+    }
+    
+    private fun getMaxHistorySize(): Int {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        return prefs.getString("rename_history_count", "30")?.toIntOrNull() ?: 30
+    }
+    
+    private fun getDefaultSortOption(): String {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        return prefs.getString("rename_default_sort", "time_desc") ?: "time_desc"
     }
     
     private fun analyzeRename(originalName: String, newName: String) {
@@ -1260,10 +1270,10 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
     
-    private fun showRenameOptionsMenu(editText: android.widget.EditText, prefixes: List<String>, suffixes: List<String>, originalName: String) {
+    private fun showRenameOptionsMenu(editText: android.widget.EditText, initialPrefixes: List<String>, initialSuffixes: List<String>, originalName: String) {
         val inflater = layoutInflater
         val dialogView = inflater.inflate(R.layout.dialog_quick_rename_options, null)
-        val listView = dialogView.findViewById<android.widget.ListView>(R.id.optionsListView)
+        val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.optionsRecyclerView)
         val sortKeySpinner = dialogView.findViewById<android.widget.Spinner>(R.id.sortKeySpinner)
         val orderAscButton = dialogView.findViewById<android.widget.ImageButton>(R.id.orderAscButton)
         val orderDescButton = dialogView.findViewById<android.widget.ImageButton>(R.id.orderDescButton)
@@ -1275,9 +1285,19 @@ class MediaViewerActivity : AppCompatActivity() {
         sortKeySpinner.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sortKeyOptions).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
-        // Defaults: 時間 + 降冪 (newest-to-oldest)
-        sortKeySpinner.setSelection(0)
-        var isDesc = true
+        // Use default sort option from settings
+        val defaultSort = getDefaultSortOption()
+        val (defaultSortIndex, defaultIsDesc) = when (defaultSort) {
+            "time_desc" -> 0 to true
+            "time_asc" -> 0 to false
+            "text_asc" -> 1 to false
+            "text_desc" -> 1 to true
+            "text_ignore_asc" -> 2 to false
+            "text_ignore_desc" -> 2 to true
+            else -> 0 to true
+        }
+        sortKeySpinner.setSelection(defaultSortIndex)
+        var isDesc = defaultIsDesc
         fun updateOrderButtons() {
             // Highlight selected order; use alpha for simplicity
             if (isDesc) {
@@ -1290,13 +1310,81 @@ class MediaViewerActivity : AppCompatActivity() {
         }
         updateOrderButtons()
 
-        // Backing data and mapping for actions
-        val options = mutableListOf<String>()
-        val actions = mutableListOf<((String) -> String)? >()
+        // Backing data for RecyclerView
+        data class RenameOption(val text: String, val action: ((String) -> String)?, val isPrefix: Boolean = false, val isSeparator: Boolean = false, val isHeader: Boolean = false)
+        val optionsList = mutableListOf<RenameOption>()
+        
+        // Prepare holder for dialog so we can dismiss on item click
+        var activeDialog: android.app.AlertDialog? = null
+        
+        // Create RecyclerView Adapter with swipe-to-delete support
+        val adapter = object : androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
+            override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): androidx.recyclerview.widget.RecyclerView.ViewHolder {
+                val view = inflater.inflate(R.layout.item_rename_option, parent, false)
+                return object : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {}
+            }
+            
+            override fun getItemCount(): Int = optionsList.size
+            
+            override fun onBindViewHolder(holder: androidx.recyclerview.widget.RecyclerView.ViewHolder, position: Int) {
+                val option = optionsList[position]
+                val textView = holder.itemView.findViewById<android.widget.TextView>(R.id.optionText)
+                textView.text = option.text
+                
+                // Get theme-appropriate colors
+                val context = holder.itemView.context
+                android.util.Log.d("RenameDialog", "Binding item $position: ${option.text}, isHeader=${option.isHeader}, isSeparator=${option.isSeparator}")
+                
+                // Reset any previous styling
+                textView.background = null
+                textView.alpha = 1.0f
+                
+                if (option.isHeader || option.isSeparator) {
+                    // Use theme's secondary text color for headers and separators
+                    val typedValue = android.util.TypedValue()
+                    val resolved = context.theme.resolveAttribute(android.R.attr.textColorSecondary, typedValue, true)
+                    val color = if (resolved) typedValue.data else android.graphics.Color.GRAY
+                    textView.setTextColor(color)
+                    textView.setTypeface(null, android.graphics.Typeface.BOLD)
+                    holder.itemView.isClickable = false
+                    holder.itemView.setOnClickListener(null)
+                    holder.itemView.background = null
+                    android.util.Log.d("RenameDialog", "Set header/separator color: $color")
+                } else {
+                    // Use theme's primary text color for regular items
+                    val typedValue = android.util.TypedValue()
+                    val resolved = context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
+                    val color = if (resolved) typedValue.data else android.graphics.Color.BLACK
+                    textView.setTextColor(color)
+                    textView.setTypeface(null, android.graphics.Typeface.NORMAL)
+                    holder.itemView.isClickable = true
+                    // Set selectable item background using TypedValue
+                    val backgroundTypedValue = android.util.TypedValue()
+                    context.theme.resolveAttribute(android.R.attr.selectableItemBackground, backgroundTypedValue, true)
+                    holder.itemView.setBackgroundResource(backgroundTypedValue.resourceId)
+                    holder.itemView.setOnClickListener {
+                        option.action?.let { action ->
+                            val newName = action.invoke(originalName)
+                            editText.setText(newName)
+                            editText.setSelection(newName.length)
+                            activeDialog?.dismiss()
+                        }
+                    }
+                    android.util.Log.d("RenameDialog", "Set regular item color: $color")
+                }
+            }
+        }
+        
+        // Set up RecyclerView
+        recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        recyclerView.adapter = adapter
 
         fun buildList(sortKeyIndex: Int, orderIndex: Int) {
-            options.clear()
-            actions.clear()
+            optionsList.clear()
+
+            // Always get fresh data from SharedPreferences
+            val currentPrefixes = getRenamePrefixes()
+            val currentSuffixes = getRenameSuffixes()
 
             fun sorted(list: List<String>): List<String> {
                 return when (sortKeyIndex) {
@@ -1319,28 +1407,23 @@ class MediaViewerActivity : AppCompatActivity() {
                 }
             }
 
-            val sortedPrefixes = sorted(prefixes)
-            val sortedSuffixes = sorted(suffixes)
+            val sortedPrefixes = sorted(currentPrefixes)
+            val sortedSuffixes = sorted(currentSuffixes)
 
             if (sortedPrefixes.isNotEmpty()) {
-                options.add("--- PREFIXES ---")
-                actions.add(null)
+                optionsList.add(RenameOption("--- PREFIXES ---", null, isHeader = true))
                 sortedPrefixes.forEach { prefix ->
-                    options.add(prefix)
-                    actions.add { name -> prefix + name }
+                    optionsList.add(RenameOption(prefix, { name -> prefix + name }, isPrefix = true))
                 }
             }
 
             if (sortedSuffixes.isNotEmpty()) {
-                if (options.isNotEmpty()) {
-                    options.add("")
-                    actions.add(null)
+                if (optionsList.isNotEmpty()) {
+                    optionsList.add(RenameOption("", null, isSeparator = true))
                 }
-                options.add("--- SUFFIXES ---")
-                actions.add(null)
+                optionsList.add(RenameOption("--- SUFFIXES ---", null, isHeader = true))
                 sortedSuffixes.forEach { suffix ->
-                    options.add(suffix)
-                    actions.add { name -> name + suffix }
+                    optionsList.add(RenameOption(suffix, { name -> name + suffix }, isPrefix = false))
                 }
             }
         }
@@ -1348,9 +1431,66 @@ class MediaViewerActivity : AppCompatActivity() {
         fun refresh() {
             val orderIndex = if (isDesc) 0 else 1
             buildList(sortKeySpinner.selectedItemPosition, orderIndex)
-            val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, options)
-            listView.adapter = adapter
+            // Use notifyDataSetChanged to force complete refresh
+            recyclerView.post {
+                adapter.notifyDataSetChanged()
+                // Force layout refresh
+                recyclerView.invalidateItemDecorations()
+            }
         }
+        
+        // Set up swipe-to-delete functionality
+        val itemTouchHelper = androidx.recyclerview.widget.ItemTouchHelper(object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(0, androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT) {
+            override fun onMove(recyclerView: androidx.recyclerview.widget.RecyclerView, viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, target: androidx.recyclerview.widget.RecyclerView.ViewHolder): Boolean {
+                return false
+            }
+            
+            override fun getSwipeDirs(recyclerView: androidx.recyclerview.widget.RecyclerView, viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder): Int {
+                val position = viewHolder.adapterPosition
+                val option = optionsList.getOrNull(position)
+                // Only allow swipe on actual rename options (not headers or separators)
+                return if (option != null && !option.isHeader && !option.isSeparator && option.action != null) {
+                    androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
+                } else {
+                    0
+                }
+            }
+            
+            override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.adapterPosition
+                val option = optionsList[position]
+                
+                // Show confirmation dialog
+                android.app.AlertDialog.Builder(this@MediaViewerActivity)
+                    .setTitle("Delete Rename Option")
+                    .setMessage("Delete \"${option.text}\" from ${if (option.isPrefix) "prefixes" else "suffixes"}?")
+                    .setPositiveButton("Delete") { _, _ ->
+                        // Remove from the appropriate list
+                        if (option.isPrefix) {
+                            val currentPrefixes = getRenamePrefixes()
+                            currentPrefixes.remove(option.text)
+                            saveRenamePrefixes(currentPrefixes)
+                        } else {
+                            val currentSuffixes = getRenameSuffixes()
+                            currentSuffixes.remove(option.text)
+                            saveRenameSuffixes(currentSuffixes)
+                        }
+                        
+                        // Refresh the list
+                        refresh()
+                    }
+                    .setNegativeButton("Cancel") { _, _ ->
+                        // Restore the item by refreshing the entire list to ensure proper state
+                        refresh()
+                    }
+                    .setOnDismissListener {
+                        // Restore the item if dialog is dismissed without action
+                        refresh()
+                    }
+                    .show()
+            }
+        })
+        itemTouchHelper.attachToRecyclerView(recyclerView)
 
         // Initial population
         refresh()
@@ -1371,20 +1511,6 @@ class MediaViewerActivity : AppCompatActivity() {
             isDesc = true
             updateOrderButtons()
             refresh()
-        }
-
-        // Prepare holder for dialog so we can dismiss on item click
-        var activeDialog: android.app.AlertDialog? = null
-
-        // Item click handling (auto close when an item is applied)
-        listView.setOnItemClickListener { _, _, which, _ ->
-            val action = actions.getOrNull(which)
-            if (action != null) {
-                val newName = action.invoke(originalName)
-                editText.setText(newName)
-                editText.setSelection(newName.length)
-                activeDialog?.dismiss()
-            }
         }
 
         val dialog = android.app.AlertDialog.Builder(this)
