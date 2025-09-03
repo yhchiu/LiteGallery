@@ -964,14 +964,14 @@ class MediaViewerActivity : AppCompatActivity() {
     }
     
     private fun getCurrentVideoHolder(): VideoViewHolder? {
-        android.util.Log.d("MediaViewerActivity", "Getting current video holder for position: $currentPosition")
+        // android.util.Log.d("MediaViewerActivity", "Getting current video holder for position: $currentPosition")
 
         // Prefer the visible ViewHolder at currentPosition
         val recyclerView = binding.viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
         val mediaViewHolder = recyclerView?.findViewHolderForAdapterPosition(currentPosition) as? MediaViewerAdapter.MediaViewHolder
         val visibleVideoHolder = mediaViewHolder?.videoViewHolder
         if (visibleVideoHolder != null) {
-            android.util.Log.d("MediaViewerActivity", "Using visible video holder")
+            // android.util.Log.d("MediaViewerActivity", "Using visible video holder")
             return visibleVideoHolder
         }
 
