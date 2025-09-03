@@ -38,6 +38,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private var isUserSeeking = false
     private var isZoomed = false
     private var currentColorTheme: String? = null
+    private var isFrameForwardModeEnabled = false
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -238,14 +239,22 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun setupViewPager() {
         mediaScanner = MediaScanner(this)
         
-        // Restore original callback for single tap
+        // Set up single tap callback that can switch between UI toggle and frame forward
         mediaViewerAdapter = MediaViewerAdapter {
-            toggleUI()
+            if (isFrameForwardModeEnabled && currentPosition < mediaItems.size && mediaItems[currentPosition].isVideo) {
+                seekFrameForward()
+            } else {
+                toggleUI()
+            }
         }
         
-        // Set up double-tap listener for videos
+        // Set up video single-tap listener (note: method name is misleading, it's actually single-tap)
         mediaViewerAdapter.setVideoDoubleClickListener {
-            toggleVideoPlayback()
+            if (isFrameForwardModeEnabled) {
+                seekFrameForward()
+            } else {
+                toggleVideoPlayback()
+            }
         }
         
         // Set up zoom change listener
@@ -877,6 +886,11 @@ class MediaViewerActivity : AppCompatActivity() {
         
         binding.frameForwardButton.setOnClickListener {
             seekFrameForward()
+        }
+        
+        // Frame forward mode toggle switch
+        binding.frameForwardModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isFrameForwardModeEnabled = isChecked
         }
     }
     

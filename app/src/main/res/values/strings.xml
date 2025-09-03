@@ -78,6 +78,7 @@
     <string name="play_pause">Play/Pause</string>
     <string name="frame_backward">Frame Backward</string>
     <string name="frame_forward">Frame Forward</string>
+    <string name="frame_mode">Frame Mode</string>
     <string name="expand_controls">Expand Controls</string>
     <string name="brightness">Brightness</string>
     <string name="contrast">Contrast</string>
