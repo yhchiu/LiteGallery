@@ -18,7 +18,8 @@ class ZoomImageView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : AppCompatImageView(context, attrs, defStyleAttr) {
 
-    private var imageMatrix = Matrix()
+    // Transformation matrix applied to the ImageView
+    private var transformMatrix = Matrix()
     private var savedMatrix = Matrix()
     
     // Zoom limits
@@ -78,7 +79,7 @@ class ZoomImageView @JvmOverloads constructor(
     fun resetZoom() {
         currentScale = 1f
         currentZoomLevelIndex = 0
-        imageMatrix.reset()
+        transformMatrix.reset()
         fitImageToView()
         onZoomChangeListener?.invoke(currentScale)
     }
@@ -108,10 +109,11 @@ class ZoomImageView @JvmOverloads constructor(
             val centerX = viewWidth * 0.5f
             val centerY = viewHeight * 0.5f
             
-            imageMatrix.postScale(scaleFactor, scaleFactor, centerX, centerY)
+            transformMatrix.postScale(scaleFactor, scaleFactor, centerX, centerY)
             currentScale = actualTargetScale
             constrainImageBounds()
-            this.imageMatrix = imageMatrix
+            // Apply to the actual ImageView
+            this.imageMatrix = transformMatrix
             onZoomChangeListener?.invoke(targetScale) // Pass the relative zoom level
         }
     }
@@ -152,11 +154,12 @@ class ZoomImageView @JvmOverloads constructor(
         val dx = (viewWidth - imageWidth * scale) * 0.5f
         val dy = (viewHeight - imageHeight * scale) * 0.5f
         
-        imageMatrix.setScale(scale, scale)
-        imageMatrix.postTranslate(dx, dy)
-        
+        transformMatrix.setScale(scale, scale)
+        transformMatrix.postTranslate(dx, dy)
+
         currentScale = scale
-        this.imageMatrix = imageMatrix
+        // Apply to the actual ImageView
+        this.imageMatrix = transformMatrix
     }
     
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -193,9 +196,10 @@ class ZoomImageView @JvmOverloads constructor(
                     }
                     
                     if (isDragging) {
-                        imageMatrix.postTranslate(dx, dy)
+                        transformMatrix.postTranslate(dx, dy)
                         constrainImageBounds()
-                        this.imageMatrix = imageMatrix
+                        // Apply to the actual ImageView
+                        this.imageMatrix = transformMatrix
                         
                         lastTouchX = event.x
                         lastTouchY = event.y
@@ -217,7 +221,7 @@ class ZoomImageView @JvmOverloads constructor(
         
         // Get current image bounds
         imageRect.set(0f, 0f, drawable.intrinsicWidth.toFloat(), drawable.intrinsicHeight.toFloat())
-        imageMatrix.mapRect(imageRect)
+        transformMatrix.mapRect(imageRect)
         
         // Get view bounds
         viewRect.set(0f, 0f, width.toFloat(), height.toFloat())
@@ -252,14 +256,14 @@ class ZoomImageView @JvmOverloads constructor(
         }
         
         if (deltaX != 0f || deltaY != 0f) {
-            imageMatrix.postTranslate(deltaX, deltaY)
+            transformMatrix.postTranslate(deltaX, deltaY)
         }
     }
     
     private inner class ScaleGestureListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
             isZooming = true
-            savedMatrix.set(imageMatrix)
+            savedMatrix.set(transformMatrix)
             return true
         }
         
@@ -275,17 +279,18 @@ class ZoomImageView @JvmOverloads constructor(
             }
             
             if (constrainedScaleFactor != 1f) {
-                imageMatrix.set(savedMatrix)
-                imageMatrix.postScale(
+                transformMatrix.set(savedMatrix)
+                transformMatrix.postScale(
                     constrainedScaleFactor, 
                     constrainedScaleFactor, 
                     detector.focusX, 
                     detector.focusY
                 )
-                
+
                 currentScale = newScale.coerceIn(minScale, maxScale)
                 constrainImageBounds()
-                this@ZoomImageView.imageMatrix = imageMatrix
+                // Apply to the actual ImageView
+                this@ZoomImageView.imageMatrix = transformMatrix
                 
                 // Calculate relative zoom level for display
                 val drawable = drawable
@@ -310,7 +315,7 @@ class ZoomImageView @JvmOverloads constructor(
         
         override fun onScaleEnd(detector: ScaleGestureDetector) {
             isZooming = false
-            savedMatrix.set(imageMatrix)
+            savedMatrix.set(transformMatrix)
         }
     }
     
@@ -332,10 +337,11 @@ class ZoomImageView @JvmOverloads constructor(
                 val targetScale = min(maxScale, minScale * 2f)
                 val scaleFactor = targetScale / currentScale
                 
-                imageMatrix.postScale(scaleFactor, scaleFactor, e.x, e.y)
+                transformMatrix.postScale(scaleFactor, scaleFactor, e.x, e.y)
                 currentScale = targetScale
                 constrainImageBounds()
-                this@ZoomImageView.imageMatrix = imageMatrix
+                // Apply to the actual ImageView
+                this@ZoomImageView.imageMatrix = transformMatrix
             }
             return true
         }
