@@ -1,5 +1,7 @@
 package com.litegallery
 
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.View
@@ -10,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.litegallery.databinding.ActivityMediaViewerBinding
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
     
@@ -544,6 +547,12 @@ class MediaViewerActivity : AppCompatActivity() {
         val builder = StringBuilder()
         builder.append(getString(R.string.file_name)).append(": ").append(name).append('\n')
         builder.append(getString(R.string.file_size)).append(": ").append(formatSize(size)).append('\n')
+        
+        // Add dimensions if available
+        if (item.width > 0 && item.height > 0) {
+            builder.append("Dimensions: ").append(item.width).append(" × ").append(item.height).append('\n')
+        }
+        
         builder.append(getString(R.string.file_date)).append(": ").append(date).append('\n')
         builder.append(getString(R.string.file_path)).append(": ").append(item.path)
         android.app.AlertDialog.Builder(this)
@@ -614,12 +623,15 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.fileNameTextView.text = fileName
         
         // Create single item list
+        val dimensions = getMediaDimensionsFromPath(path)
         val mediaItem = MediaItem(
             name = fileName,
             path = path,
             dateModified = System.currentTimeMillis(),
             size = 0,
-            mimeType = getMimeTypeFromPath(path)
+            mimeType = getMimeTypeFromPath(path),
+            width = dimensions.first,
+            height = dimensions.second
         )
         mediaItems = listOf(mediaItem)
         mediaViewerAdapter.submitList(mediaItems)
@@ -631,12 +643,15 @@ class MediaViewerActivity : AppCompatActivity() {
                 val fileName = getFileNameFromUri(uri) ?: "Unknown"
                 binding.fileNameTextView.text = fileName
                 
+                val dimensions = getMediaDimensionsFromUri(uri)
                 val mediaItem = MediaItem(
                     name = fileName,
                     path = uri.toString(),
                     dateModified = System.currentTimeMillis(),
                     size = 0,
-                    mimeType = contentResolver.getType(uri) ?: "image/*"
+                    mimeType = contentResolver.getType(uri) ?: "image/*",
+                    width = dimensions.first,
+                    height = dimensions.second
                 )
                 mediaItems = listOf(mediaItem)
                 mediaViewerAdapter.submitList(mediaItems)
@@ -1568,5 +1583,75 @@ class MediaViewerActivity : AppCompatActivity() {
             .show()
             
         input.requestFocus()
+    }
+    
+    private fun getMediaDimensionsFromPath(path: String): Pair<Int, Int> {
+        return try {
+            val isVideo = path.contains("video", ignoreCase = true) || 
+                         listOf("mp4", "avi", "mov", "mkv", "3gp", "webm").any { path.endsWith(it, ignoreCase = true) }
+            
+            if (isVideo) {
+                getVideoDimensionsFromPath(path)
+            } else {
+                getImageDimensionsFromPath(path)
+            }
+        } catch (e: Exception) {
+            Pair(0, 0)
+        }
+    }
+    
+    private fun getMediaDimensionsFromUri(uri: android.net.Uri): Pair<Int, Int> {
+        return try {
+            val mimeType = contentResolver.getType(uri) ?: ""
+            val isVideo = mimeType.startsWith("video/")
+            
+            if (isVideo) {
+                getVideoDimensionsFromUri(uri)
+            } else {
+                getImageDimensionsFromUri(uri)
+            }
+        } catch (e: Exception) {
+            Pair(0, 0)
+        }
+    }
+    
+    private fun getImageDimensionsFromPath(path: String): Pair<Int, Int> {
+        val options = BitmapFactory.Options()
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(path, options)
+        return Pair(options.outWidth, options.outHeight)
+    }
+    
+    private fun getImageDimensionsFromUri(uri: android.net.Uri): Pair<Int, Int> {
+        val options = BitmapFactory.Options()
+        options.inJustDecodeBounds = true
+        contentResolver.openInputStream(uri)?.use { inputStream ->
+            BitmapFactory.decodeStream(inputStream, null, options)
+        }
+        return Pair(options.outWidth, options.outHeight)
+    }
+    
+    private fun getVideoDimensionsFromPath(path: String): Pair<Int, Int> {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(path)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            Pair(width, height)
+        } finally {
+            retriever.release()
+        }
+    }
+    
+    private fun getVideoDimensionsFromUri(uri: android.net.Uri): Pair<Int, Int> {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(this, uri)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            Pair(width, height)
+        } finally {
+            retriever.release()
+        }
     }
 }
