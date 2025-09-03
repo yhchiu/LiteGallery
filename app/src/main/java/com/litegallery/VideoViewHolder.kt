@@ -2,10 +2,10 @@ package com.litegallery
 
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.exoplayer2.DefaultLoadControl
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.Player
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import com.litegallery.databinding.ItemMediaViewerBinding
 
 class VideoViewHolder(
@@ -113,14 +113,14 @@ class VideoViewHolder(
                             .setPrioritizeTimeOverSizeThresholds(true) // Allow larger buffers if needed for playback
                             .build()
                     )
-                    .setBandwidthMeter(com.google.android.exoplayer2.upstream.DefaultBandwidthMeter.getSingletonInstance(binding.root.context))
+                    .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(binding.root.context))
                     // Use custom allocator with smaller allocation size
                     .setMediaSourceFactory(
-                        com.google.android.exoplayer2.source.DefaultMediaSourceFactory(
-                            com.google.android.exoplayer2.upstream.DefaultDataSource.Factory(binding.root.context),
-                            com.google.android.exoplayer2.extractor.DefaultExtractorsFactory()
+                        androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                            androidx.media3.datasource.DefaultDataSource.Factory(binding.root.context),
+                            androidx.media3.extractor.DefaultExtractorsFactory()
                         ).setLoadErrorHandlingPolicy(
-                            com.google.android.exoplayer2.upstream.DefaultLoadErrorHandlingPolicy(2) // Reduce retry attempts
+                            androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(2) // Reduce retry attempts
                         )
                     )
                     .build().apply {
@@ -172,7 +172,7 @@ class VideoViewHolder(
                             }
                         }
                         
-                        override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
+                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                             // Handle playback errors gracefully
                             binding.videoThumbnail?.visibility = View.VISIBLE
                             binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
@@ -199,7 +199,7 @@ class VideoViewHolder(
                             }
                         }
                         
-                        override fun onVideoSizeChanged(videoSize: com.google.android.exoplayer2.video.VideoSize) {
+                        override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                             android.util.Log.d("VideoViewHolder", "Video size changed: ${videoSize.width}x${videoSize.height}")
                             // Update the ZoomablePlayerView with video dimensions
                             (binding.playerView as? com.litegallery.ZoomablePlayerView)?.setVideoSize(videoSize.width, videoSize.height)
