@@ -9,6 +9,8 @@ data class MediaItem(
     val size: Long,
     val mimeType: String,
     val duration: Long = 0, // Duration in milliseconds for videos
+    val width: Int = 0, // Width in pixels
+    val height: Int = 0, // Height in pixels
     val isVideo: Boolean = mimeType.startsWith("video/")
 ) {
     fun getFile(): File = File(path)

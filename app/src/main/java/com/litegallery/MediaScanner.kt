@@ -81,7 +81,9 @@ class MediaScanner(private val context: Context) {
             MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.MIME_TYPE
+            MediaStore.Images.Media.MIME_TYPE,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT
         )
         
         val cursor: Cursor? = context.contentResolver.query(
@@ -98,6 +100,8 @@ class MediaScanner(private val context: Context) {
             val dateColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
             val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
             
             while (it.moveToNext()) {
                 val path = it.getString(dataColumn)
@@ -111,7 +115,9 @@ class MediaScanner(private val context: Context) {
                     path = path,
                     dateModified = it.getLong(dateColumn) * 1000,
                     size = it.getLong(sizeColumn),
-                    mimeType = it.getString(mimeColumn) ?: "image/*"
+                    mimeType = it.getString(mimeColumn) ?: "image/*",
+                    width = it.getInt(widthColumn),
+                    height = it.getInt(heightColumn)
                 )
                 
                 folders.getOrPut(folderPath) { mutableListOf() }.add(mediaItem)
@@ -127,7 +133,9 @@ class MediaScanner(private val context: Context) {
             MediaStore.Video.Media.DATE_MODIFIED,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.MIME_TYPE,
-            MediaStore.Video.Media.DURATION
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.WIDTH,
+            MediaStore.Video.Media.HEIGHT
         )
         
         val cursor: Cursor? = context.contentResolver.query(
@@ -145,6 +153,8 @@ class MediaScanner(private val context: Context) {
             val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
             val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
             
             while (it.moveToNext()) {
                 val path = it.getString(dataColumn)
@@ -159,7 +169,9 @@ class MediaScanner(private val context: Context) {
                     dateModified = it.getLong(dateColumn) * 1000,
                     size = it.getLong(sizeColumn),
                     mimeType = it.getString(mimeColumn) ?: "video/*",
-                    duration = it.getLong(durationColumn)
+                    duration = it.getLong(durationColumn),
+                    width = it.getInt(widthColumn),
+                    height = it.getInt(heightColumn)
                 )
                 
                 folders.getOrPut(folderPath) { mutableListOf() }.add(mediaItem)
@@ -174,7 +186,9 @@ class MediaScanner(private val context: Context) {
             MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.MIME_TYPE
+            MediaStore.Images.Media.MIME_TYPE,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT
         )
         
         val selection = "${MediaStore.Images.Media.DATA} LIKE ?"
@@ -194,6 +208,8 @@ class MediaScanner(private val context: Context) {
             val dateColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
             val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
             
             while (it.moveToNext()) {
                 val path = it.getString(dataColumn)
@@ -206,7 +222,9 @@ class MediaScanner(private val context: Context) {
                     path = path,
                     dateModified = it.getLong(dateColumn) * 1000,
                     size = it.getLong(sizeColumn),
-                    mimeType = it.getString(mimeColumn) ?: "image/*"
+                    mimeType = it.getString(mimeColumn) ?: "image/*",
+                    width = it.getInt(widthColumn),
+                    height = it.getInt(heightColumn)
                 )
                 
                 items.add(mediaItem)
@@ -222,7 +240,9 @@ class MediaScanner(private val context: Context) {
             MediaStore.Video.Media.DATE_MODIFIED,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.MIME_TYPE,
-            MediaStore.Video.Media.DURATION
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.WIDTH,
+            MediaStore.Video.Media.HEIGHT
         )
         
         val selection = "${MediaStore.Video.Media.DATA} LIKE ?"
@@ -243,6 +263,8 @@ class MediaScanner(private val context: Context) {
             val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
             val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
             
             while (it.moveToNext()) {
                 val path = it.getString(dataColumn)
@@ -256,7 +278,9 @@ class MediaScanner(private val context: Context) {
                     dateModified = it.getLong(dateColumn) * 1000,
                     size = it.getLong(sizeColumn),
                     mimeType = it.getString(mimeColumn) ?: "video/*",
-                    duration = it.getLong(durationColumn)
+                    duration = it.getLong(durationColumn),
+                    width = it.getInt(widthColumn),
+                    height = it.getInt(heightColumn)
                 )
                 
                 items.add(mediaItem)
