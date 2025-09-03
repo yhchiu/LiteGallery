@@ -86,8 +86,35 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
             
+            // Handle rename history count preference change
+            findPreference<androidx.preference.ListPreference>("rename_history_count")?.setOnPreferenceChangeListener { _, newValue ->
+                val count = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("rename_history_count")
+                preference?.summary = "$count items"
+                true
+            }
+            
+            // Handle rename default sort preference change
+            findPreference<androidx.preference.ListPreference>("rename_default_sort")?.setOnPreferenceChangeListener { _, newValue ->
+                val sortValue = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("rename_default_sort")
+                preference?.summary = when (sortValue) {
+                    "time_desc" -> getString(R.string.time_descending)
+                    "time_asc" -> getString(R.string.time_ascending)
+                    "text_asc" -> getString(R.string.text_ascending)
+                    "text_desc" -> getString(R.string.text_descending)
+                    "text_ignore_asc" -> getString(R.string.text_ignore_alphanum_ascending)
+                    "text_ignore_desc" -> getString(R.string.text_ignore_alphanum_descending)
+                    else -> getString(R.string.time_descending)
+                }
+                true
+            }
+            
             // Set initial theme summary
             updateThemeSummary()
+            
+            // Set initial rename preferences summary
+            updateRenameSummary()
         }
         
         private fun updateThemeSummary() {
@@ -98,6 +125,28 @@ class SettingsActivity : AppCompatActivity() {
             val colorThemePreference = findPreference<ColorThemePreference>("color_theme_preference")
             val currentColorTheme = ThemeHelper.getCurrentColorTheme(requireContext())
             colorThemePreference?.summary = ThemeHelper.getColorThemeDisplayName(requireContext(), currentColorTheme)
+        }
+        
+        private fun updateRenameSummary() {
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+            
+            // Update history count summary
+            val historyCount = prefs.getString("rename_history_count", "30")
+            val historyCountPreference = findPreference<androidx.preference.ListPreference>("rename_history_count")
+            historyCountPreference?.summary = "$historyCount items"
+            
+            // Update default sort summary
+            val sortValue = prefs.getString("rename_default_sort", "time_desc")
+            val sortPreference = findPreference<androidx.preference.ListPreference>("rename_default_sort")
+            sortPreference?.summary = when (sortValue) {
+                "time_desc" -> getString(R.string.time_descending)
+                "time_asc" -> getString(R.string.time_ascending)
+                "text_asc" -> getString(R.string.text_ascending)
+                "text_desc" -> getString(R.string.text_descending)
+                "text_ignore_asc" -> getString(R.string.text_ignore_alphanum_ascending)
+                "text_ignore_desc" -> getString(R.string.text_ignore_alphanum_descending)
+                else -> getString(R.string.time_descending)
+            }
         }
 
         private fun showCustomizeActionBarDialog() {

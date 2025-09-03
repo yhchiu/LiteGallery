@@ -120,4 +120,15 @@
     <string name="color_theme_teal">Teal (Messages)</string>
     <string name="color_theme_indigo">Indigo (Facebook)</string>
     <string name="color_theme_pink">Pink (Dribbble)</string>
+    
+    <!-- Quick Rename Settings -->
+    <string name="quick_rename_settings">Quick Rename Settings</string>
+    <string name="rename_history_count">History Count</string>
+    <string name="rename_default_sort">Default Sort Order</string>
+    <string name="time_descending">Time (Newest First)</string>
+    <string name="time_ascending">Time (Oldest First)</string>
+    <string name="text_ascending">Text (A-Z)</string>
+    <string name="text_descending">Text (Z-A)</string>
+    <string name="text_ignore_alphanum_ascending">Text ignore numbers (A-Z)</string>
+    <string name="text_ignore_alphanum_descending">Text ignore numbers (Z-A)</string>
 </resources>

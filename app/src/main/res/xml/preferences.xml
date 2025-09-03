@@ -31,6 +31,26 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/quick_rename_settings">
+
+        <ListPreference
+            android:defaultValue="30"
+            android:entries="@array/rename_history_count_entries"
+            android:entryValues="@array/rename_history_count_values"
+            android:key="rename_history_count"
+            android:summary="30 items"
+            android:title="@string/rename_history_count" />
+
+        <ListPreference
+            android:defaultValue="time_desc"
+            android:entries="@array/rename_sort_entries"
+            android:entryValues="@array/rename_sort_values"
+            android:key="rename_default_sort"
+            android:summary="@string/time_descending"
+            android:title="@string/rename_default_sort" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/general_settings">
 
         <ListPreference
