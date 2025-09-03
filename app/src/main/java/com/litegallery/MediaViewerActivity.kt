@@ -963,8 +963,9 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun seekFrameBackward() {
         val currentVideoHolder = getCurrentVideoHolder()
         currentVideoHolder?.exoPlayer?.let { player ->
-            val frameDuration = 1000L / 30L // Assume 30fps, seek by ~33ms
-            val newPosition = maxOf(0, player.currentPosition - frameDuration)
+            // Use Media3's seekBack with custom increment (33ms for frame-by-frame)
+            val frameDurationMs = 33L // ~30fps frame duration
+            val newPosition = maxOf(0, player.currentPosition - frameDurationMs)
             player.seekTo(newPosition)
         }
     }
@@ -972,8 +973,9 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun seekFrameForward() {
         val currentVideoHolder = getCurrentVideoHolder()
         currentVideoHolder?.exoPlayer?.let { player ->
-            val frameDuration = 1000L / 30L // Assume 30fps, seek by ~33ms
-            val newPosition = minOf(player.duration, player.currentPosition + frameDuration)
+            // Use Media3's seekForward with custom increment (33ms for frame-by-frame)
+            val frameDurationMs = 33L // ~30fps frame duration
+            val newPosition = minOf(player.duration, player.currentPosition + frameDurationMs)
             player.seekTo(newPosition)
         }
     }

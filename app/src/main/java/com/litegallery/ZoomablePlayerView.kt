@@ -9,7 +9,7 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.TextureView
 import android.view.ViewConfiguration
-import com.google.android.exoplayer2.ui.PlayerView
+import androidx.media3.ui.PlayerView
 import kotlin.math.*
 
 class ZoomablePlayerView @JvmOverloads constructor(
