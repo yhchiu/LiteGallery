@@ -638,6 +638,9 @@ class MediaViewerActivity : AppCompatActivity() {
     }
     
     private fun handleContentUri(uri: android.net.Uri) {
+        // Show loading for content URI processing
+        showLoadingIndicator()
+        
         lifecycleScope.launch {
             try {
                 val fileName = getFileNameFromUri(uri) ?: "Unknown"
@@ -654,9 +657,13 @@ class MediaViewerActivity : AppCompatActivity() {
                     height = dimensions.second
                 )
                 mediaItems = listOf(mediaItem)
-                mediaViewerAdapter.submitList(mediaItems)
+                mediaViewerAdapter.submitList(mediaItems) {
+                    // Hide loading after content is ready
+                    hideLoadingIndicator()
+                }
             } catch (e: Exception) {
-                // Handle error
+                // Hide loading on error
+                hideLoadingIndicator()
             }
         }
     }
@@ -664,6 +671,9 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun scanParentFolder(filePath: String) {
         val parentPath = java.io.File(filePath).parent
         parentPath?.let { path ->
+            // Show loading indicator
+            showLoadingIndicator()
+            
             lifecycleScope.launch {
                 try {
                     val allItems = mediaScanner.scanMediaInFolder(path)
@@ -677,13 +687,17 @@ class MediaViewerActivity : AppCompatActivity() {
                                 currentPosition = currentIndex
                                 updateFileName(currentIndex)
                             }
+                            // Hide loading indicator after content is ready
+                            hideLoadingIndicator()
                         }
                     } else {
                         // Fallback to single file if folder scan returns no items
+                        hideLoadingIndicator()
                         handleSingleMediaFile(filePath)
                     }
                 } catch (e: Exception) {
                     // Fallback to single file if folder scan fails
+                    hideLoadingIndicator()
                     handleSingleMediaFile(filePath)
                 }
             }
@@ -691,6 +705,19 @@ class MediaViewerActivity : AppCompatActivity() {
             // Fallback to single file if no parent path
             handleSingleMediaFile(filePath)
         }
+    }
+    
+    private fun showLoadingIndicator() {
+        binding.loadingContainer.visibility = View.VISIBLE
+        binding.viewPager.visibility = View.GONE
+        // Also hide UI overlays during loading
+        binding.topOverlay.visibility = View.GONE
+        binding.bottomOverlay.visibility = View.GONE
+    }
+    
+    private fun hideLoadingIndicator() {
+        binding.loadingContainer.visibility = View.GONE
+        binding.viewPager.visibility = View.VISIBLE
     }
     
     private fun getRealPathFromURI(uri: android.net.Uri): String? {
