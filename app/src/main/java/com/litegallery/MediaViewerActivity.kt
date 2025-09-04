@@ -608,11 +608,11 @@ class MediaViewerActivity : AppCompatActivity() {
         if (uri != null) {
             val path = getRealPathFromURI(uri)
             if (path != null) {
-                handleSingleMediaFile(path)
-                // Also scan the parent folder for navigation
+                // Don't initialize single file immediately - wait for parent folder scan
+                // This prevents double initialization
                 scanParentFolder(path)
             } else {
-                // Handle content:// URI directly
+                // Handle content:// URI directly (no parent folder to scan)
                 handleContentUri(uri)
             }
         }
@@ -675,13 +675,21 @@ class MediaViewerActivity : AppCompatActivity() {
                             if (currentIndex >= 0) {
                                 binding.viewPager.setCurrentItem(currentIndex, false)
                                 currentPosition = currentIndex
+                                updateFileName(currentIndex)
                             }
                         }
+                    } else {
+                        // Fallback to single file if folder scan returns no items
+                        handleSingleMediaFile(filePath)
                     }
                 } catch (e: Exception) {
-                    // Keep single item if folder scan fails
+                    // Fallback to single file if folder scan fails
+                    handleSingleMediaFile(filePath)
                 }
             }
+        } ?: run {
+            // Fallback to single file if no parent path
+            handleSingleMediaFile(filePath)
         }
     }
     
