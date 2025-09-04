@@ -930,16 +930,43 @@ class MediaViewerActivity : AppCompatActivity() {
         
         // Frame navigation buttons
         binding.frameBackButton.setOnClickListener {
+            // Pause video before frame navigation
+            val currentVideoHolder = getCurrentVideoHolder()
+            currentVideoHolder?.exoPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.pause()
+                    binding.playPauseButton.setImageResource(R.drawable.ic_play)
+                }
+            }
             seekFrameBackward()
         }
         
         binding.frameForwardButton.setOnClickListener {
+            // Pause video before frame navigation
+            val currentVideoHolder = getCurrentVideoHolder()
+            currentVideoHolder?.exoPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.pause()
+                    binding.playPauseButton.setImageResource(R.drawable.ic_play)
+                }
+            }
             seekFrameForward()
         }
         
         // Frame forward mode toggle switch
         binding.frameForwardModeSwitch.setOnCheckedChangeListener { _, isChecked ->
             isFrameForwardModeEnabled = isChecked
+            
+            // Pause video when frame mode is turned on
+            if (isChecked) {
+                val currentVideoHolder = getCurrentVideoHolder()
+                currentVideoHolder?.exoPlayer?.let { player ->
+                    if (player.isPlaying) {
+                        player.pause()
+                        binding.playPauseButton.setImageResource(R.drawable.ic_play)
+                    }
+                }
+            }
         }
         
         // Prevent single-tap triggers on video control areas to avoid accidental activation
