@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'com.litegallery'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.litegallery"
         minSdk 24
-        targetSdk 34
+        targetSdk 36
         versionCode 270
         versionName "2.7"
 
