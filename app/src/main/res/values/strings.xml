@@ -131,4 +131,12 @@
     <string name="text_descending">Text (Z-A)</string>
     <string name="text_ignore_alphanum_ascending">Text ignore numbers (A-Z)</string>
     <string name="text_ignore_alphanum_descending">Text ignore numbers (Z-A)</string>
+
+    <!-- Filename Display Settings -->
+    <string name="filename_max_lines_title">Filename Max Lines</string>
+    <string name="filename_max_lines_summary">Maximum lines for filename display (0 = unlimited)</string>
+    <string name="filename_max_lines_1">1 line (single line)</string>
+    <string name="filename_max_lines_2">2 lines</string>
+    <string name="filename_max_lines_3">3 lines</string>
+    <string name="filename_max_lines_0">Unlimited lines</string>
 </resources>

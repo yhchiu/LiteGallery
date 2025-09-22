@@ -100,5 +100,20 @@
         <item>text_ignore_asc</item>
         <item>text_ignore_desc</item>
     </string-array>
-    
+
+    <!-- Filename Max Lines Options -->
+    <string-array name="filename_max_lines_entries">
+        <item>@string/filename_max_lines_1</item>
+        <item>@string/filename_max_lines_2</item>
+        <item>@string/filename_max_lines_3</item>
+        <item>@string/filename_max_lines_0</item>
+    </string-array>
+
+    <string-array name="filename_max_lines_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>0</item>
+    </string-array>
+
 </resources>
