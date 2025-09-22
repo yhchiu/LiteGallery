@@ -28,6 +28,14 @@
             android:summary="@string/filename_max_lines_1"
             android:title="@string/filename_max_lines_title" />
 
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/zoom_max_scale_entries"
+            android:entryValues="@array/zoom_max_scale_values"
+            android:key="zoom_max_scale"
+            android:summary="@string/zoom_scale_3x"
+            android:title="@string/zoom_max_scale_title" />
+
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/action_bar_settings">

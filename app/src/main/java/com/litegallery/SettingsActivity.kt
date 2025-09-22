@@ -192,6 +192,23 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 true
             }
+
+            // Handle zoom max scale preference change
+            findPreference<androidx.preference.ListPreference>("zoom_max_scale")?.setOnPreferenceChangeListener { _, newValue ->
+                val maxScale = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("zoom_max_scale")
+                preference?.summary = when (maxScale) {
+                    "2" -> getString(R.string.zoom_scale_2x)
+                    "3" -> getString(R.string.zoom_scale_3x)
+                    "4" -> getString(R.string.zoom_scale_4x)
+                    "5" -> getString(R.string.zoom_scale_5x)
+                    "6" -> getString(R.string.zoom_scale_6x)
+                    "8" -> getString(R.string.zoom_scale_8x)
+                    "10" -> getString(R.string.zoom_scale_10x)
+                    else -> getString(R.string.zoom_scale_3x)
+                }
+                true
+            }
         }
 
         private fun updateDisplaySummary() {
@@ -227,6 +244,20 @@ class SettingsActivity : AppCompatActivity() {
                 "3" -> getString(R.string.filename_max_lines_3)
                 "0" -> getString(R.string.filename_max_lines_0)
                 else -> getString(R.string.filename_max_lines_1)
+            }
+
+            // Update zoom max scale summary
+            val zoomMaxScale = prefs.getString("zoom_max_scale", "3")
+            val zoomMaxScalePreference = findPreference<androidx.preference.ListPreference>("zoom_max_scale")
+            zoomMaxScalePreference?.summary = when (zoomMaxScale) {
+                "2" -> getString(R.string.zoom_scale_2x)
+                "3" -> getString(R.string.zoom_scale_3x)
+                "4" -> getString(R.string.zoom_scale_4x)
+                "5" -> getString(R.string.zoom_scale_5x)
+                "6" -> getString(R.string.zoom_scale_6x)
+                "8" -> getString(R.string.zoom_scale_8x)
+                "10" -> getString(R.string.zoom_scale_10x)
+                else -> getString(R.string.zoom_scale_3x)
             }
         }
 
