@@ -110,11 +110,13 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
             
-            // Set initial theme summary
+            // Handle display settings preference changes
+            setupDisplaySettingsListeners()
+
+            // Set initial summaries
             updateThemeSummary()
-            
-            // Set initial rename preferences summary
             updateRenameSummary()
+            updateDisplaySummary()
         }
         
         private fun updateThemeSummary() {
@@ -129,12 +131,12 @@ class SettingsActivity : AppCompatActivity() {
         
         private fun updateRenameSummary() {
             val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
-            
+
             // Update history count summary
             val historyCount = prefs.getString("rename_history_count", "30")
             val historyCountPreference = findPreference<androidx.preference.ListPreference>("rename_history_count")
             historyCountPreference?.summary = "$historyCount items"
-            
+
             // Update default sort summary
             val sortValue = prefs.getString("rename_default_sort", "time_desc")
             val sortPreference = findPreference<androidx.preference.ListPreference>("rename_default_sort")
@@ -146,6 +148,85 @@ class SettingsActivity : AppCompatActivity() {
                 "text_ignore_asc" -> getString(R.string.text_ignore_alphanum_ascending)
                 "text_ignore_desc" -> getString(R.string.text_ignore_alphanum_descending)
                 else -> getString(R.string.time_descending)
+            }
+        }
+
+        private fun setupDisplaySettingsListeners() {
+            // Handle default sort order preference change
+            findPreference<androidx.preference.ListPreference>("default_sort_order")?.setOnPreferenceChangeListener { _, newValue ->
+                val sortValue = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("default_sort_order")
+                preference?.summary = when (sortValue) {
+                    "date_desc" -> getString(R.string.sort_by_date_desc)
+                    "date_asc" -> getString(R.string.sort_by_date_asc)
+                    "name_asc" -> getString(R.string.sort_by_name_asc)
+                    "name_desc" -> getString(R.string.sort_by_name_desc)
+                    else -> getString(R.string.sort_by_date_desc)
+                }
+                true
+            }
+
+            // Handle default view mode preference change
+            findPreference<androidx.preference.ListPreference>("default_view_mode")?.setOnPreferenceChangeListener { _, newValue ->
+                val viewMode = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("default_view_mode")
+                preference?.summary = when (viewMode) {
+                    "grid" -> getString(R.string.thumbnail_view)
+                    "list" -> getString(R.string.list_view)
+                    "detailed" -> getString(R.string.detailed_view)
+                    else -> getString(R.string.thumbnail_view)
+                }
+                true
+            }
+
+            // Handle filename max lines preference change
+            findPreference<androidx.preference.ListPreference>("filename_max_lines")?.setOnPreferenceChangeListener { _, newValue ->
+                val maxLines = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("filename_max_lines")
+                preference?.summary = when (maxLines) {
+                    "1" -> getString(R.string.filename_max_lines_1)
+                    "2" -> getString(R.string.filename_max_lines_2)
+                    "3" -> getString(R.string.filename_max_lines_3)
+                    "0" -> getString(R.string.filename_max_lines_0)
+                    else -> getString(R.string.filename_max_lines_1)
+                }
+                true
+            }
+        }
+
+        private fun updateDisplaySummary() {
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+
+            // Update default sort order summary
+            val sortOrder = prefs.getString("default_sort_order", "date_desc")
+            val sortOrderPreference = findPreference<androidx.preference.ListPreference>("default_sort_order")
+            sortOrderPreference?.summary = when (sortOrder) {
+                "date_desc" -> getString(R.string.sort_by_date_desc)
+                "date_asc" -> getString(R.string.sort_by_date_asc)
+                "name_asc" -> getString(R.string.sort_by_name_asc)
+                "name_desc" -> getString(R.string.sort_by_name_desc)
+                else -> getString(R.string.sort_by_date_desc)
+            }
+
+            // Update default view mode summary
+            val viewMode = prefs.getString("default_view_mode", "grid")
+            val viewModePreference = findPreference<androidx.preference.ListPreference>("default_view_mode")
+            viewModePreference?.summary = when (viewMode) {
+                "grid" -> getString(R.string.thumbnail_view)
+                "list" -> getString(R.string.list_view)
+                "detailed" -> getString(R.string.detailed_view)
+                else -> getString(R.string.thumbnail_view)
+            }
+
+            // Update filename max lines summary
+            val maxLines = prefs.getString("filename_max_lines", "1")
+            val maxLinesPreference = findPreference<androidx.preference.ListPreference>("filename_max_lines")
+            maxLinesPreference?.summary = when (maxLines) {
+                "1" -> getString(R.string.filename_max_lines_1)
+                "2" -> getString(R.string.filename_max_lines_2)
+                "3" -> getString(R.string.filename_max_lines_3)
+                "0" -> getString(R.string.filename_max_lines_0)
+                else -> getString(R.string.filename_max_lines_1)
             }
         }
 
