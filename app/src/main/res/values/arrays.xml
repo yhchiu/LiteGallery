@@ -116,4 +116,25 @@
         <item>0</item>
     </string-array>
 
+    <!-- Zoom Max Scale Options -->
+    <string-array name="zoom_max_scale_entries">
+        <item>@string/zoom_scale_2x</item>
+        <item>@string/zoom_scale_3x</item>
+        <item>@string/zoom_scale_4x</item>
+        <item>@string/zoom_scale_5x</item>
+        <item>@string/zoom_scale_6x</item>
+        <item>@string/zoom_scale_8x</item>
+        <item>@string/zoom_scale_10x</item>
+    </string-array>
+
+    <string-array name="zoom_max_scale_values">
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>8</item>
+        <item>10</item>
+    </string-array>
+
 </resources>

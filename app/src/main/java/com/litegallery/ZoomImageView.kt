@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.ViewConfiguration
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.preference.PreferenceManager
 import kotlin.math.*
 
 class ZoomImageView @JvmOverloads constructor(
@@ -24,8 +25,14 @@ class ZoomImageView @JvmOverloads constructor(
     
     // Zoom limits
     private val minScale = 1f
-    private val maxScale = 6f
     private var currentScale = 1f
+
+    // Get max scale from preferences
+    private val maxScale: Float
+        get() {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+            return prefs.getString("zoom_max_scale", "3")?.toFloatOrNull() ?: 3f
+        }
     
     // Touch handling
     private var scaleGestureDetector: ScaleGestureDetector
@@ -44,8 +51,12 @@ class ZoomImageView @JvmOverloads constructor(
     private var onImageClickListener: (() -> Unit)? = null
     private var onZoomChangeListener: ((Float) -> Unit)? = null
     
-    // Zoom levels for cycling
-    private val zoomLevels = floatArrayOf(1f, 2f, 3f, 4f, 5f, 6f)
+    // Zoom levels for cycling (dynamically generated based on maxScale)
+    private val zoomLevels: FloatArray
+        get() {
+            val max = maxScale.toInt()
+            return (1..max).map { it.toFloat() }.toFloatArray()
+        }
     private var currentZoomLevelIndex = 0
 
     init {

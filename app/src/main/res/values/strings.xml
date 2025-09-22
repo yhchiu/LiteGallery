@@ -139,4 +139,15 @@
     <string name="filename_max_lines_2">2 lines</string>
     <string name="filename_max_lines_3">3 lines</string>
     <string name="filename_max_lines_0">Unlimited lines</string>
+
+    <!-- Zoom Settings -->
+    <string name="zoom_max_scale_title">Maximum Zoom Scale</string>
+    <string name="zoom_max_scale_summary">Maximum zoom level for images</string>
+    <string name="zoom_scale_2x">2x</string>
+    <string name="zoom_scale_3x">3x</string>
+    <string name="zoom_scale_4x">4x</string>
+    <string name="zoom_scale_5x">5x</string>
+    <string name="zoom_scale_6x">6x</string>
+    <string name="zoom_scale_8x">8x</string>
+    <string name="zoom_scale_10x">10x</string>
 </resources>
