@@ -23,15 +23,19 @@
         <EditText
             android:id="@+id/renameEditText"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:layout_alignParentStart="true"
             android:background="@drawable/edit_text_background"
             android:hint="File name"
             android:paddingStart="12dp"
             android:paddingEnd="8dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
             android:textSize="16sp"
-            android:maxLines="1"
-            android:inputType="text" />
+            android:inputType="textMultiLine"
+            android:gravity="top"
+            android:scrollbars="vertical" />
 
     </RelativeLayout>
 
