@@ -62,6 +62,9 @@ class MediaViewerActivity : AppCompatActivity() {
         setupViewPager()
         setupUI()
         loadMedia()
+
+        // Apply initial filename max lines setting
+        applyFilenameMaxLinesSetting()
     }
     
     override fun onResume() {
@@ -79,6 +82,9 @@ class MediaViewerActivity : AppCompatActivity() {
         
         // Re-apply action bar customization in case user changed settings
         applyActionBarCustomization()
+
+        // Re-apply filename max lines setting in case user changed it
+        applyFilenameMaxLinesSetting()
     }
     
     override fun onPause() {
@@ -776,10 +782,28 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun updateFileName(position: Int) {
         if (position < mediaItems.size) {
             binding.fileNameTextView.text = mediaItems[position].name
+
+            // Apply filename max lines setting
+            applyFilenameMaxLinesSetting()
+
             // Reset zoom level display when switching media
             updateZoomLevelDisplay(1f)
             isZoomed = false
             setViewPagerSwipingEnabled(true)
+        }
+    }
+
+    private fun applyFilenameMaxLinesSetting() {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val maxLines = prefs.getString("filename_max_lines", "1")?.toIntOrNull() ?: 1
+
+        if (maxLines == 0) {
+            // Unlimited lines
+            binding.fileNameTextView.maxLines = Integer.MAX_VALUE
+            binding.fileNameTextView.ellipsize = null
+        } else {
+            binding.fileNameTextView.maxLines = maxLines
+            binding.fileNameTextView.ellipsize = android.text.TextUtils.TruncateAt.END
         }
     }
     

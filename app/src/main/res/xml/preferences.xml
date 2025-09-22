@@ -20,6 +20,14 @@
             android:summary="@string/thumbnail_view"
             android:title="@string/default_view_mode" />
 
+        <ListPreference
+            android:defaultValue="1"
+            android:entries="@array/filename_max_lines_entries"
+            android:entryValues="@array/filename_max_lines_values"
+            android:key="filename_max_lines"
+            android:summary="@string/filename_max_lines_1"
+            android:title="@string/filename_max_lines_title" />
+
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/action_bar_settings">
