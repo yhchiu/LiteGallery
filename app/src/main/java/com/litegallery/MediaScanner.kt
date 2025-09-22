@@ -36,15 +36,45 @@ class MediaScanner(private val context: Context) {
                 thumbnail = items.firstOrNull()?.path
             )
         }
-        
-        // Add file system results (avoid duplicates)
+
+        // Add file system results and merge with existing folders
         fileSystemFolders.forEach { folder ->
-            if (!mergedFolders.containsKey(folder.path)) {
+            val existingFolder = mergedFolders[folder.path]
+            if (existingFolder != null) {
+                // Get the actual count by scanning the folder again to include all files
+                val actualCount = getActualFileCount(folder.path)
+                mergedFolders[folder.path] = existingFolder.copy(itemCount = actualCount)
+            } else {
+                // Add new folder from file system scan
                 mergedFolders[folder.path] = folder
             }
         }
         
         mergedFolders.values.sortedBy { it.name }
+    }
+
+    private fun getActualFileCount(folderPath: String): Int {
+        return try {
+            val folder = File(folderPath)
+            if (!folder.exists() || !folder.isDirectory) return 0
+
+            var count = 0
+            folder.listFiles()?.forEach { file ->
+                if (file.isFile && isMediaFile(file)) {
+                    count++
+                }
+            }
+            count
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    private fun isMediaFile(file: File): Boolean {
+        val extension = file.extension.lowercase()
+        val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
+        val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
+        return imageExtensions.contains(extension) || videoExtensions.contains(extension)
     }
     
     suspend fun scanMediaInFolder(folderPath: String): List<MediaItem> = withContext(Dispatchers.IO) {
