@@ -151,4 +151,18 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="Settings Backup">
+
+        <Preference
+            android:key="export_settings"
+            android:summary="@string/export_settings_summary"
+            android:title="@string/export_settings" />
+
+        <Preference
+            android:key="import_settings"
+            android:summary="@string/import_settings_summary"
+            android:title="@string/import_settings" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>
