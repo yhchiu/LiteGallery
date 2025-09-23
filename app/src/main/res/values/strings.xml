@@ -171,8 +171,8 @@
     <string name="video_action_show_hide_ui">Show/Hide UI</string>
     <string name="video_action_cycle_zoom">Cycle Zoom</string>
     <string name="video_action_zoom_in_out">Zoom In/Out</string>
-    <string name="video_action_show_ui">Show UI</string>
-    <string name="video_action_hide_ui">Hide UI</string>
+    <string name="video_action_show_ui">Show Player UI</string>
+    <string name="video_action_hide_ui">Hide Player UI</string>
     <string name="video_action_zoom_in">Zoom In</string>
     <string name="video_action_zoom_out">Zoom Out</string>
     <string name="video_action_brightness_up">Brightness Up</string>
