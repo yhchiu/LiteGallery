@@ -444,7 +444,7 @@ class MediaViewerActivity : AppCompatActivity() {
         }
         
         binding.menuButton.setOnClickListener {
-            // TODO: Implement menu functionality
+            showMediaViewerMenu(it)
         }
         
         // Video controls
@@ -1945,5 +1945,23 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun hideValueDisplay() {
         valueDisplayView?.visibility = android.view.View.GONE
         hideValueDisplayRunnable?.let { valueDisplayHandler.removeCallbacks(it) }
+    }
+
+    private fun showMediaViewerMenu(anchorView: android.view.View) {
+        val popup = androidx.appcompat.widget.PopupMenu(this, anchorView)
+        popup.menuInflater.inflate(R.menu.media_viewer_menu, popup.menu)
+
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_settings -> {
+                    val intent = android.content.Intent(this, SettingsActivity::class.java)
+                    startActivity(intent)
+                    true
+                }
+                else -> false
+            }
+        }
+
+        popup.show()
     }
 }
