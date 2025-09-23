@@ -275,6 +275,21 @@ class MediaViewerActivity : AppCompatActivity() {
             setViewPagerSwipingEnabled(!isZoomed)
             updateZoomLevelDisplay(zoomLevel)
         }
+
+        // Set up brightness change listener
+        mediaViewerAdapter.setBrightnessChangeListener { brightness ->
+            setBrightness(brightness)
+        }
+
+        // Set up volume change listener
+        mediaViewerAdapter.setVolumeChangeListener { volume ->
+            setVolume(volume)
+        }
+
+        // Set up value display listener
+        mediaViewerAdapter.setValueDisplayListener { type, value ->
+            showValueDisplay(type, value)
+        }
         
         binding.viewPager.adapter = mediaViewerAdapter
         
@@ -1771,5 +1786,153 @@ class MediaViewerActivity : AppCompatActivity() {
         } finally {
             retriever.release()
         }
+    }
+
+    private fun setBrightness(brightness: Float) {
+        val layoutParams = window.attributes
+        layoutParams.screenBrightness = brightness.coerceIn(0.1f, 1.0f)
+        window.attributes = layoutParams
+
+        android.util.Log.d("MediaViewerActivity", "Brightness set to: $brightness")
+    }
+
+    private fun setVolume(volume: Float) {
+        val audioManager = getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        val targetVolume = (volume * maxVolume).toInt().coerceIn(0, maxVolume)
+
+        audioManager.setStreamVolume(
+            android.media.AudioManager.STREAM_MUSIC,
+            targetVolume,
+            0 // No UI flags to avoid conflict with our custom display
+        )
+
+        android.util.Log.d("MediaViewerActivity", "Volume set to: $volume ($targetVolume/$maxVolume)")
+    }
+
+    private var valueDisplayView: android.widget.TextView? = null
+    private var valueDisplayHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var hideValueDisplayRunnable: Runnable? = null
+
+    private fun showValueDisplay(type: String, value: Float) {
+        if (type.isEmpty()) {
+            // Hide display
+            hideValueDisplay()
+            return
+        }
+
+        // Create overlay if it doesn't exist
+        if (valueDisplayView == null) {
+            valueDisplayView = android.widget.TextView(this).apply {
+                layoutParams = android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                    android.view.Gravity.CENTER
+                )
+
+                // Use theme-aware colors with fallbacks
+                val typedValue = android.util.TypedValue()
+                val theme = this@MediaViewerActivity.theme
+
+                // Try to get Material Design colors, with fallbacks
+                var backgroundColor = android.graphics.Color.parseColor("#E0000000") // Semi-transparent black fallback
+                var textColor = android.graphics.Color.WHITE // White text fallback
+
+                // Check if we're in dark mode for better fallback
+                val isDarkMode = (resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+                // Try Material Design surface color
+                if (theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true)) {
+                    backgroundColor = typedValue.data
+                    // Make background semi-transparent for better overlay effect
+                    backgroundColor = (backgroundColor and 0x00FFFFFF) or 0xE0000000.toInt()
+                } else if (theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)) {
+                    backgroundColor = typedValue.data
+                    backgroundColor = (backgroundColor and 0x00FFFFFF) or 0xE0000000.toInt()
+                } else {
+                    // Use mode-aware fallback colors
+                    backgroundColor = if (isDarkMode) {
+                        android.graphics.Color.parseColor("#E0424242") // Semi-transparent dark gray
+                    } else {
+                        android.graphics.Color.parseColor("#E0F5F5F5") // Semi-transparent light gray
+                    }
+                }
+
+                // Try Material Design on-surface color
+                if (theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)) {
+                    textColor = typedValue.data
+                } else if (theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)) {
+                    textColor = typedValue.data
+                } else {
+                    // Use mode-aware fallback text colors
+                    textColor = if (isDarkMode) {
+                        android.graphics.Color.WHITE
+                    } else {
+                        android.graphics.Color.BLACK
+                    }
+                }
+
+                // Create rounded background drawable with theme colors
+                val backgroundDrawable = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(backgroundColor)
+                    cornerRadius = 16f
+                    // Add contrasting border
+                    val borderColor = if (textColor == android.graphics.Color.WHITE) {
+                        android.graphics.Color.parseColor("#40FFFFFF")
+                    } else {
+                        android.graphics.Color.parseColor("#40000000")
+                    }
+                    setStroke(2, borderColor)
+                }
+
+                background = backgroundDrawable
+                setTextColor(textColor)
+                textSize = 18f
+                setPadding(32, 16, 32, 16)
+                alpha = 0.95f
+                elevation = 8f
+
+                // Add shadow for better visibility
+                val shadowColor = if (textColor == android.graphics.Color.WHITE) {
+                    android.graphics.Color.parseColor("#80000000") // Dark shadow for light text
+                } else {
+                    android.graphics.Color.parseColor("#80FFFFFF") // Light shadow for dark text
+                }
+                setShadowLayer(4f, 0f, 2f, shadowColor)
+
+                // Debug logging for theme colors
+                android.util.Log.d("ValueDisplay",
+                    "Colors - Background: ${String.format("#%08X", backgroundColor)}, " +
+                    "Text: ${String.format("#%08X", textColor)}, " +
+                    "Shadow: ${String.format("#%08X", shadowColor)}")
+            }
+
+            // Add to the root view
+            val rootView = findViewById<android.widget.FrameLayout>(android.R.id.content)
+            rootView.addView(valueDisplayView)
+        }
+
+        // Update display text
+        val displayText = when (type) {
+            "Zoom" -> "Zoom: ${String.format("%.1f", value)}x"
+            "Brightness" -> "Brightness: ${value.toInt()}%"
+            "Volume" -> "Volume: ${value.toInt()}%"
+            else -> "$type: $value"
+        }
+
+        valueDisplayView?.text = displayText
+        valueDisplayView?.visibility = android.view.View.VISIBLE
+
+        // Auto-hide after 1.5 seconds
+        hideValueDisplayRunnable?.let { valueDisplayHandler.removeCallbacks(it) }
+        hideValueDisplayRunnable = Runnable { hideValueDisplay() }
+        valueDisplayHandler.postDelayed(hideValueDisplayRunnable!!, 1500)
+    }
+
+    private fun hideValueDisplay() {
+        valueDisplayView?.visibility = android.view.View.GONE
+        hideValueDisplayRunnable?.let { valueDisplayHandler.removeCallbacks(it) }
     }
 }

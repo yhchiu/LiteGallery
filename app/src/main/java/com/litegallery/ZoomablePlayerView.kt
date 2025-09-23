@@ -60,6 +60,24 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private var onVideoClickListener: (() -> Unit)? = null
     private var onVideoDoubleClickListener: (() -> Unit)? = null
     private var onZoomChangeListener: ((Float) -> Unit)? = null
+
+    // Gesture action listeners
+    private var onPlayPauseListener: (() -> Unit)? = null
+    private var onShowUIListener: (() -> Unit)? = null
+    private var onHideUIListener: (() -> Unit)? = null
+    private var onToggleUIListener: (() -> Unit)? = null
+    private var onBrightnessChangeListener: ((Float) -> Unit)? = null
+    private var onVolumeChangeListener: ((Float) -> Unit)? = null
+    private var onZoomContinuousListener: ((Float) -> Unit)? = null
+    private var onValueDisplayListener: ((String, Float) -> Unit)? = null
+
+    // Continuous swipe tracking
+    private var isVerticalSwipeInProgress = false
+    private var swipeStartY = 0f
+    private var swipeStartX = 0f
+    private var swipeAction = ""
+    private var initialSwipeValue = 0f
+    private var isLeftSide = false
     
     // Zoom levels for cycling (dynamically generated based on maxScale)
     private val zoomLevels: FloatArray
@@ -87,6 +105,38 @@ class ZoomablePlayerView @JvmOverloads constructor(
     
     fun setOnZoomChangeListener(listener: (Float) -> Unit) {
         onZoomChangeListener = listener
+    }
+
+    fun setOnPlayPauseListener(listener: () -> Unit) {
+        onPlayPauseListener = listener
+    }
+
+    fun setOnShowUIListener(listener: () -> Unit) {
+        onShowUIListener = listener
+    }
+
+    fun setOnHideUIListener(listener: () -> Unit) {
+        onHideUIListener = listener
+    }
+
+    fun setOnToggleUIListener(listener: () -> Unit) {
+        onToggleUIListener = listener
+    }
+
+    fun setOnBrightnessChangeListener(listener: (Float) -> Unit) {
+        onBrightnessChangeListener = listener
+    }
+
+    fun setOnVolumeChangeListener(listener: (Float) -> Unit) {
+        onVolumeChangeListener = listener
+    }
+
+    fun setOnZoomContinuousListener(listener: (Float) -> Unit) {
+        onZoomContinuousListener = listener
+    }
+
+    fun setOnValueDisplayListener(listener: (String, Float) -> Unit) {
+        onValueDisplayListener = listener
     }
     
     fun resetZoom() {
@@ -230,6 +280,7 @@ class ZoomablePlayerView @JvmOverloads constructor(
         if (!scaleGestureDetector.isInProgress) {
             handled = gestureDetector.onTouchEvent(event) || handled
             handled = handleDragGesture(event) || handled
+            handled = handleContinuousSwipe(event) || handled
         }
         
         return handled || super.onTouchEvent(event)
@@ -272,7 +323,165 @@ class ZoomablePlayerView @JvmOverloads constructor(
         
         return false
     }
-    
+
+    private fun handleContinuousSwipe(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // Reset swipe tracking
+                isVerticalSwipeInProgress = false
+                swipeStartY = event.y
+                swipeStartX = event.x
+                swipeAction = ""
+                isLeftSide = false
+                return false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!isZooming && !isDragging) {
+                    val deltaY = event.y - swipeStartY
+                    val deltaX = event.x - lastTouchX
+
+                    // Check if this is a vertical swipe (not horizontal)
+                    if (!isVerticalSwipeInProgress && abs(deltaY) > abs(deltaX) && abs(deltaY) > touchSlop) {
+                        isVerticalSwipeInProgress = true
+                        swipeStartY = event.y
+
+                        // Determine which side of the screen (left 50% or right 50%)
+                        isLeftSide = swipeStartX < (width / 2f)
+
+                        // Determine action based on preferences and side
+                        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                        swipeAction = if (deltaY < 0) {
+                            // Swipe up
+                            if (isLeftSide) {
+                                prefs.getString("video_left_swipe_up_action", "show_ui") ?: "show_ui"
+                            } else {
+                                prefs.getString("video_right_swipe_up_action", "brightness_up") ?: "brightness_up"
+                            }
+                        } else {
+                            // Swipe down
+                            if (isLeftSide) {
+                                prefs.getString("video_left_swipe_down_action", "hide_ui") ?: "hide_ui"
+                            } else {
+                                prefs.getString("video_right_swipe_down_action", "brightness_down") ?: "brightness_down"
+                            }
+                        }
+
+                        // Store initial values
+                        initialSwipeValue = when (swipeAction) {
+                            "zoom_in", "zoom_out" -> getCurrentZoomLevel()
+                            "brightness_up", "brightness_down" -> getCurrentBrightness()
+                            "volume_up", "volume_down" -> getCurrentVolume()
+                            else -> 0f
+                        }
+
+                        parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+
+                    if (isVerticalSwipeInProgress) {
+                        val swipeDistance = event.y - swipeStartY
+                        handleContinuousAdjustment(swipeDistance)
+                        return true
+                    }
+                }
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (isVerticalSwipeInProgress) {
+                    isVerticalSwipeInProgress = false
+                    // Hide value display
+                    onValueDisplayListener?.invoke("", 0f)
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun handleContinuousAdjustment(swipeDistance: Float) {
+        val sensitivity = height / 4f // Adjust sensitivity based on view height
+        val normalizedDistance = swipeDistance / sensitivity
+
+        when (swipeAction) {
+            "zoom_in", "zoom_out" -> {
+                val isUp = swipeAction == "zoom_in"
+                val direction = if (isUp) -1 else 1 // Negative for up (zoom in)
+                val zoomChange = normalizedDistance * direction * 2f // 2x sensitivity for zoom
+                val newZoom = (initialSwipeValue + zoomChange).coerceIn(1f, maxScale)
+                applyContinuousZoom(newZoom)
+                onValueDisplayListener?.invoke("Zoom", newZoom)
+            }
+
+            "brightness_up", "brightness_down" -> {
+                val isUp = swipeAction == "brightness_up"
+                val direction = if (isUp) -1 else 1 // Negative for up (brighter)
+                val brightnessChange = normalizedDistance * direction
+                val newBrightness = (initialSwipeValue + brightnessChange).coerceIn(0.1f, 1f)
+                onBrightnessChangeListener?.invoke(newBrightness)
+                onValueDisplayListener?.invoke("Brightness", newBrightness * 100f)
+            }
+
+            "volume_up", "volume_down" -> {
+                val isUp = swipeAction == "volume_up"
+                val direction = if (isUp) -1 else 1 // Negative for up (louder)
+                val volumeChange = normalizedDistance * direction
+                val newVolume = (initialSwipeValue + volumeChange).coerceIn(0f, 1f)
+                onVolumeChangeListener?.invoke(newVolume)
+                onValueDisplayListener?.invoke("Volume", newVolume * 100f)
+            }
+
+            else -> {
+                // For UI actions, trigger only once at the end
+                if (abs(swipeDistance) > height / 6f) { // Minimum swipe distance
+                    when (swipeAction) {
+                        "show_ui" -> onShowUIListener?.invoke()
+                        "hide_ui" -> onHideUIListener?.invoke()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun applyContinuousZoom(targetZoom: Float) {
+        if (videoWidth <= 0 || videoHeight <= 0 || baseContentWidth <= 0 || baseContentHeight <= 0) return
+
+        val viewWidth = width.toFloat()
+        val viewHeight = height.toFloat()
+
+        if (viewWidth <= 0 || viewHeight <= 0) return
+
+        // Calculate the base scale to fit video in view
+        val scaleX = baseContentWidth / videoWidth
+        val scaleY = baseContentHeight / videoHeight
+        val baseScale = min(scaleX, scaleY)
+
+        val actualTargetScale = targetZoom * baseScale
+        val scaleFactor = actualTargetScale / currentScale
+
+        // Center the zoom
+        val centerX = baseContentWidth * 0.5f
+        val centerY = baseContentHeight * 0.5f
+
+        transformMatrix.postScale(scaleFactor, scaleFactor, centerX, centerY)
+        currentScale = actualTargetScale
+        constrainTransform()
+        applyTransformToVideoSurface()
+        onZoomChangeListener?.invoke(targetZoom)
+    }
+
+    private fun getCurrentBrightness(): Float {
+        val activity = context as? android.app.Activity
+        return activity?.window?.attributes?.screenBrightness ?: 0.5f
+    }
+
+    private fun getCurrentVolume(): Float {
+        val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        return if (maxVolume > 0) currentVolume.toFloat() / maxVolume else 0f
+    }
+
     private fun constrainTransform() {
         if (videoWidth <= 0 || videoHeight <= 0) return
 
@@ -382,19 +591,58 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
             if (!isZooming && !isDragging) {
-                onVideoClickListener?.invoke()
+                handleSingleTapAction()
                 return true
             }
             return false
         }
-        
+
         override fun onDoubleTap(e: MotionEvent): Boolean {
             if (!isZooming && !isDragging) {
-                // Only trigger video double-click for play/pause, no zoom
-                onVideoDoubleClickListener?.invoke()
+                handleDoubleTapAction(e)
                 return true
             }
             return false
         }
+
     }
+
+    private fun handleSingleTapAction() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val action = prefs.getString("video_single_tap_action", "show_hide_ui") ?: "show_hide_ui"
+
+        when (action) {
+            "play_pause" -> onPlayPauseListener?.invoke()
+            "show_hide_ui" -> onToggleUIListener?.invoke()
+            "cycle_zoom" -> cycleZoom()
+            else -> onVideoClickListener?.invoke()
+        }
+    }
+
+    private fun handleDoubleTapAction(e: MotionEvent) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val action = prefs.getString("video_double_tap_action", "play_pause") ?: "play_pause"
+
+        when (action) {
+            "play_pause" -> onPlayPauseListener?.invoke()
+            "show_hide_ui" -> onToggleUIListener?.invoke()
+            "zoom_in_out" -> {
+                if (currentScale > minScale) {
+                    resetZoom()
+                } else {
+                    val targetScale = min(maxScale, minScale * 2f)
+                    val scaleFactor = targetScale / currentScale
+
+                    transformMatrix.postScale(scaleFactor, scaleFactor, e.x, e.y)
+                    currentScale = targetScale
+                    constrainTransform()
+                    applyTransformToVideoSurface()
+                    onZoomChangeListener?.invoke(currentScale)
+                    invalidate()
+                }
+            }
+            else -> onVideoDoubleClickListener?.invoke()
+        }
+    }
+
 }

@@ -38,6 +38,58 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/video_gesture_settings">
+
+        <ListPreference
+            android:defaultValue="show_hide_ui"
+            android:entries="@array/video_single_tap_entries"
+            android:entryValues="@array/video_single_tap_values"
+            android:key="video_single_tap_action"
+            android:summary="@string/video_action_show_hide_ui"
+            android:title="@string/video_single_tap_title" />
+
+        <ListPreference
+            android:defaultValue="play_pause"
+            android:entries="@array/video_double_tap_entries"
+            android:entryValues="@array/video_double_tap_values"
+            android:key="video_double_tap_action"
+            android:summary="@string/video_action_play_pause"
+            android:title="@string/video_double_tap_title" />
+
+        <ListPreference
+            android:defaultValue="show_ui"
+            android:entries="@array/video_left_swipe_up_entries"
+            android:entryValues="@array/video_left_swipe_up_values"
+            android:key="video_left_swipe_up_action"
+            android:summary="@string/video_action_show_ui"
+            android:title="@string/video_left_swipe_up_title" />
+
+        <ListPreference
+            android:defaultValue="hide_ui"
+            android:entries="@array/video_left_swipe_down_entries"
+            android:entryValues="@array/video_left_swipe_down_values"
+            android:key="video_left_swipe_down_action"
+            android:summary="@string/video_action_hide_ui"
+            android:title="@string/video_left_swipe_down_title" />
+
+        <ListPreference
+            android:defaultValue="brightness_up"
+            android:entries="@array/video_right_swipe_up_entries"
+            android:entryValues="@array/video_right_swipe_up_values"
+            android:key="video_right_swipe_up_action"
+            android:summary="@string/video_action_brightness_up"
+            android:title="@string/video_right_swipe_up_title" />
+
+        <ListPreference
+            android:defaultValue="brightness_down"
+            android:entries="@array/video_right_swipe_down_entries"
+            android:entryValues="@array/video_right_swipe_down_values"
+            android:key="video_right_swipe_down_action"
+            android:summary="@string/video_action_brightness_down"
+            android:title="@string/video_right_swipe_down_title" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/action_bar_settings">
 
         <Preference

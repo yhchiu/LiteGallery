@@ -15,6 +15,9 @@ class MediaViewerAdapter(
     
     private var onVideoDoubleClick: (() -> Unit)? = null
     private var onZoomChange: ((Float) -> Unit)? = null
+    private var onBrightnessChange: ((Float) -> Unit)? = null
+    private var onVolumeChange: ((Float) -> Unit)? = null
+    private var onValueDisplay: ((String, Float) -> Unit)? = null
     
     fun setVideoDoubleClickListener(listener: () -> Unit) {
         android.util.Log.d("MediaViewerAdapter", "Video double-click listener set")
@@ -23,6 +26,18 @@ class MediaViewerAdapter(
     
     fun setZoomChangeListener(listener: (Float) -> Unit) {
         onZoomChange = listener
+    }
+
+    fun setBrightnessChangeListener(listener: (Float) -> Unit) {
+        onBrightnessChange = listener
+    }
+
+    fun setVolumeChangeListener(listener: (Float) -> Unit) {
+        onVolumeChange = listener
+    }
+
+    fun setValueDisplayListener(listener: (String, Float) -> Unit) {
+        onValueDisplay = listener
     }
 
     private var currentVideoHolder: MediaViewHolder? = null
@@ -225,26 +240,48 @@ class MediaViewerAdapter(
                 }
             })
             
-            // PRIORITY 1: Set up gesture listeners directly on ZoomablePlayerView (most important)
+            // Set up gesture listeners on ZoomablePlayerView with configurable actions
             (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
                 android.util.Log.d("MediaViewerAdapter", "Setting up ZoomablePlayerView gestures")
-                
-                // SWAPPED: Single-tap -> playback, Double-tap -> UI
-                zoomablePlayerView.setOnVideoClickListener {
-                    android.util.Log.d("MediaViewerAdapter", "Single tap on ZoomablePlayerView -> toggle playback")
-                    onVideoDoubleClick?.let { callback ->
-                        android.util.Log.d("MediaViewerAdapter", "Invoking playback toggle from single-tap")
-                        callback.invoke()
-                    } ?: run {
-                        android.util.Log.w("MediaViewerAdapter", "Playback toggle callback is null!")
-                    }
+
+                // Set up gesture action listeners
+                zoomablePlayerView.setOnPlayPauseListener {
+                    android.util.Log.d("MediaViewerAdapter", "Play/Pause gesture triggered")
+                    onVideoDoubleClick?.invoke()
                 }
-                
-                zoomablePlayerView.setOnVideoDoubleClickListener {
-                    android.util.Log.d("MediaViewerAdapter", "Double tap on ZoomablePlayerView -> toggle UI")
+
+                zoomablePlayerView.setOnToggleUIListener {
+                    android.util.Log.d("MediaViewerAdapter", "Toggle UI gesture triggered")
                     onMediaClick()
                 }
-                
+
+                zoomablePlayerView.setOnShowUIListener {
+                    android.util.Log.d("MediaViewerAdapter", "Show UI gesture triggered")
+                    // Show UI if it's hidden - can reuse onMediaClick if UI is hidden
+                    onMediaClick()
+                }
+
+                zoomablePlayerView.setOnHideUIListener {
+                    android.util.Log.d("MediaViewerAdapter", "Hide UI gesture triggered")
+                    // Hide UI if it's shown - can reuse onMediaClick if UI is shown
+                    onMediaClick()
+                }
+
+                zoomablePlayerView.setOnBrightnessChangeListener { brightness ->
+                    android.util.Log.d("MediaViewerAdapter", "Brightness change: $brightness")
+                    onBrightnessChange?.invoke(brightness)
+                }
+
+                zoomablePlayerView.setOnVolumeChangeListener { volume ->
+                    android.util.Log.d("MediaViewerAdapter", "Volume change: $volume")
+                    onVolumeChange?.invoke(volume)
+                }
+
+                zoomablePlayerView.setOnValueDisplayListener { type, value ->
+                    android.util.Log.d("MediaViewerAdapter", "Value display: $type = $value")
+                    onValueDisplay?.invoke(type, value)
+                }
+
                 zoomablePlayerView.setOnZoomChangeListener { zoomLevel ->
                     android.util.Log.d("MediaViewerAdapter", "Zoom change detected: $zoomLevel")
                     onZoomChange?.invoke(zoomLevel)
@@ -395,8 +432,13 @@ class MediaViewerAdapter(
             }
             
             (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomPlayerView ->
-                zoomPlayerView.setOnVideoClickListener {}
-                zoomPlayerView.setOnVideoDoubleClickListener {}
+                zoomPlayerView.setOnPlayPauseListener {}
+                zoomPlayerView.setOnToggleUIListener {}
+                zoomPlayerView.setOnShowUIListener {}
+                zoomPlayerView.setOnHideUIListener {}
+                zoomPlayerView.setOnBrightnessChangeListener {}
+                zoomPlayerView.setOnVolumeChangeListener {}
+                zoomPlayerView.setOnValueDisplayListener { _, _ -> }
                 zoomPlayerView.setOnZoomChangeListener {}
             }
             
