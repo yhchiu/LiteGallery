@@ -129,7 +129,7 @@ app/src/main/
 ### Build Configuration
 ```gradle
 android {
-    namespace 'com.litegallery'
+    namespace 'org.iurl.litegallery'
     compileSdk 36
     targetSdk 36
     minSdk 24

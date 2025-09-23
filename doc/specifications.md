@@ -6,8 +6,8 @@
 - **Primary Goal**: Maximum performance and speed
 - **Target SDK**: 36
 - **Compile SDK**: 36
-- **Namespace**: com.litegallery
-- **Application ID**: com.litegallery
+- **Namespace**: org.iurl.litegallery
+- **Application ID**: org.iurl.litegallery
 
 ## Core Features
 

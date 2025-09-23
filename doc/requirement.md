@@ -3,7 +3,7 @@
 - 名稱是 LiteGallery
 - 以速度為最高考量
 - compileSdk 與 targetSdk 設定為 36
-- namespace 與 applicationId 設定為 "com.litegallery"
+- namespace 與 applicationId 設定為 "org.iurl.litegallery"
 - UI 美觀大方
 - App 打開後會看到所有包含照片或影片的資料夾, 點進資料夾後會看到縮圖、簡潔列表或詳細列表(可選)
 - 照片或影片預設以檔案日期排序 (可改為檔名排序，可選降冪升冪)

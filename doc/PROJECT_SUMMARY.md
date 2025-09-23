@@ -7,7 +7,7 @@ LiteGallery is a high-performance Android gallery application designed with spee
 
 ### 1. **Project Structure & Configuration**
 - **Build Configuration**: Targets Android SDK 36 (compileSdk and targetSdk)
-- **Namespace/App ID**: `com.litegallery` as specified
+- **Namespace/App ID**: `org.iurl.litegallery` as specified
 - **Modern Dependencies**:
   - Glide for efficient image loading and caching
   - ExoPlayer for high-performance video playback

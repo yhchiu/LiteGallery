@@ -1,4 +1,4 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -6,7 +6,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.litegallery.databinding.ItemFolderBinding
+import org.iurl.litegallery.databinding.ItemFolderBinding
 
 class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
     ListAdapter<MediaFolder, FolderAdapter.FolderViewHolder>(FolderDiffCallback()) {

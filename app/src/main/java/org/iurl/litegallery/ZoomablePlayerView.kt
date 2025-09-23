@@ -1,4 +1,4 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.content.Context
 import android.graphics.Matrix

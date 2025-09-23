@@ -11,7 +11,7 @@
 - 影片縮放採用 `TextureView.setTransform(Matrix)`：
   - `item_media_viewer.xml` 指定 `PlayerView` 使用 TextureView 表面：
     ```xml
-    <com.litegallery.ZoomablePlayerView
+    <org.iurl.litegallery.ZoomablePlayerView
         android:id="@+id/playerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -251,7 +251,7 @@ Contrast|Transformer in main
 
 codex
 結論      - 影片縮放使用 TextureView.setTransform(Matrix)，由自訂 ZoomablePlayerView 實作；非 Media3 Effects，也不是單純      view.scaleX/scaleY。                                                                                                     依據      - LiteGallery/app/src/main/res/layout/item_media_viewer.xml:
-- com.litegallery.ZoomablePlayerView 並設 app:surface_type="texture_view"（確保用 TextureView）。
+- org.iurl.litegallery.ZoomablePlayerView 並設 app:surface_type="texture_view"（確保用 TextureView）。
 - LiteGallery/app/src/main/java/com/litegallery/ZoomablePlayerView.kt:
 - 尋找內部視圖後對 TextureView 執行 surface.setTransform(transformMatrix)。
 - 僅在是 SurfaceView 時才 fallback 用 scaleX/scaleY + translation（此案因 XML 指定 TextureView，實際走不到）。      - 透過 onVideoSizeChanged 傳入影片尺寸，計算基準縮放與平移。

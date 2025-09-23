@@ -1,4 +1,4 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.content.Intent
 import android.os.Bundle
@@ -8,7 +8,7 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import com.litegallery.databinding.ActivityFolderViewBinding
+import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import kotlinx.coroutines.launch
 
 class FolderViewActivity : AppCompatActivity() {
