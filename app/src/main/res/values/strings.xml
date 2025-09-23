@@ -179,4 +179,16 @@
     <string name="video_action_brightness_down">Brightness Down</string>
     <string name="video_action_volume_up">Volume Up</string>
     <string name="video_action_volume_down">Volume Down</string>
+
+    <!-- Settings Export/Import -->
+    <string name="export_settings">Export Settings</string>
+    <string name="import_settings">Import Settings</string>
+    <string name="export_settings_summary">Export all settings to a file</string>
+    <string name="import_settings_summary">Import settings from a file</string>
+    <string name="export_success">Settings exported successfully</string>
+    <string name="import_success">Settings imported successfully</string>
+    <string name="export_failed">Failed to export settings</string>
+    <string name="import_failed">Failed to import settings</string>
+    <string name="invalid_settings_file">Invalid settings file</string>
+    <string name="settings_imported_count">Imported %d settings, skipped %d incompatible settings</string>
 </resources>

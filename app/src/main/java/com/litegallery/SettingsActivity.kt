@@ -1,7 +1,10 @@
 package com.litegallery
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceFragmentCompat
 import com.litegallery.databinding.ActivitySettingsBinding
@@ -49,8 +52,23 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     class SettingsFragment : PreferenceFragmentCompat() {
+
+        private lateinit var settingsHelper: SettingsExportImportHelper
+
+        // Activity result launchers for file picking
+        private val exportFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            uri?.let { exportToUri(it) }
+        }
+
+        private val importFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { importFromUri(it) }
+        }
+
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            // Initialize settings helper
+            settingsHelper = SettingsExportImportHelper(requireContext())
 
             // Handle theme preference change
             findPreference<androidx.preference.ListPreference>("theme_preference")?.setOnPreferenceChangeListener { _, newValue ->
@@ -83,6 +101,18 @@ class SettingsActivity : AppCompatActivity() {
             // Handle Customize Action Bar click
             findPreference<androidx.preference.Preference>("customize_action_bar")?.setOnPreferenceClickListener {
                 showCustomizeActionBarDialog()
+                true
+            }
+
+            // Handle Export Settings click
+            findPreference<androidx.preference.Preference>("export_settings")?.setOnPreferenceClickListener {
+                exportSettings()
+                true
+            }
+
+            // Handle Import Settings click
+            findPreference<androidx.preference.Preference>("import_settings")?.setOnPreferenceClickListener {
+                importSettings()
                 true
             }
             
@@ -484,6 +514,76 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             dialog.show()
+        }
+
+        private fun exportSettings() {
+            try {
+                val defaultFilename = settingsHelper.generateDefaultFilename()
+                exportFileLauncher.launch(defaultFilename)
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsFragment", "Failed to launch export file picker", e)
+                showToast(getString(R.string.export_failed))
+            }
+        }
+
+        private fun importSettings() {
+            try {
+                importFileLauncher.launch(arrayOf("application/json", "*/*"))
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsFragment", "Failed to launch import file picker", e)
+                showToast(getString(R.string.import_failed))
+            }
+        }
+
+        private fun exportToUri(uri: android.net.Uri) {
+            try {
+                requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    val success = settingsHelper.exportSettings(outputStream)
+                    if (success) {
+                        showToast(getString(R.string.export_success))
+                    } else {
+                        showToast(getString(R.string.export_failed))
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsFragment", "Failed to export settings", e)
+                showToast(getString(R.string.export_failed))
+            }
+        }
+
+        private fun importFromUri(uri: android.net.Uri) {
+            try {
+                requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val (importedCount, skippedCount) = settingsHelper.importSettings(inputStream)
+
+                    // Show result message
+                    val message = if (skippedCount > 0) {
+                        getString(R.string.settings_imported_count, importedCount, skippedCount)
+                    } else {
+                        getString(R.string.import_success)
+                    }
+                    showToast(message)
+
+                    // Refresh UI to show updated settings
+                    updateThemeSummary()
+                    updateRenameSummary()
+                    updateDisplaySummary()
+                    updateVideoGestureSummary()
+
+                    // Recreate activity to apply theme changes if any
+                    activity?.recreate()
+                }
+            } catch (e: IllegalArgumentException) {
+                android.util.Log.e("SettingsFragment", "Invalid settings file", e)
+                showToast(getString(R.string.invalid_settings_file))
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsFragment", "Failed to import settings", e)
+                showToast(getString(R.string.import_failed))
+            }
+        }
+
+        private fun showToast(message: String) {
+            android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_LONG).show()
         }
     }
 }
