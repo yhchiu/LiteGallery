@@ -71,6 +71,9 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private var onZoomContinuousListener: ((Float) -> Unit)? = null
     private var onValueDisplayListener: ((String, Float) -> Unit)? = null
 
+    // Debug control
+    private val enableSwipeGestureDebug = false // Set to true to enable debug logging
+
     // Continuous swipe tracking
     private var isVerticalSwipeInProgress = false
     private var swipeStartY = 0f
@@ -78,6 +81,7 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private var swipeAction = ""
     private var initialSwipeValue = 0f
     private var isLeftSide = false
+    private var hasUIActionBeenTriggered = false // Track if UI action was already triggered
     
     // Zoom levels for cycling (dynamically generated based on maxScale)
     private val zoomLevels: FloatArray
@@ -333,6 +337,13 @@ class ZoomablePlayerView @JvmOverloads constructor(
                 swipeStartX = event.x
                 swipeAction = ""
                 isLeftSide = false
+                hasUIActionBeenTriggered = false
+
+                if (enableSwipeGestureDebug) {
+                    android.util.Log.d("GestureDebug",
+                        "ACTION_DOWN - StartY: $swipeStartY, StartX: $swipeStartX")
+                }
+
                 return false
             }
 
@@ -341,30 +352,47 @@ class ZoomablePlayerView @JvmOverloads constructor(
                     val deltaY = event.y - swipeStartY
                     val deltaX = event.x - lastTouchX
 
+                    // Debug logging for gesture detection
+                    if (enableSwipeGestureDebug) {
+                        android.util.Log.d("GestureDebug",
+                            "MOVE - StartY: $swipeStartY, CurrentY: ${event.y}, " +
+                            "DeltaY: $deltaY, DeltaX: $deltaX, TouchSlop: $touchSlop")
+                    }
+
                     // Check if this is a vertical swipe (not horizontal)
                     if (!isVerticalSwipeInProgress && abs(deltaY) > abs(deltaX) && abs(deltaY) > touchSlop) {
                         isVerticalSwipeInProgress = true
-                        swipeStartY = event.y
+                        // DON'T reset swipeStartY here - keep original start position!
 
                         // Determine which side of the screen (left 50% or right 50%)
                         isLeftSide = swipeStartX < (width / 2f)
+                        val screenSide = if (isLeftSide) "LEFT" else "RIGHT"
+
+                        // Determine direction
+                        val direction = if (deltaY < 0) "UP" else "DOWN"
 
                         // Determine action based on preferences and side
                         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
                         swipeAction = if (deltaY < 0) {
-                            // Swipe up
+                            // Swipe up (negative deltaY = moving upward)
                             if (isLeftSide) {
                                 prefs.getString("video_left_swipe_up_action", "show_ui") ?: "show_ui"
                             } else {
                                 prefs.getString("video_right_swipe_up_action", "brightness_up") ?: "brightness_up"
                             }
                         } else {
-                            // Swipe down
+                            // Swipe down (positive deltaY = moving downward)
                             if (isLeftSide) {
                                 prefs.getString("video_left_swipe_down_action", "hide_ui") ?: "hide_ui"
                             } else {
                                 prefs.getString("video_right_swipe_down_action", "brightness_down") ?: "brightness_down"
                             }
+                        }
+
+                        if (enableSwipeGestureDebug) {
+                            android.util.Log.d("GestureDebug",
+                                "GESTURE DETECTED - Side: $screenSide, Direction: $direction, " +
+                                "Action: $swipeAction, StartX: $swipeStartX, Width: $width")
                         }
 
                         // Store initial values
@@ -388,6 +416,13 @@ class ZoomablePlayerView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (isVerticalSwipeInProgress) {
+                    val finalDeltaY = event.y - swipeStartY
+                    if (enableSwipeGestureDebug) {
+                        android.util.Log.d("GestureDebug",
+                            "ACTION_UP - FinalDeltaY: $finalDeltaY, Action: $swipeAction, " +
+                            "WasInProgress: $isVerticalSwipeInProgress")
+                    }
+
                     isVerticalSwipeInProgress = false
                     // Hide value display
                     onValueDisplayListener?.invoke("", 0f)
@@ -401,12 +436,19 @@ class ZoomablePlayerView @JvmOverloads constructor(
 
     private fun handleContinuousAdjustment(swipeDistance: Float) {
         val sensitivity = height / 4f // Adjust sensitivity based on view height
-        val normalizedDistance = swipeDistance / sensitivity
+        val normalizedDistance = abs(swipeDistance) / sensitivity // Use absolute value for distance
+
+        // Debug logging for continuous adjustment
+        if (enableSwipeGestureDebug) {
+            android.util.Log.d("GestureDebug",
+                "CONTINUOUS ADJUSTMENT - Action: $swipeAction, SwipeDistance: $swipeDistance, " +
+                "Sensitivity: $sensitivity, NormalizedDistance: $normalizedDistance")
+        }
 
         when (swipeAction) {
             "zoom_in", "zoom_out" -> {
                 val isUp = swipeAction == "zoom_in"
-                val direction = if (isUp) -1 else 1 // Negative for up (zoom in)
+                val direction = if (isUp) 1 else -1 // Positive for up (zoom in), negative for down (zoom out)
                 val zoomChange = normalizedDistance * direction * 2f // 2x sensitivity for zoom
                 val newZoom = (initialSwipeValue + zoomChange).coerceIn(1f, maxScale)
                 applyContinuousZoom(newZoom)
@@ -415,7 +457,7 @@ class ZoomablePlayerView @JvmOverloads constructor(
 
             "brightness_up", "brightness_down" -> {
                 val isUp = swipeAction == "brightness_up"
-                val direction = if (isUp) -1 else 1 // Negative for up (brighter)
+                val direction = if (isUp) 1 else -1 // Positive for up (brighter), negative for down (darker)
                 val brightnessChange = normalizedDistance * direction
                 val newBrightness = (initialSwipeValue + brightnessChange).coerceIn(0.1f, 1f)
                 onBrightnessChangeListener?.invoke(newBrightness)
@@ -424,7 +466,7 @@ class ZoomablePlayerView @JvmOverloads constructor(
 
             "volume_up", "volume_down" -> {
                 val isUp = swipeAction == "volume_up"
-                val direction = if (isUp) -1 else 1 // Negative for up (louder)
+                val direction = if (isUp) 1 else -1 // Positive for up (louder), negative for down (quieter)
                 val volumeChange = normalizedDistance * direction
                 val newVolume = (initialSwipeValue + volumeChange).coerceIn(0f, 1f)
                 onVolumeChangeListener?.invoke(newVolume)
@@ -432,11 +474,30 @@ class ZoomablePlayerView @JvmOverloads constructor(
             }
 
             else -> {
-                // For UI actions, trigger only once at the end
-                if (abs(swipeDistance) > height / 6f) { // Minimum swipe distance
+                // For UI actions, trigger only once when minimum distance is reached
+                if (!hasUIActionBeenTriggered && abs(swipeDistance) > height / 6f) {
                     when (swipeAction) {
-                        "show_ui" -> onShowUIListener?.invoke()
-                        "hide_ui" -> onHideUIListener?.invoke()
+                        "show_ui" -> {
+                            onShowUIListener?.invoke()
+                            hasUIActionBeenTriggered = true
+                            if (enableSwipeGestureDebug) {
+                                android.util.Log.d("GestureDebug", "UI action triggered: show_ui")
+                            }
+                        }
+                        "hide_ui" -> {
+                            onHideUIListener?.invoke()
+                            hasUIActionBeenTriggered = true
+                            if (enableSwipeGestureDebug) {
+                                android.util.Log.d("GestureDebug", "UI action triggered: hide_ui")
+                            }
+                        }
+                        "show_hide_ui" -> {
+                            onToggleUIListener?.invoke()
+                            hasUIActionBeenTriggered = true
+                            if (enableSwipeGestureDebug) {
+                                android.util.Log.d("GestureDebug", "UI action triggered: show_hide_ui")
+                            }
+                        }
                     }
                 }
             }
