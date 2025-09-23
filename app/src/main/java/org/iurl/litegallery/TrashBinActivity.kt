@@ -1,4 +1,4 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.os.Bundle
 import android.view.Menu
@@ -6,7 +6,7 @@ import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
-import com.litegallery.databinding.ActivityTrashBinBinding
+import org.iurl.litegallery.databinding.ActivityTrashBinBinding
 
 class TrashBinActivity : AppCompatActivity() {
     

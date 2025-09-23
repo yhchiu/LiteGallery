@@ -1,4 +1,4 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
@@ -6,7 +6,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import com.litegallery.databinding.ItemMediaViewerBinding
+import org.iurl.litegallery.databinding.ItemMediaViewerBinding
 
 class VideoViewHolder(
     private val binding: ItemMediaViewerBinding,
@@ -17,9 +17,9 @@ class VideoViewHolder(
         private set
     private var isPlayerReady = false
     private var hasBeenPlayed = false // Track if video has ever been played
-    private var boundMediaItem: com.litegallery.MediaItem? = null
+    private var boundMediaItem: org.iurl.litegallery.MediaItem? = null
     
-    fun bind(mediaItem: com.litegallery.MediaItem) {
+    fun bind(mediaItem: org.iurl.litegallery.MediaItem) {
         android.util.Log.d("VideoViewHolder", "=== BIND START: ${mediaItem.name} ===")
         
         // Only reset if we don't have a clean state already
@@ -67,7 +67,7 @@ class VideoViewHolder(
         }
     }
     
-    private fun setupVideoPlayer(mediaItem: com.litegallery.MediaItem) {
+    private fun setupVideoPlayer(mediaItem: org.iurl.litegallery.MediaItem) {
         android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP: ${mediaItem.name} ===")
         
         // Ensure we start completely fresh - no reuse of any previous state
@@ -202,7 +202,7 @@ class VideoViewHolder(
                         override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                             android.util.Log.d("VideoViewHolder", "Video size changed: ${videoSize.width}x${videoSize.height}")
                             // Update the ZoomablePlayerView with video dimensions
-                            (binding.playerView as? com.litegallery.ZoomablePlayerView)?.setVideoSize(videoSize.width, videoSize.height)
+                            (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.setVideoSize(videoSize.width, videoSize.height)
                         }
                     })
                 }
@@ -272,8 +272,8 @@ class VideoViewHolder(
         exoPlayer?.pause()
     }
     
-    fun getZoomablePlayerView(): com.litegallery.ZoomablePlayerView? {
-        val zoomableView = binding.playerView as? com.litegallery.ZoomablePlayerView
+    fun getZoomablePlayerView(): org.iurl.litegallery.ZoomablePlayerView? {
+        val zoomableView = binding.playerView as? org.iurl.litegallery.ZoomablePlayerView
         android.util.Log.d("VideoViewHolder", "getZoomablePlayerView: ${zoomableView != null}, player: ${exoPlayer != null}, isPlaying: ${exoPlayer?.isPlaying}")
         return zoomableView
     }
@@ -291,7 +291,7 @@ class VideoViewHolder(
         // Clear PlayerView completely
         binding.playerView?.let { playerView ->
             playerView.player = null
-            (playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+            (playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
         }
         
         // Reset UI state

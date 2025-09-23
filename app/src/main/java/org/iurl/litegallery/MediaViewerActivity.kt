@@ -1,18 +1,13 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.viewpager2.widget.ViewPager2
-import com.litegallery.databinding.ActivityMediaViewerBinding
+import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
 import kotlinx.coroutines.launch
-import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
     

@@ -6,7 +6,7 @@
     android:background="@color/black">
 
     <!-- Photo ImageView with zoom support -->
-    <com.litegallery.ZoomImageView
+    <org.iurl.litegallery.ZoomImageView
         android:id="@+id/photoImageView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -20,7 +20,7 @@
         android:visibility="gone">
 
         <!-- ExoPlayer PlayerView with zoom support -->
-        <com.litegallery.ZoomablePlayerView
+        <org.iurl.litegallery.ZoomablePlayerView
             android:id="@+id/playerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

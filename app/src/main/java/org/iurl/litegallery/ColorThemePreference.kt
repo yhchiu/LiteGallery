@@ -1,8 +1,7 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.content.Context
 import android.util.AttributeSet
-import android.view.View
 import android.widget.TextView
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceViewHolder

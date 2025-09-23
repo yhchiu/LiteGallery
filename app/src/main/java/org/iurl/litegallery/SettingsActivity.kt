@@ -1,13 +1,11 @@
-package com.litegallery
+package org.iurl.litegallery
 
-import android.app.Activity
-import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceFragmentCompat
-import com.litegallery.databinding.ActivitySettingsBinding
+import org.iurl.litegallery.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
     

@@ -1,8 +1,7 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.app.Activity
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
 

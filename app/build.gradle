@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.litegallery'
+    namespace 'org.iurl.litegallery'
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.litegallery"
+        applicationId "org.iurl.litegallery"
         minSdk 24
         targetSdk 36
         versionCode 280

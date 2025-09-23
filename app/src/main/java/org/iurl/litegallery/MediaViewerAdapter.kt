@@ -1,4 +1,4 @@
-package com.litegallery
+package org.iurl.litegallery
 
 import android.view.LayoutInflater
 import android.view.View
@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.litegallery.databinding.ItemMediaViewerBinding
+import org.iurl.litegallery.databinding.ItemMediaViewerBinding
 
 class MediaViewerAdapter(
     private val onMediaClick: () -> Unit
@@ -241,7 +241,7 @@ class MediaViewerAdapter(
             })
             
             // Set up gesture listeners on ZoomablePlayerView with configurable actions
-            (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
+            (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.let { zoomablePlayerView ->
                 android.util.Log.d("MediaViewerAdapter", "Setting up ZoomablePlayerView gestures")
 
                 // Set up gesture action listeners
@@ -320,8 +320,8 @@ class MediaViewerAdapter(
             videoViewHolder?.onPause()
         }
         
-        fun getZoomImageView(): com.litegallery.ZoomImageView? {
-            return binding.photoImageView as? com.litegallery.ZoomImageView
+        fun getZoomImageView(): org.iurl.litegallery.ZoomImageView? {
+            return binding.photoImageView as? org.iurl.litegallery.ZoomImageView
         }
         
         fun clearGlideCache() {
@@ -335,7 +335,7 @@ class MediaViewerAdapter(
             getZoomImageView()?.resetZoom()
         }
         
-        fun getZoomablePlayerView(): com.litegallery.ZoomablePlayerView? {
+        fun getZoomablePlayerView(): org.iurl.litegallery.ZoomablePlayerView? {
             return videoViewHolder?.getZoomablePlayerView()
         }
         
@@ -360,7 +360,7 @@ class MediaViewerAdapter(
                 binding.playButton?.visibility = View.VISIBLE
                 
                 // Only reset PlayerView zoom if it exists
-                (binding.playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+                (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
                 
             } else {
                 // Prepare for photo content
@@ -403,7 +403,7 @@ class MediaViewerAdapter(
             // Force PlayerView reset
             binding.playerView?.let { playerView ->
                 playerView.player = null
-                (playerView as? com.litegallery.ZoomablePlayerView)?.resetZoom()
+                (playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
             }
             
             // Clear any pending callbacks
@@ -426,12 +426,12 @@ class MediaViewerAdapter(
             binding.playButton?.setOnClickListener(null)
             
             // Clear gesture listeners
-            (binding.photoImageView as? com.litegallery.ZoomImageView)?.let { zoomImageView ->
+            (binding.photoImageView as? org.iurl.litegallery.ZoomImageView)?.let { zoomImageView ->
                 zoomImageView.setOnImageClickListener {}
                 zoomImageView.setOnZoomChangeListener {}
             }
             
-            (binding.playerView as? com.litegallery.ZoomablePlayerView)?.let { zoomPlayerView ->
+            (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.let { zoomPlayerView ->
                 zoomPlayerView.setOnPlayPauseListener {}
                 zoomPlayerView.setOnToggleUIListener {}
                 zoomPlayerView.setOnShowUIListener {}
