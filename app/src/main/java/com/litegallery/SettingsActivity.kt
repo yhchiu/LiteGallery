@@ -113,10 +113,14 @@ class SettingsActivity : AppCompatActivity() {
             // Handle display settings preference changes
             setupDisplaySettingsListeners()
 
+            // Handle video gesture settings preference changes
+            setupVideoGestureSettingsListeners()
+
             // Set initial summaries
             updateThemeSummary()
             updateRenameSummary()
             updateDisplaySummary()
+            updateVideoGestureSummary()
         }
         
         private fun updateThemeSummary() {
@@ -209,6 +213,108 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 true
             }
+        }
+
+        private fun setupVideoGestureSettingsListeners() {
+            // Handle video single tap preference change
+            findPreference<androidx.preference.ListPreference>("video_single_tap_action")?.setOnPreferenceChangeListener { _, newValue ->
+                val action = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("video_single_tap_action")
+                preference?.summary = getVideoActionDisplayName(action)
+                true
+            }
+
+            // Handle video double tap preference change
+            findPreference<androidx.preference.ListPreference>("video_double_tap_action")?.setOnPreferenceChangeListener { _, newValue ->
+                val action = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("video_double_tap_action")
+                preference?.summary = getVideoActionDisplayName(action)
+                true
+            }
+
+            // Handle video left side swipe up preference change
+            findPreference<androidx.preference.ListPreference>("video_left_swipe_up_action")?.setOnPreferenceChangeListener { _, newValue ->
+                val action = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("video_left_swipe_up_action")
+                preference?.summary = getVideoActionDisplayName(action)
+                true
+            }
+
+            // Handle video left side swipe down preference change
+            findPreference<androidx.preference.ListPreference>("video_left_swipe_down_action")?.setOnPreferenceChangeListener { _, newValue ->
+                val action = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("video_left_swipe_down_action")
+                preference?.summary = getVideoActionDisplayName(action)
+                true
+            }
+
+            // Handle video right side swipe up preference change
+            findPreference<androidx.preference.ListPreference>("video_right_swipe_up_action")?.setOnPreferenceChangeListener { _, newValue ->
+                val action = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("video_right_swipe_up_action")
+                preference?.summary = getVideoActionDisplayName(action)
+                true
+            }
+
+            // Handle video right side swipe down preference change
+            findPreference<androidx.preference.ListPreference>("video_right_swipe_down_action")?.setOnPreferenceChangeListener { _, newValue ->
+                val action = newValue as String
+                val preference = findPreference<androidx.preference.ListPreference>("video_right_swipe_down_action")
+                preference?.summary = getVideoActionDisplayName(action)
+                true
+            }
+        }
+
+        private fun getVideoActionDisplayName(action: String): String {
+            return when (action) {
+                "play_pause" -> getString(R.string.video_action_play_pause)
+                "show_hide_ui" -> getString(R.string.video_action_show_hide_ui)
+                "cycle_zoom" -> getString(R.string.video_action_cycle_zoom)
+                "zoom_in_out" -> getString(R.string.video_action_zoom_in_out)
+                "show_ui" -> getString(R.string.video_action_show_ui)
+                "hide_ui" -> getString(R.string.video_action_hide_ui)
+                "zoom_in" -> getString(R.string.video_action_zoom_in)
+                "zoom_out" -> getString(R.string.video_action_zoom_out)
+                "brightness_up" -> getString(R.string.video_action_brightness_up)
+                "brightness_down" -> getString(R.string.video_action_brightness_down)
+                "volume_up" -> getString(R.string.video_action_volume_up)
+                "volume_down" -> getString(R.string.video_action_volume_down)
+                else -> action
+            }
+        }
+
+        private fun updateVideoGestureSummary() {
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+
+            // Update video single tap summary
+            val singleTapAction = prefs.getString("video_single_tap_action", "show_hide_ui")
+            val singleTapPreference = findPreference<androidx.preference.ListPreference>("video_single_tap_action")
+            singleTapPreference?.summary = getVideoActionDisplayName(singleTapAction ?: "show_hide_ui")
+
+            // Update video double tap summary
+            val doubleTapAction = prefs.getString("video_double_tap_action", "play_pause")
+            val doubleTapPreference = findPreference<androidx.preference.ListPreference>("video_double_tap_action")
+            doubleTapPreference?.summary = getVideoActionDisplayName(doubleTapAction ?: "play_pause")
+
+            // Update video left side swipe up summary
+            val leftSwipeUpAction = prefs.getString("video_left_swipe_up_action", "show_ui")
+            val leftSwipeUpPreference = findPreference<androidx.preference.ListPreference>("video_left_swipe_up_action")
+            leftSwipeUpPreference?.summary = getVideoActionDisplayName(leftSwipeUpAction ?: "show_ui")
+
+            // Update video left side swipe down summary
+            val leftSwipeDownAction = prefs.getString("video_left_swipe_down_action", "hide_ui")
+            val leftSwipeDownPreference = findPreference<androidx.preference.ListPreference>("video_left_swipe_down_action")
+            leftSwipeDownPreference?.summary = getVideoActionDisplayName(leftSwipeDownAction ?: "hide_ui")
+
+            // Update video right side swipe up summary
+            val rightSwipeUpAction = prefs.getString("video_right_swipe_up_action", "brightness_up")
+            val rightSwipeUpPreference = findPreference<androidx.preference.ListPreference>("video_right_swipe_up_action")
+            rightSwipeUpPreference?.summary = getVideoActionDisplayName(rightSwipeUpAction ?: "brightness_up")
+
+            // Update video right side swipe down summary
+            val rightSwipeDownAction = prefs.getString("video_right_swipe_down_action", "brightness_down")
+            val rightSwipeDownPreference = findPreference<androidx.preference.ListPreference>("video_right_swipe_down_action")
+            rightSwipeDownPreference?.summary = getVideoActionDisplayName(rightSwipeDownAction ?: "brightness_down")
         }
 
         private fun updateDisplaySummary() {

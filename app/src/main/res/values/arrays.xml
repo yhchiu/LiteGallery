@@ -137,4 +137,90 @@
         <item>10</item>
     </string-array>
 
+    <!-- Video Single Tap Options -->
+    <string-array name="video_single_tap_entries">
+        <item>@string/video_action_play_pause</item>
+        <item>@string/video_action_show_hide_ui</item>
+        <item>@string/video_action_cycle_zoom</item>
+    </string-array>
+
+    <string-array name="video_single_tap_values">
+        <item>play_pause</item>
+        <item>show_hide_ui</item>
+        <item>cycle_zoom</item>
+    </string-array>
+
+    <!-- Video Double Tap Options -->
+    <string-array name="video_double_tap_entries">
+        <item>@string/video_action_play_pause</item>
+        <item>@string/video_action_show_hide_ui</item>
+        <item>@string/video_action_zoom_in_out</item>
+    </string-array>
+
+    <string-array name="video_double_tap_values">
+        <item>play_pause</item>
+        <item>show_hide_ui</item>
+        <item>zoom_in_out</item>
+    </string-array>
+
+    <!-- Video Left Side Swipe Up Options -->
+    <string-array name="video_left_swipe_up_entries">
+        <item>@string/video_action_show_ui</item>
+        <item>@string/video_action_zoom_in</item>
+        <item>@string/video_action_brightness_up</item>
+        <item>@string/video_action_volume_up</item>
+    </string-array>
+
+    <string-array name="video_left_swipe_up_values">
+        <item>show_ui</item>
+        <item>zoom_in</item>
+        <item>brightness_up</item>
+        <item>volume_up</item>
+    </string-array>
+
+    <!-- Video Left Side Swipe Down Options -->
+    <string-array name="video_left_swipe_down_entries">
+        <item>@string/video_action_hide_ui</item>
+        <item>@string/video_action_zoom_out</item>
+        <item>@string/video_action_brightness_down</item>
+        <item>@string/video_action_volume_down</item>
+    </string-array>
+
+    <string-array name="video_left_swipe_down_values">
+        <item>hide_ui</item>
+        <item>zoom_out</item>
+        <item>brightness_down</item>
+        <item>volume_down</item>
+    </string-array>
+
+    <!-- Video Right Side Swipe Up Options -->
+    <string-array name="video_right_swipe_up_entries">
+        <item>@string/video_action_show_ui</item>
+        <item>@string/video_action_zoom_in</item>
+        <item>@string/video_action_brightness_up</item>
+        <item>@string/video_action_volume_up</item>
+    </string-array>
+
+    <string-array name="video_right_swipe_up_values">
+        <item>show_ui</item>
+        <item>zoom_in</item>
+        <item>brightness_up</item>
+        <item>volume_up</item>
+    </string-array>
+
+    <!-- Video Right Side Swipe Down Options -->
+    <string-array name="video_right_swipe_down_entries">
+        <item>@string/video_action_hide_ui</item>
+        <item>@string/video_action_zoom_out</item>
+        <item>@string/video_action_brightness_down</item>
+        <item>@string/video_action_volume_down</item>
+    </string-array>
+
+    <string-array name="video_right_swipe_down_values">
+        <item>hide_ui</item>
+        <item>zoom_out</item>
+        <item>brightness_down</item>
+        <item>volume_down</item>
+    </string-array>
+
 </resources>

@@ -150,4 +150,33 @@
     <string name="zoom_scale_6x">6x</string>
     <string name="zoom_scale_8x">8x</string>
     <string name="zoom_scale_10x">10x</string>
+
+    <!-- Video Gesture Settings -->
+    <string name="video_gesture_settings">Video Gesture Settings</string>
+    <string name="video_single_tap_title">Single Tap Action</string>
+    <string name="video_single_tap_summary">Action performed on single tap</string>
+    <string name="video_double_tap_title">Double Tap Action</string>
+    <string name="video_double_tap_summary">Action performed on double tap</string>
+    <string name="video_left_swipe_up_title">Left Side Swipe Up Action</string>
+    <string name="video_left_swipe_up_summary">Action performed on left side upward swipe</string>
+    <string name="video_left_swipe_down_title">Left Side Swipe Down Action</string>
+    <string name="video_left_swipe_down_summary">Action performed on left side downward swipe</string>
+    <string name="video_right_swipe_up_title">Right Side Swipe Up Action</string>
+    <string name="video_right_swipe_up_summary">Action performed on right side upward swipe</string>
+    <string name="video_right_swipe_down_title">Right Side Swipe Down Action</string>
+    <string name="video_right_swipe_down_summary">Action performed on right side downward swipe</string>
+
+    <!-- Video Gesture Actions -->
+    <string name="video_action_play_pause">Play/Pause</string>
+    <string name="video_action_show_hide_ui">Show/Hide UI</string>
+    <string name="video_action_cycle_zoom">Cycle Zoom</string>
+    <string name="video_action_zoom_in_out">Zoom In/Out</string>
+    <string name="video_action_show_ui">Show UI</string>
+    <string name="video_action_hide_ui">Hide UI</string>
+    <string name="video_action_zoom_in">Zoom In</string>
+    <string name="video_action_zoom_out">Zoom Out</string>
+    <string name="video_action_brightness_up">Brightness Up</string>
+    <string name="video_action_brightness_down">Brightness Down</string>
+    <string name="video_action_volume_up">Volume Up</string>
+    <string name="video_action_volume_down">Volume Down</string>
 </resources>
