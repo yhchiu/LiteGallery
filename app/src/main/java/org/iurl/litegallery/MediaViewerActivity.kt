@@ -314,7 +314,12 @@ class MediaViewerActivity : AppCompatActivity() {
                 previousPosition = currentPosition
                 currentPosition = position
                 updateFileName(position)
-                
+
+                // Reset progress bar when switching to a video (will be updated when player is ready)
+                if (position < mediaItems.size && mediaItems[position].isVideo) {
+                    resetVideoProgress()
+                }
+
                 // Aggressive memory management for large video files
                 if (position < mediaItems.size && mediaItems[position].isVideo) {
                     // Check available memory before loading video
@@ -1164,10 +1169,23 @@ class MediaViewerActivity : AppCompatActivity() {
                 binding.playPauseButton.setImageResource(
                     if (player.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
                 )
+            } else {
+                // Video is invalid or corrupted - reset to 0:00
+                resetVideoProgress()
             }
+        } ?: run {
+            // No player available - reset to 0:00
+            resetVideoProgress()
         }
     }
-    
+
+    private fun resetVideoProgress() {
+        binding.progressSeekBar.progress = 0
+        binding.currentTimeText.text = "0:00"
+        binding.durationText.text = "0:00"
+        binding.playPauseButton.setImageResource(R.drawable.ic_play)
+    }
+
     private fun formatTime(timeMs: Long): String {
         val seconds = (timeMs / 1000) % 60
         val minutes = (timeMs / (1000 * 60)) % 60
