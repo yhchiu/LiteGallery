@@ -18,6 +18,10 @@ class VideoViewHolder(
     private var isPlayerReady = false
     private var hasBeenPlayed = false // Track if video has ever been played
     private var boundMediaItem: org.iurl.litegallery.MediaItem? = null
+    private var retryCount = 0 // Track retry attempts
+    private val maxRetries = 1 // Maximum number of retry attempts
+    private var loadingTimeoutRunnable: Runnable? = null // Timeout checker for loading
+    private val loadingTimeout = 3000L // 3 seconds timeout for player loading
     
     fun bind(mediaItem: org.iurl.litegallery.MediaItem) {
         android.util.Log.d("VideoViewHolder", "=== BIND START: ${mediaItem.name} ===")
@@ -32,6 +36,7 @@ class VideoViewHolder(
         // Reset internal state
         isPlayerReady = false
         hasBeenPlayed = false
+        retryCount = 0 // Reset retry counter for new media
         
         // Hide photo view, show video container
         binding.photoImageView.visibility = View.GONE
@@ -68,7 +73,7 @@ class VideoViewHolder(
     }
     
     private fun setupVideoPlayer(mediaItem: org.iurl.litegallery.MediaItem) {
-        android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP: ${mediaItem.name} ===")
+        android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP: ${mediaItem.name} (Retry: $retryCount/$maxRetries) ===")
         
         // Ensure we start completely fresh - no reuse of any previous state
         if (exoPlayer != null) {
@@ -142,9 +147,12 @@ class VideoViewHolder(
                             when (playbackState) {
                                 Player.STATE_READY -> {
                                     isPlayerReady = true
+                                    retryCount = 0 // Reset retry count on successful load
+                                    cancelLoadingTimeout() // Cancel timeout when player is ready
                                     binding.videoThumbnail?.visibility = View.GONE
                                     // Show play button only if video has never been played
                                     binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+                                    android.util.Log.d("VideoViewHolder", "✅ Player ready successfully")
                                 }
                                 Player.STATE_BUFFERING -> {
                                     // Hide play button during buffering
@@ -193,9 +201,9 @@ class VideoViewHolder(
                                 binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
                                 
                             } else {
-                                // Try to recover by releasing player for other errors
-                                android.util.Log.w("VideoViewHolder", "Playback error - releasing player: ${error.message}")
-                                releasePlayer()
+                                // Try to recover by auto-retrying for other errors
+                                android.util.Log.w("VideoViewHolder", "Playback error - attempting recovery: ${error.message}")
+                                retryPlayerSetup()
                             }
                         }
                         
@@ -237,17 +245,69 @@ class VideoViewHolder(
                 
             } catch (e: Exception) {
                 android.util.Log.e("VideoViewHolder", "Error creating ExoPlayer: ${e.message}")
-                // Show thumbnail and play button as fallback
-                binding.videoThumbnail?.visibility = View.VISIBLE
-                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+                // Try to retry instead of just showing thumbnail
+                retryPlayerSetup()
             }
         } catch (setupError: Exception) {
             android.util.Log.e("VideoViewHolder", "Error in TextureView setup: ${setupError.message}")
+            retryPlayerSetup()
+        }
+    }
+    
+    /**
+     * Retry player setup if retry limit not reached
+     */
+    private fun retryPlayerSetup() {
+        if (retryCount < maxRetries) {
+            retryCount++
+            android.util.Log.w("VideoViewHolder", "🔄 Attempting automatic retry $retryCount/$maxRetries...")
+
+            // Release current player before retry
+            releasePlayer()
+
+            // Retry after a short delay to allow cleanup
+            binding.root.postDelayed({
+                boundMediaItem?.let { mediaItem ->
+                    android.util.Log.d("VideoViewHolder", "Retrying player setup for: ${mediaItem.name}")
+                    setupVideoPlayer(mediaItem)
+                }
+            }, 500) // 500ms delay before retry
+        } else {
+            android.util.Log.e("VideoViewHolder", "❌ Max retries reached - showing thumbnail")
+            releasePlayer()
             binding.videoThumbnail?.visibility = View.VISIBLE
             binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
         }
     }
-    
+
+    /**
+     * Start a timeout check for player loading
+     */
+    private fun startLoadingTimeout() {
+        cancelLoadingTimeout() // Cancel any existing timeout
+
+        loadingTimeoutRunnable = Runnable {
+            if (!isPlayerReady && exoPlayer != null) {
+                android.util.Log.w("VideoViewHolder", "⏱️ Player loading timeout - player not ready after ${loadingTimeout}ms")
+                retryPlayerSetup()
+            }
+        }
+
+        binding.root.postDelayed(loadingTimeoutRunnable!!, loadingTimeout)
+        android.util.Log.d("VideoViewHolder", "Started loading timeout check (${loadingTimeout}ms)")
+    }
+
+    /**
+     * Cancel any pending loading timeout check
+     */
+    private fun cancelLoadingTimeout() {
+        loadingTimeoutRunnable?.let {
+            binding.root.removeCallbacks(it)
+            loadingTimeoutRunnable = null
+            android.util.Log.d("VideoViewHolder", "Cancelled loading timeout check")
+        }
+    }
+
     private fun togglePlayback() {
         exoPlayer?.let { player ->
             if (player.isPlaying) {
@@ -305,6 +365,9 @@ class VideoViewHolder(
     }
     
     fun releasePlayer() {
+        // Cancel any pending timeout checks
+        cancelLoadingTimeout()
+
         exoPlayer?.let { player ->
             try {
                 android.util.Log.d("VideoViewHolder", "Releasing ExoPlayer (TextureView mode)...")
