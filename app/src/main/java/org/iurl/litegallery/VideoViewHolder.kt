@@ -74,7 +74,11 @@ class VideoViewHolder(
             }
         }
     }
-    
+
+    fun isPlayerAvailable(): Boolean {
+        return exoPlayer != null && !isInvalidVideo
+    }
+
     private fun setupVideoPlayer(mediaItem: org.iurl.litegallery.MediaItem) {
         android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP: ${mediaItem.name} (Retry: $retryCount/$maxRetries) ===")
         
