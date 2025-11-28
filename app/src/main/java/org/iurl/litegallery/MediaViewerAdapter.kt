@@ -54,13 +54,11 @@ class MediaViewerAdapter(
         
         // Log memory status before cleanup
         logMemoryStatus("BEFORE cleanup")
-        
-        // Only release previous video player if this holder had one
-        if (currentVideoHolder == holder) {
-            android.util.Log.d("MediaViewerAdapter", "Releasing current video holder player")
-            holder.releasePlayer()
-        }
-        
+
+        // Release player ONLY if this holder is being reused for new content
+        // This prevents memory leaks when ViewHolder is recycled
+        holder.releasePlayer()
+
         // Selective state reset - only reset what's necessary
         holder.prepareForNewContent(mediaItem)
         
