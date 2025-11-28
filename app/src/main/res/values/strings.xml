@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">LiteGallery</string>
     <string name="settings_title">Settings</string>
+    <string name="reload_video">Reload Video</string>
     <string name="trash_bin_title">Trash Bin</string>
     
     <!-- Main Activity -->

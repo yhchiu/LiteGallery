@@ -22,6 +22,8 @@ class VideoViewHolder(
     private val maxRetries = 1 // Maximum number of retry attempts
     private var loadingTimeoutRunnable: Runnable? = null // Timeout checker for loading
     private val loadingTimeout = 3000L // 3 seconds timeout for player loading
+    var isInvalidVideo = false // Track if video is invalid/corrupted
+        private set
     
     fun bind(mediaItem: org.iurl.litegallery.MediaItem) {
         android.util.Log.d("VideoViewHolder", "=== BIND START: ${mediaItem.name} ===")
@@ -37,6 +39,7 @@ class VideoViewHolder(
         isPlayerReady = false
         hasBeenPlayed = false
         retryCount = 0 // Reset retry counter for new media
+        isInvalidVideo = false // Reset invalid flag for new media
         
         // Hide photo view, show video container
         binding.photoImageView.visibility = View.GONE
@@ -197,8 +200,9 @@ class VideoViewHolder(
                                 
                                 // Show error message to user
                                 android.util.Log.w("VideoViewHolder", "Video too large for available memory - showing thumbnail instead")
+                                isInvalidVideo = true
                                 binding.videoThumbnail?.visibility = View.VISIBLE
-                                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+                                binding.playButton?.visibility = View.GONE // Hide play button for OOM videos
                                 
                             } else {
                                 // Try to recover by auto-retrying for other errors
@@ -273,10 +277,28 @@ class VideoViewHolder(
                 }
             }, 500) // 500ms delay before retry
         } else {
-            android.util.Log.e("VideoViewHolder", "❌ Max retries reached - showing thumbnail")
+            android.util.Log.e("VideoViewHolder", "❌ Max retries reached - video is invalid")
+            isInvalidVideo = true // Mark video as invalid
             releasePlayer()
             binding.videoThumbnail?.visibility = View.VISIBLE
-            binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+            binding.playButton?.visibility = View.GONE // Hide play button for invalid videos
+        }
+    }
+
+    /**
+     * Manually reload the video (called from menu)
+     */
+    fun reloadVideo() {
+        android.util.Log.d("VideoViewHolder", "🔄 Manual reload requested")
+
+        // Reset all state
+        retryCount = 0
+        isInvalidVideo = false
+
+        // Reload the video
+        boundMediaItem?.let { mediaItem ->
+            android.util.Log.d("VideoViewHolder", "Reloading video: ${mediaItem.name}")
+            setupVideoPlayer(mediaItem)
         }
     }
 

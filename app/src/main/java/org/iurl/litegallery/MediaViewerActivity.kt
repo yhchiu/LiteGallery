@@ -1964,8 +1964,17 @@ class MediaViewerActivity : AppCompatActivity() {
         val popup = androidx.appcompat.widget.PopupMenu(this, anchorView)
         popup.menuInflater.inflate(R.menu.media_viewer_menu, popup.menu)
 
+        // Show reload option only for videos
+        val currentItem = if (currentPosition < mediaItems.size) mediaItems[currentPosition] else null
+        val reloadItem = popup.menu.findItem(R.id.action_reload_video)
+        reloadItem?.isVisible = currentItem?.isVideo == true
+
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.action_reload_video -> {
+                    reloadCurrentVideo()
+                    true
+                }
                 R.id.action_settings -> {
                     val intent = android.content.Intent(this, SettingsActivity::class.java)
                     startActivity(intent)
@@ -1976,5 +1985,18 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         popup.show()
+    }
+
+    private fun reloadCurrentVideo() {
+        android.util.Log.d("MediaViewerActivity", "Reloading current video")
+
+        val currentVideoHolder = getCurrentVideoHolder()
+        if (currentVideoHolder != null) {
+            currentVideoHolder.reloadVideo()
+            android.widget.Toast.makeText(this, "Reloading video...", android.widget.Toast.LENGTH_SHORT).show()
+        } else {
+            android.util.Log.w("MediaViewerActivity", "No video holder found for reload")
+            android.widget.Toast.makeText(this, "Cannot reload: video not loaded", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }
