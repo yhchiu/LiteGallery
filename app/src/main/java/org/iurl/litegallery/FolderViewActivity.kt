@@ -29,6 +29,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentColorTheme: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
+    private var currentSortOrder: String = "date_desc"
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -45,8 +46,9 @@ class FolderViewActivity : AppCompatActivity() {
         // Initialize current color theme
         currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
 
-        // Load default view mode from preferences
+        // Load default view mode and sort order from preferences
         loadViewModePreference()
+        loadSortOrderPreference()
 
         setupToolbar()
         setupRecyclerView()
@@ -85,7 +87,7 @@ class FolderViewActivity : AppCompatActivity() {
                 true
             }
             R.id.action_sort -> {
-                // TODO: Show sort options dialog
+                showSortDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -151,6 +153,54 @@ class FolderViewActivity : AppCompatActivity() {
         }
         android.widget.Toast.makeText(this, modeName, android.widget.Toast.LENGTH_SHORT).show()
     }
+
+    private fun loadSortOrderPreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        currentSortOrder = prefs.getString("default_sort_order", "date_desc") ?: "date_desc"
+    }
+
+    private fun sortMediaItems(items: List<MediaItem>): List<MediaItem> {
+        return when (currentSortOrder) {
+            "date_desc" -> items.sortedByDescending { it.dateModified }
+            "date_asc" -> items.sortedBy { it.dateModified }
+            "name_asc" -> items.sortedBy { it.name.lowercase() }
+            "name_desc" -> items.sortedByDescending { it.name.lowercase() }
+            else -> items.sortedByDescending { it.dateModified }
+        }
+    }
+
+    private fun showSortDialog() {
+        val sortOptions = arrayOf(
+            getString(R.string.sort_by_date_desc),
+            getString(R.string.sort_by_date_asc),
+            getString(R.string.sort_by_name_asc),
+            getString(R.string.sort_by_name_desc)
+        )
+
+        val sortValues = arrayOf("date_desc", "date_asc", "name_asc", "name_desc")
+
+        val currentIndex = sortValues.indexOf(currentSortOrder).takeIf { it >= 0 } ?: 0
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.sort)
+            .setSingleChoiceItems(sortOptions, currentIndex) { dialog, which ->
+                // Temporary change - does not save to preferences
+                // Only changes sort order for current session
+                currentSortOrder = sortValues[which]
+                applySorting()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun applySorting() {
+        val sortedItems = sortMediaItems(mediaItems)
+        mediaAdapter.submitList(sortedItems) {
+            // Scroll to top after list is updated
+            binding.recyclerView.scrollToPosition(0)
+        }
+    }
     
     private fun loadMediaItems() {
         binding.progressBar.visibility = View.VISIBLE
@@ -160,13 +210,15 @@ class FolderViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 mediaItems = mediaScanner.scanMediaInFolder(folderPath)
-                
+
                 if (mediaItems.isEmpty()) {
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
                 } else {
-                    mediaAdapter.submitList(mediaItems)
+                    // Apply sorting before displaying
+                    val sortedItems = sortMediaItems(mediaItems)
+                    mediaAdapter.submitList(sortedItems)
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.GONE
                     binding.recyclerView.visibility = View.VISIBLE
