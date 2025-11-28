@@ -11,8 +11,8 @@ android {
         applicationId "org.iurl.litegallery"
         minSdk 24
         targetSdk 36
-        versionCode 300
-        versionName "3.0"
+        versionCode 350
+        versionName "3.5"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
