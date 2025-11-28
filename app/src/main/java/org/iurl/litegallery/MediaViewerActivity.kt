@@ -321,6 +321,18 @@ class MediaViewerActivity : AppCompatActivity() {
                 // Reset progress bar when switching to a video (will be updated when player is ready)
                 if (position < mediaItems.size && mediaItems[position].isVideo) {
                     resetVideoProgress()
+
+                    // Auto-check and reload video if player is not available after binding
+                    // This fixes issues when returning from Settings
+                    binding.viewPager.postDelayed({
+                        if (currentPosition == position && position < mediaItems.size && mediaItems[position].isVideo) {
+                            val videoHolder = getCurrentVideoHolder()
+                            if (videoHolder == null || !videoHolder.isPlayerAvailable()) {
+                                android.util.Log.w("MediaViewerActivity", "Video player not available after page switch - auto-reloading")
+                                reloadCurrentVideo()
+                            }
+                        }
+                    }, 500) // Wait 500ms for binding to complete
                 }
 
                 // Aggressive memory management for large video files
