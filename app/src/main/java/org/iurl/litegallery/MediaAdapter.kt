@@ -7,20 +7,67 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import org.iurl.litegallery.databinding.ItemMediaBinding
+import org.iurl.litegallery.databinding.ItemMediaListBinding
+import org.iurl.litegallery.databinding.ItemMediaDetailedBinding
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MediaAdapter(private val onMediaClick: (MediaItem, Int) -> Unit) :
-    ListAdapter<MediaItem, MediaAdapter.MediaViewHolder>(MediaDiffCallback()) {
+    ListAdapter<MediaItem, RecyclerView.ViewHolder>(MediaDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaViewHolder {
-        val binding = ItemMediaBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return MediaViewHolder(binding)
+    var viewMode: ViewMode = ViewMode.GRID
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+
+    enum class ViewMode {
+        GRID, LIST, DETAILED
     }
 
-    override fun onBindViewHolder(holder: MediaViewHolder, position: Int) {
-        holder.bind(getItem(position), position)
+    companion object {
+        private const val VIEW_TYPE_GRID = 0
+        private const val VIEW_TYPE_LIST = 1
+        private const val VIEW_TYPE_DETAILED = 2
     }
 
-    inner class MediaViewHolder(private val binding: ItemMediaBinding) :
+    override fun getItemViewType(position: Int): Int {
+        return when (viewMode) {
+            ViewMode.GRID -> VIEW_TYPE_GRID
+            ViewMode.LIST -> VIEW_TYPE_LIST
+            ViewMode.DETAILED -> VIEW_TYPE_DETAILED
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return when (viewType) {
+            VIEW_TYPE_GRID -> {
+                val binding = ItemMediaBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                GridViewHolder(binding)
+            }
+            VIEW_TYPE_LIST -> {
+                val binding = ItemMediaListBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                ListViewHolder(binding)
+            }
+            VIEW_TYPE_DETAILED -> {
+                val binding = ItemMediaDetailedBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                DetailedViewHolder(binding)
+            }
+            else -> throw IllegalArgumentException("Unknown view type: $viewType")
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val mediaItem = getItem(position)
+        when (holder) {
+            is GridViewHolder -> holder.bind(mediaItem, position)
+            is ListViewHolder -> holder.bind(mediaItem, position)
+            is DetailedViewHolder -> holder.bind(mediaItem, position)
+        }
+    }
+
+    // Grid View Holder (Original)
+    inner class GridViewHolder(private val binding: ItemMediaBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(mediaItem: MediaItem, position: Int) {
@@ -51,18 +98,126 @@ class MediaAdapter(private val onMediaClick: (MediaItem, Int) -> Unit) :
                 onMediaClick(mediaItem, position)
             }
         }
+    }
 
-        private fun formatDuration(durationMs: Long): String {
-            val seconds = durationMs / 1000
-            val minutes = seconds / 60
-            val hours = minutes / 60
+    // List View Holder
+    inner class ListViewHolder(private val binding: ItemMediaListBinding) :
+        RecyclerView.ViewHolder(binding.root) {
 
-            return if (hours > 0) {
-                String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60)
+        fun bind(mediaItem: MediaItem, position: Int) {
+            // Load thumbnail
+            Glide.with(binding.root.context)
+                .load(mediaItem.path)
+                .centerCrop()
+                .placeholder(R.drawable.ic_image_placeholder)
+                .error(R.drawable.ic_image_placeholder)
+                .into(binding.thumbnailImageView)
+
+            // Show video indicators
+            if (mediaItem.isVideo) {
+                binding.playIcon.visibility = android.view.View.VISIBLE
+                val duration = mediaItem.getFormattedDuration()
+                if (duration.isNotEmpty()) {
+                    binding.durationTextView.visibility = android.view.View.VISIBLE
+                    binding.durationTextView.text = duration
+                } else {
+                    binding.durationTextView.visibility = android.view.View.GONE
+                }
             } else {
-                String.format("%d:%02d", minutes, seconds % 60)
+                binding.playIcon.visibility = android.view.View.GONE
+                binding.durationTextView.visibility = android.view.View.GONE
+            }
+
+            // File name only
+            binding.fileNameTextView.text = mediaItem.name
+
+            binding.root.setOnClickListener {
+                onMediaClick(mediaItem, position)
             }
         }
+    }
+
+    // Detailed View Holder
+    inner class DetailedViewHolder(private val binding: ItemMediaDetailedBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(mediaItem: MediaItem, position: Int) {
+            // Load thumbnail
+            Glide.with(binding.root.context)
+                .load(mediaItem.path)
+                .centerCrop()
+                .placeholder(R.drawable.ic_image_placeholder)
+                .error(R.drawable.ic_image_placeholder)
+                .into(binding.thumbnailImageView)
+
+            // Show video indicators
+            if (mediaItem.isVideo) {
+                binding.playIcon.visibility = android.view.View.VISIBLE
+                val duration = mediaItem.getFormattedDuration()
+                if (duration.isNotEmpty()) {
+                    binding.durationTextView.visibility = android.view.View.VISIBLE
+                    binding.durationTextView.text = duration
+                } else {
+                    binding.durationTextView.visibility = android.view.View.GONE
+                }
+            } else {
+                binding.playIcon.visibility = android.view.View.GONE
+                binding.durationTextView.visibility = android.view.View.GONE
+            }
+
+            // File name
+            binding.fileNameTextView.text = mediaItem.name
+
+            // Resolution
+            if (mediaItem.width > 0 && mediaItem.height > 0) {
+                binding.resolutionTextView.text = "${mediaItem.width} x ${mediaItem.height}"
+                binding.resolutionTextView.visibility = android.view.View.VISIBLE
+            } else {
+                binding.resolutionTextView.visibility = android.view.View.GONE
+            }
+
+            // File size
+            val sizeStr = formatFileSize(mediaItem.size)
+            if (sizeStr.isNotEmpty()) {
+                binding.fileSizeTextView.text = sizeStr
+                binding.fileSizeTextView.visibility = android.view.View.VISIBLE
+            } else {
+                binding.fileSizeTextView.visibility = android.view.View.GONE
+            }
+
+            // Date
+            val dateStr = formatDate(mediaItem.dateModified)
+            if (dateStr.isNotEmpty()) {
+                binding.dateTextView.text = dateStr
+                binding.dateTextView.visibility = android.view.View.VISIBLE
+            } else {
+                binding.dateTextView.visibility = android.view.View.GONE
+            }
+
+            binding.root.setOnClickListener {
+                onMediaClick(mediaItem, position)
+            }
+        }
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        if (bytes <= 0) return ""
+        val kb = bytes / 1024.0
+        val mb = kb / 1024.0
+        val gb = mb / 1024.0
+
+        return when {
+            gb >= 1 -> String.format("%.2f GB", gb)
+            mb >= 1 -> String.format("%.2f MB", mb)
+            kb >= 1 -> String.format("%.1f KB", kb)
+            else -> "$bytes B"
+        }
+    }
+
+    private fun formatDate(timestamp: Long): String {
+        if (timestamp <= 0) return ""
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        return dateFormat.format(Date(timestamp))
     }
 
     private class MediaDiffCallback : DiffUtil.ItemCallback<MediaItem>() {
