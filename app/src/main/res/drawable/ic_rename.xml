@@ -5,11 +5,21 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="@color/white">
-    <!-- Stylized 'T' to indicate text rename -->
+    <!-- Text cursor with underline - common rename icon -->
+    <!-- Cursor -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M4,6h16v2H4z"/>
+        android:pathData="M11,5h2v14h-2z"/>
+    <!-- Top cursor cap -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M11,8h2v10h-2z"/>
+        android:pathData="M9,5h6v1.5H9z"/>
+    <!-- Bottom cursor cap -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M9,17.5h6v1.5H9z"/>
+    <!-- Underline to indicate text editing -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M5,21h14v1H5z"/>
 </vector>
