@@ -315,6 +315,9 @@ class MediaViewerActivity : AppCompatActivity() {
                 currentPosition = position
                 updateFileName(position)
 
+                // Update reload button visibility based on media type
+                updateReloadButtonVisibility()
+
                 // Reset progress bar when switching to a video (will be updated when player is ready)
                 if (position < mediaItems.size && mediaItems[position].isVideo) {
                     resetVideoProgress()
@@ -442,7 +445,11 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.moveButton?.setOnClickListener {
             android.widget.Toast.makeText(this, "Move: coming soon", android.widget.Toast.LENGTH_SHORT).show()
         }
-        
+
+        binding.reloadVideoButton?.setOnClickListener {
+            reloadCurrentVideo()
+        }
+
         binding.menuButton.setOnClickListener {
             showMediaViewerMenu(it)
         }
@@ -465,7 +472,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun applyActionBarCustomization() {
         val prefs = getSharedPreferences("action_bar_prefs", MODE_PRIVATE)
-        val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move")
+        val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move", "reload_video")
         val order = (prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() } ?: defaultOrder)
         val visible = (prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: defaultOrder.toSet())
 
@@ -482,6 +489,7 @@ class MediaViewerActivity : AppCompatActivity() {
         map["rotate_photo"] = binding.rotatePhotoButton
         map["copy"] = binding.copyButton
         map["move"] = binding.moveButton
+        map["reload_video"] = binding.reloadVideoButton
 
         // Add in the specified order, respecting visibility
         order.forEach { key ->
@@ -500,6 +508,19 @@ class MediaViewerActivity : AppCompatActivity() {
             if (v != null && v.parent == null && visible.contains(key)) {
                 container.addView(v)
             }
+        }
+
+        // Update reload button visibility based on current media type
+        updateReloadButtonVisibility()
+    }
+
+    private fun updateReloadButtonVisibility() {
+        val currentItem = if (currentPosition < mediaItems.size) mediaItems[currentPosition] else null
+        val isVideo = currentItem?.isVideo == true
+
+        // Only show reload button for videos
+        if (binding.reloadVideoButton.parent != null) {
+            binding.reloadVideoButton.visibility = if (isVideo) android.view.View.VISIBLE else android.view.View.GONE
         }
     }
 

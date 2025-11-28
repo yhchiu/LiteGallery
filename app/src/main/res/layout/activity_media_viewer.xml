@@ -380,6 +380,17 @@
                     android:src="@drawable/ic_move"
                     app:tint="@color/white" />
 
+                <ImageButton
+                    android:id="@+id/reloadVideoButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/reload_video"
+                    android:src="@drawable/ic_refresh"
+                    app:tint="@color/white"
+                    android:visibility="gone" />
+
             </LinearLayout>
 
         </HorizontalScrollView>
