@@ -8,6 +8,8 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import kotlinx.coroutines.launch
 
@@ -26,6 +28,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var folderName: String = ""
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentColorTheme: String? = null
+    private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -41,10 +44,13 @@ class FolderViewActivity : AppCompatActivity() {
         
         // Initialize current color theme
         currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
-        
+
+        // Load default view mode from preferences
+        loadViewModePreference()
+
         setupToolbar()
         setupRecyclerView()
-        
+
         mediaScanner = MediaScanner(this)
         loadMediaItems()
     }
@@ -75,7 +81,7 @@ class FolderViewActivity : AppCompatActivity() {
                 true
             }
             R.id.action_view_mode -> {
-                // TODO: Toggle between grid/list view modes
+                toggleViewMode()
                 true
             }
             R.id.action_sort -> {
@@ -104,11 +110,46 @@ class FolderViewActivity : AppCompatActivity() {
             }
             startActivity(intent)
         }
-        
-        binding.recyclerView.apply {
-            adapter = mediaAdapter
-            layoutManager = GridLayoutManager(this@FolderViewActivity, 3)
+
+        binding.recyclerView.adapter = mediaAdapter
+
+        // Apply view mode
+        updateLayoutManager()
+    }
+
+    private fun updateLayoutManager() {
+        binding.recyclerView.layoutManager = when (currentViewMode) {
+            MediaAdapter.ViewMode.GRID -> GridLayoutManager(this, 3)
+            MediaAdapter.ViewMode.LIST, MediaAdapter.ViewMode.DETAILED -> LinearLayoutManager(this)
         }
+        mediaAdapter.viewMode = currentViewMode
+    }
+
+    private fun loadViewModePreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val viewModeValue = prefs.getString("default_view_mode", "grid")
+        currentViewMode = when (viewModeValue) {
+            "list" -> MediaAdapter.ViewMode.LIST
+            "detailed" -> MediaAdapter.ViewMode.DETAILED
+            else -> MediaAdapter.ViewMode.GRID
+        }
+    }
+
+    private fun toggleViewMode() {
+        currentViewMode = when (currentViewMode) {
+            MediaAdapter.ViewMode.GRID -> MediaAdapter.ViewMode.LIST
+            MediaAdapter.ViewMode.LIST -> MediaAdapter.ViewMode.DETAILED
+            MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
+        }
+        updateLayoutManager()
+
+        // Show toast to indicate current view mode
+        val modeName = when (currentViewMode) {
+            MediaAdapter.ViewMode.GRID -> getString(R.string.thumbnail_view)
+            MediaAdapter.ViewMode.LIST -> getString(R.string.list_view)
+            MediaAdapter.ViewMode.DETAILED -> getString(R.string.detailed_view)
+        }
+        android.widget.Toast.makeText(this, modeName, android.widget.Toast.LENGTH_SHORT).show()
     }
     
     private fun loadMediaItems() {
