@@ -405,7 +405,7 @@ class SettingsActivity : AppCompatActivity() {
 
             // Preferences for order/visibility
             val prefs = ctx.getSharedPreferences("action_bar_prefs", android.content.Context.MODE_PRIVATE)
-            val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move")
+            val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move", "reload_video")
             val storedOrder = prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() }
             val order = (storedOrder ?: defaultOrder).toMutableList()
             val visibleSet = prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() }?.toMutableSet() ?: defaultOrder.toMutableSet()
@@ -421,6 +421,7 @@ class SettingsActivity : AppCompatActivity() {
                 "rotate_photo" to getString(R.string.rotate),
                 "copy" to getString(R.string.copy),
                 "move" to getString(R.string.move),
+                "reload_video" to getString(R.string.reload_video),
             )
 
             val items = order.map { Item(it, labelMap[it] ?: it) }.toMutableList()
