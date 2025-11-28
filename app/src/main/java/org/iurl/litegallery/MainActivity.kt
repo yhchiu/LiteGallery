@@ -121,10 +121,13 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
+            // Trash Bin not yet implemented
+            /*
             R.id.action_trash_bin -> {
                 startActivity(Intent(this, TrashBinActivity::class.java))
                 true
             }
+            */
             R.id.action_refresh -> {
                 loadMediaFolders()
                 true
