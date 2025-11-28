@@ -28,6 +28,14 @@
             android:src="@drawable/ic_drag_handle"
             app:tint="?attr/colorOnSurfaceVariant" />
 
+        <ImageView
+            android:id="@+id/actionIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="12dp"
+            android:contentDescription="Action icon"
+            app:tint="?attr/colorOnSurface" />
+
         <CheckBox
             android:id="@+id/checkbox"
             android:layout_width="0dp"

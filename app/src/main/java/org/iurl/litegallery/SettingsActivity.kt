@@ -424,6 +424,19 @@ class SettingsActivity : AppCompatActivity() {
                 "reload_video" to getString(R.string.reload_video),
             )
 
+            val iconMap = mapOf(
+                "delete" to R.drawable.ic_delete,
+                "share" to R.drawable.ic_share,
+                "edit" to R.drawable.ic_edit,
+                "rename" to R.drawable.ic_rename,
+                "rotate_screen" to R.drawable.ic_rotate_right,
+                "properties" to R.drawable.ic_info,
+                "rotate_photo" to R.drawable.ic_rotate_right,
+                "copy" to R.drawable.ic_copy,
+                "move" to R.drawable.ic_move,
+                "reload_video" to R.drawable.ic_refresh,
+            )
+
             val items = order.map { Item(it, labelMap[it] ?: it) }.toMutableList()
 
             // RecyclerView with drag handle
@@ -435,6 +448,7 @@ class SettingsActivity : AppCompatActivity() {
                 inner class VH(view: android.view.View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
                     val check: android.widget.CheckBox = view.findViewById(R.id.checkbox)
                     val handle: android.widget.ImageView = view.findViewById(R.id.dragHandle)
+                    val icon: android.widget.ImageView = view.findViewById(R.id.actionIcon)
                 }
                 override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
                     val v = inflater.inflate(R.layout.item_action_bar_option, parent, false)
@@ -448,6 +462,10 @@ class SettingsActivity : AppCompatActivity() {
                     holder.check.isChecked = visibleSet.contains(item.key)
                     holder.check.setOnCheckedChangeListener { _, isChecked ->
                         if (isChecked) visibleSet.add(item.key) else visibleSet.remove(item.key)
+                    }
+                    // Set action icon
+                    iconMap[item.key]?.let { iconRes ->
+                        holder.icon.setImageResource(iconRes)
                     }
                     holder.handle.setOnTouchListener { _, event ->
                         if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) touchHelper.startDrag(holder)
