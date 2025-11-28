@@ -405,37 +405,39 @@ class SettingsActivity : AppCompatActivity() {
 
             // Preferences for order/visibility
             val prefs = ctx.getSharedPreferences("action_bar_prefs", android.content.Context.MODE_PRIVATE)
-            val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move", "reload_video")
-            val storedOrder = prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() }
-            val order = (storedOrder ?: defaultOrder).toMutableList()
-            val visibleSet = prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() }?.toMutableSet() ?: defaultOrder.toMutableSet()
+            val defaultOrder = listOf("delete", /*"share", "edit",*/ "rename", "rotate_screen", "properties", /*"rotate_photo", "copy", "move",*/ "reload_video")
 
             data class Item(val key: String, val label: String)
             val labelMap = mapOf(
                 "delete" to getString(R.string.delete),
-                "share" to getString(R.string.share),
-                "edit" to getString(R.string.edit),
+                //"share" to getString(R.string.share),
+                //"edit" to getString(R.string.edit),
                 "rename" to getString(R.string.rename),
                 "rotate_screen" to getString(R.string.rotate_screen),
                 "properties" to getString(R.string.properties),
-                "rotate_photo" to getString(R.string.rotate),
-                "copy" to getString(R.string.copy),
-                "move" to getString(R.string.move),
+                //"rotate_photo" to getString(R.string.rotate),
+                //"copy" to getString(R.string.copy),
+                //"move" to getString(R.string.move),
                 "reload_video" to getString(R.string.reload_video),
             )
 
             val iconMap = mapOf(
                 "delete" to R.drawable.ic_delete,
-                "share" to R.drawable.ic_share,
-                "edit" to R.drawable.ic_edit,
+                //"share" to R.drawable.ic_share,
+                //"edit" to R.drawable.ic_edit,
                 "rename" to R.drawable.ic_rename,
                 "rotate_screen" to R.drawable.ic_rotate_right,
                 "properties" to R.drawable.ic_info,
-                "rotate_photo" to R.drawable.ic_rotate_right,
-                "copy" to R.drawable.ic_copy,
-                "move" to R.drawable.ic_move,
+                //"rotate_photo" to R.drawable.ic_rotate_right,
+                //"copy" to R.drawable.ic_copy,
+                //"move" to R.drawable.ic_move,
                 "reload_video" to R.drawable.ic_refresh,
             )
+
+            // Load stored preferences and filter out items not in labelMap
+            val storedOrder = prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() }
+            val order = (storedOrder ?: defaultOrder).filter { labelMap.containsKey(it) }.toMutableList()
+            val visibleSet = prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() && labelMap.containsKey(it) }?.toMutableSet() ?: defaultOrder.toMutableSet()
 
             val items = order.map { Item(it, labelMap[it] ?: it) }.toMutableList()
 
