@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiteGallery</string>
+    <string name="settings_title">設定</string>
+    <string name="reload_video">重新載入影片</string>
+    <string name="trash_bin_title">垃圾桶</string>
+
+    <!-- Main Activity -->
+    <string name="no_media_folders">找不到媒體資料夾</string>
+    <string name="loading">載入中…</string>
+    <string name="permission_required">需要儲存空間權限</string>
+    <string name="grant_permission">授予權限</string>
+
+    <!-- Folder View -->
+    <string name="items_count">%d 個項目</string>
+    <string name="thumbnail_view">縮圖檢視</string>
+    <string name="list_view">列表檢視</string>
+    <string name="detailed_view">詳細檢視</string>
+
+    <!-- Media Viewer -->
+    <string name="delete">刪除</string>
+    <string name="share">分享</string>
+    <string name="edit">編輯</string>
+    <string name="properties">內容</string>
+    <string name="rename">重新命名</string>
+    <string name="copy">複製</string>
+    <string name="move">移動</string>
+    <string name="rotate">旋轉</string>
+    <string name="rotate_screen">旋轉螢幕</string>
+
+    <!-- File Operations -->
+    <string name="file_conflict_title">檔案衝突</string>
+    <string name="file_conflict_message">已存在同名檔案，您要如何處理？</string>
+    <string name="overwrite">覆寫</string>
+    <string name="use_new_name">使用新名稱</string>
+    <string name="cancel">取消</string>
+    <string name="rename_file">重新命名檔案</string>
+    <string name="new_name">新名稱</string>
+    <string name="ok">確定</string>
+
+    <!-- Delete/Trash -->
+    <string name="delete_confirmation">刪除此檔案？</string>
+    <string name="move_to_trash">移至垃圾桶</string>
+    <string name="delete_permanently">永久刪除</string>
+    <string name="restore">還原</string>
+    <string name="empty_trash">清空垃圾桶</string>
+    <string name="empty_trash_confirmation">永久刪除垃圾桶中的所有檔案？</string>
+
+    <!-- Properties -->
+    <string name="file_name">檔案名稱</string>
+    <string name="file_size">檔案大小</string>
+    <string name="file_date">日期</string>
+    <string name="file_path">路徑</string>
+    <string name="resolution">解析度</string>
+    <string name="duration">時長</string>
+
+    <!-- Settings -->
+    <string name="default_sort_order">預設排序</string>
+    <string name="sort_by_date">依日期排序</string>
+    <string name="sort_by_name">依名稱排序</string>
+    <string name="ascending">遞增</string>
+    <string name="descending">遞減</string>
+    <string name="customize_action_bar">自訂動作列</string>
+    <string name="action_bar_buttons">動作列按鈕</string>
+
+    <!-- General -->
+    <string name="yes">是</string>
+    <string name="no">否</string>
+    <string name="done">完成</string>
+    <string name="error">錯誤</string>
+    <string name="success">成功</string>
+
+    <!-- Additional strings -->
+    <string name="no_media_found">找不到媒體</string>
+    <string name="refresh">重新整理</string>
+    <string name="view_mode">檢視模式</string>
+    <string name="sort">排序</string>
+    <string name="menu">選單</string>
+    <string name="play_pause">播放/暫停</string>
+    <string name="frame_backward">向後一格</string>
+    <string name="frame_forward">向前一格</string>
+    <string name="frame_mode">逐格模式</string>
+    <string name="expand_controls">展開控制項</string>
+    <string name="brightness">亮度</string>
+    <string name="contrast">對比度</string>
+
+    <!-- Trash Bin -->
+    <string name="trash_bin_empty">垃圾桶是空的</string>
+    <string name="restore_all">全部還原</string>
+
+    <!-- Settings -->
+    <string name="display_settings">顯示設定</string>
+    <string name="action_bar_settings">動作列設定</string>
+    <string name="general_settings">一般設定</string>
+    <string name="default_view_mode">預設檢視模式</string>
+    <string name="customize_action_bar_summary">自訂按鈕順序和可見性</string>
+    <string name="restore_brightness_title">還原亮度</string>
+    <string name="restore_brightness_summary">離開應用程式時還原原始亮度</string>
+    <string name="restore_volume_title">還原音量</string>
+    <string name="restore_volume_summary">離開應用程式時還原原始音量</string>
+    <string name="sort_by_date_desc">依日期排序（新到舊）</string>
+    <string name="sort_by_date_asc">依日期排序（舊到新）</string>
+    <string name="sort_by_name_asc">依名稱排序（A-Z）</string>
+    <string name="sort_by_name_desc">依名稱排序（Z-A）</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_title">主題</string>
+    <string name="theme_summary">選擇應用程式外觀</string>
+    <string name="theme_auto">跟隨系統</string>
+    <string name="theme_light">淺色模式</string>
+    <string name="theme_dark">深色模式</string>
+
+    <!-- Color Theme Settings -->
+    <string name="color_theme_title">色彩主題</string>
+    <string name="color_theme_summary">選擇應用程式配色</string>
+    <string name="color_theme_blue">藍色（Material）</string>
+    <string name="color_theme_green">綠色（WhatsApp）</string>
+    <string name="color_theme_purple">紫色（Discord）</string>
+    <string name="color_theme_orange">橙色（VLC）</string>
+    <string name="color_theme_red">紅色（YouTube）</string>
+    <string name="color_theme_teal">青色（訊息）</string>
+    <string name="color_theme_indigo">靛藍色（Facebook）</string>
+    <string name="color_theme_pink">粉紅色（Dribbble）</string>
+
+    <!-- Quick Rename Settings -->
+    <string name="quick_rename_settings">快速重新命名設定</string>
+    <string name="rename_history_count">歷史記錄數量</string>
+    <string name="rename_default_sort">預設排序</string>
+    <string name="time_descending">時間（新到舊）</string>
+    <string name="time_ascending">時間（舊到新）</string>
+    <string name="text_ascending">文字（A-Z）</string>
+    <string name="text_descending">文字（Z-A）</string>
+    <string name="text_ignore_alphanum_ascending">文字忽略數字（A-Z）</string>
+    <string name="text_ignore_alphanum_descending">文字忽略數字（Z-A）</string>
+
+    <!-- Filename Display Settings -->
+    <string name="filename_max_lines_title">檔案名稱最大行數</string>
+    <string name="filename_max_lines_summary">檔案名稱顯示的最大行數（0 = 不限制）</string>
+    <string name="filename_max_lines_1">1 行（單行）</string>
+    <string name="filename_max_lines_2">2 行</string>
+    <string name="filename_max_lines_3">3 行</string>
+    <string name="filename_max_lines_0">不限制行數</string>
+
+    <!-- Zoom Settings -->
+    <string name="zoom_max_scale_title">最大縮放倍率</string>
+    <string name="zoom_max_scale_summary">圖片的最大縮放級別</string>
+    <string name="zoom_scale_2x">2x</string>
+    <string name="zoom_scale_3x">3x</string>
+    <string name="zoom_scale_4x">4x</string>
+    <string name="zoom_scale_5x">5x</string>
+    <string name="zoom_scale_6x">6x</string>
+    <string name="zoom_scale_8x">8x</string>
+    <string name="zoom_scale_10x">10x</string>
+
+    <!-- Video Gesture Settings -->
+    <string name="video_gesture_settings">影片手勢設定</string>
+    <string name="video_single_tap_title">單擊動作</string>
+    <string name="video_single_tap_summary">單擊時執行的動作</string>
+    <string name="video_double_tap_title">雙擊動作</string>
+    <string name="video_double_tap_summary">雙擊時執行的動作</string>
+    <string name="video_left_swipe_up_title">左側上滑動作</string>
+    <string name="video_left_swipe_up_summary">左側向上滑動時執行的動作</string>
+    <string name="video_left_swipe_down_title">左側下滑動作</string>
+    <string name="video_left_swipe_down_summary">左側向下滑動時執行的動作</string>
+    <string name="video_right_swipe_up_title">右側上滑動作</string>
+    <string name="video_right_swipe_up_summary">右側向上滑動時執行的動作</string>
+    <string name="video_right_swipe_down_title">右側下滑動作</string>
+    <string name="video_right_swipe_down_summary">右側向下滑動時執行的動作</string>
+
+    <!-- Video Gesture Actions -->
+    <string name="video_action_play_pause">播放/暫停</string>
+    <string name="video_action_show_hide_ui">顯示/隱藏 UI</string>
+    <string name="video_action_cycle_zoom">循環縮放</string>
+    <string name="video_action_zoom_in_out">放大/縮小</string>
+    <string name="video_action_show_ui">顯示播放器 UI</string>
+    <string name="video_action_hide_ui">隱藏播放器 UI</string>
+    <string name="video_action_zoom_in">放大</string>
+    <string name="video_action_zoom_out">縮小</string>
+    <string name="video_action_brightness_up">增加亮度</string>
+    <string name="video_action_brightness_down">降低亮度</string>
+    <string name="video_action_volume_up">增加音量</string>
+    <string name="video_action_volume_down">降低音量</string>
+
+    <!-- Settings Export/Import -->
+    <string name="export_settings">匯出設定</string>
+    <string name="import_settings">匯入設定</string>
+    <string name="export_settings_summary">將所有設定匯出至檔案</string>
+    <string name="import_settings_summary">從檔案匯入設定</string>
+    <string name="export_success">設定已成功匯出</string>
+    <string name="import_success">設定已成功匯入</string>
+    <string name="export_failed">設定匯出失敗</string>
+    <string name="import_failed">設定匯入失敗</string>
+    <string name="invalid_settings_file">無效的設定檔</string>
+    <string name="settings_imported_count">已匯入 %d 個設定，跳過 %d 個不相容設定</string>
+
+    <!-- Empty and Loading States -->
+    <string name="tap_to_scan_media">點擊掃描媒體檔案</string>
+    <string name="scanning_for_media">正在掃描媒體...</string>
+
+    <!-- Rename Dialog -->
+    <string name="enter_new_name">輸入新名稱：</string>
+    <string name="quick_add_label">快速新增：</string>
+    <string name="add_prefix">+ 前綴</string>
+    <string name="add_suffix">+ 後綴</string>
+    <string name="close">關閉</string>
+
+    <!-- Video Player Placeholders -->
+    <string name="time_placeholder">00:00</string>
+    <string name="zoom_placeholder">1x</string>
+
+    <!-- Settings Categories -->
+    <string name="settings_backup">設定備份</string>
+
+    <!-- Language Settings -->
+    <string name="language_title">語言</string>
+    <string name="language_summary">選擇應用程式語言</string>
+    <string name="language_english">English</string>
+    <string name="language_traditional_chinese">繁體中文</string>
+    <string name="language_simplified_chinese">简体中文</string>
+    <string name="language_system_default">跟隨系統</string>
+
+    <!-- Item Count Strings -->
+    <string name="items_10">10 個項目</string>
+    <string name="items_20">20 個項目</string>
+    <string name="items_30">30 個項目</string>
+    <string name="items_50">50 個項目</string>
+    <string name="items_100">100 個項目</string>
+</resources>

@@ -68,15 +68,30 @@ class SettingsActivity : AppCompatActivity() {
             // Initialize settings helper
             settingsHelper = SettingsExportImportHelper(requireContext())
 
+            // Handle language preference change
+            findPreference<androidx.preference.ListPreference>("app_language")?.setOnPreferenceChangeListener { _, newValue ->
+                val language = newValue as String
+                LocaleHelper.setLanguage(requireContext(), language)
+
+                // Update summary to show selected language
+                val preference = findPreference<androidx.preference.ListPreference>("app_language")
+                preference?.summary = LocaleHelper.getLanguageDisplayName(requireContext(), language)
+
+                // Apply locale immediately - AppCompatDelegate handles recreation
+                LocaleHelper.applyLocale(requireContext())
+
+                true
+            }
+
             // Handle theme preference change
             findPreference<androidx.preference.ListPreference>("theme_preference")?.setOnPreferenceChangeListener { _, newValue ->
                 val theme = newValue as String
                 ThemeHelper.setTheme(requireContext(), theme)
-                
+
                 // Update summary to show selected theme
                 val preference = findPreference<androidx.preference.ListPreference>("theme_preference")
                 preference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), theme)
-                
+
                 // Recreate activity to apply theme immediately
                 activity?.recreate()
                 true
@@ -145,6 +160,7 @@ class SettingsActivity : AppCompatActivity() {
             setupVideoGestureSettingsListeners()
 
             // Set initial summaries
+            updateLanguageSummary()
             updateThemeSummary()
             updateRenameSummary()
             updateDisplaySummary()
@@ -155,12 +171,18 @@ class SettingsActivity : AppCompatActivity() {
             val themePreference = findPreference<androidx.preference.ListPreference>("theme_preference")
             val currentTheme = ThemeHelper.getCurrentTheme(requireContext())
             themePreference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), currentTheme)
-            
+
             val colorThemePreference = findPreference<ColorThemePreference>("color_theme_preference")
             val currentColorTheme = ThemeHelper.getCurrentColorTheme(requireContext())
             colorThemePreference?.summary = ThemeHelper.getColorThemeDisplayName(requireContext(), currentColorTheme)
         }
-        
+
+        private fun updateLanguageSummary() {
+            val languagePreference = findPreference<androidx.preference.ListPreference>("app_language")
+            val currentLanguage = LocaleHelper.getCurrentLanguage(requireContext())
+            languagePreference?.summary = LocaleHelper.getLanguageDisplayName(requireContext(), currentLanguage)
+        }
+
         private fun updateRenameSummary() {
             val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
 
@@ -584,6 +606,7 @@ class SettingsActivity : AppCompatActivity() {
                     showToast(message)
 
                     // Refresh UI to show updated settings
+                    updateLanguageSummary()
                     updateThemeSummary()
                     updateRenameSummary()
                     updateDisplaySummary()

@@ -67,11 +67,11 @@
     
     <!-- Quick Rename History Count Options -->
     <string-array name="rename_history_count_entries">
-        <item>10 items</item>
-        <item>20 items</item>
-        <item>30 items</item>
-        <item>50 items</item>
-        <item>100 items</item>
+        <item>@string/items_10</item>
+        <item>@string/items_20</item>
+        <item>@string/items_30</item>
+        <item>@string/items_50</item>
+        <item>@string/items_100</item>
     </string-array>
     
     <string-array name="rename_history_count_values">
@@ -221,6 +221,21 @@
         <item>zoom_out</item>
         <item>brightness_down</item>
         <item>volume_down</item>
+    </string-array>
+
+    <!-- Language Options -->
+    <string-array name="language_entries">
+        <item>@string/language_system_default</item>
+        <item>@string/language_english</item>
+        <item>@string/language_traditional_chinese</item>
+        <item>@string/language_simplified_chinese</item>
+    </string-array>
+
+    <string-array name="language_values">
+        <item>system</item>
+        <item>en</item>
+        <item>zh_TW</item>
+        <item>zh_CN</item>
     </string-array>
 
 </resources>
