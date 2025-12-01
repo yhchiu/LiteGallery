@@ -39,7 +39,19 @@ class FolderViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityFolderViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
+        // Handle window insets for navigation bar
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        }
+        binding.root.setOnApplyWindowInsetsListener { view, insets ->
+            val navigationInsets = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
+            val statusInsets = insets.getInsets(android.view.WindowInsets.Type.statusBars())
+            // Apply padding to prevent navigation bar overlap
+            view.setPadding(0, statusInsets.top, 0, navigationInsets.bottom)
+            insets
+        }
+
         folderPath = intent.getStringExtra(EXTRA_FOLDER_PATH) ?: ""
         folderName = intent.getStringExtra(EXTRA_FOLDER_NAME) ?: ""
         
