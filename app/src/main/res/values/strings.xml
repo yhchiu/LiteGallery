@@ -192,4 +192,37 @@
     <string name="import_failed">Failed to import settings</string>
     <string name="invalid_settings_file">Invalid settings file</string>
     <string name="settings_imported_count">Imported %d settings, skipped %d incompatible settings</string>
+
+    <!-- Empty and Loading States -->
+    <string name="tap_to_scan_media">Tap to scan for media files</string>
+    <string name="scanning_for_media">Scanning for media...</string>
+
+    <!-- Rename Dialog -->
+    <string name="enter_new_name">Enter new name:</string>
+    <string name="quick_add_label">Quick add:</string>
+    <string name="add_prefix">+ Prefix</string>
+    <string name="add_suffix">+ Suffix</string>
+    <string name="close">Close</string>
+
+    <!-- Video Player Placeholders -->
+    <string name="time_placeholder">00:00</string>
+    <string name="zoom_placeholder">1x</string>
+
+    <!-- Settings Categories -->
+    <string name="settings_backup">Settings Backup</string>
+
+    <!-- Language Settings -->
+    <string name="language_title">Language</string>
+    <string name="language_summary">Choose app language</string>
+    <string name="language_english">English</string>
+    <string name="language_traditional_chinese">繁體中文</string>
+    <string name="language_simplified_chinese">简体中文</string>
+    <string name="language_system_default">Follow System</string>
+
+    <!-- Item Count Strings -->
+    <string name="items_10">10 items</string>
+    <string name="items_20">20 items</string>
+    <string name="items_30">30 items</string>
+    <string name="items_50">50 items</string>
+    <string name="items_100">100 items</string>
 </resources>

@@ -122,6 +122,14 @@
     <PreferenceCategory android:title="@string/general_settings">
 
         <ListPreference
+            android:defaultValue="system"
+            android:entries="@array/language_entries"
+            android:entryValues="@array/language_values"
+            android:key="app_language"
+            android:summary="@string/language_summary"
+            android:title="@string/language_title" />
+
+        <ListPreference
             android:defaultValue="auto"
             android:entries="@array/theme_entries"
             android:entryValues="@array/theme_values"
@@ -151,7 +159,7 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Settings Backup">
+    <PreferenceCategory android:title="@string/settings_backup">
 
         <Preference
             android:key="export_settings"
