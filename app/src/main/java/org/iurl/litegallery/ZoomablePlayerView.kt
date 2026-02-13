@@ -3,12 +3,14 @@ package org.iurl.litegallery
 import android.content.Context
 import android.graphics.Matrix
 import android.graphics.RectF
+import android.os.Build
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.TextureView
 import android.view.ViewConfiguration
+import android.view.WindowInsets
 import androidx.media3.ui.PlayerView
 import androidx.preference.PreferenceManager
 import kotlin.math.*
@@ -41,7 +43,6 @@ class ZoomablePlayerView @JvmOverloads constructor(
     
     // Transform matrix
     private val transformMatrix = Matrix()
-    private val savedMatrix = Matrix()
     
     // Video bounds
     private val videoBounds = RectF()
@@ -55,6 +56,13 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private var baseContentWidth = 0f
     private var baseContentHeight = 0f
     private var fitScale = 1f
+
+    private data class SurfaceGeometry(
+        val width: Float,
+        val height: Float,
+        val offsetX: Float,
+        val offsetY: Float
+    )
     
     // Click listeners
     private var onVideoClickListener: (() -> Unit)? = null
@@ -162,14 +170,13 @@ class ZoomablePlayerView @JvmOverloads constructor(
         
         if (targetScale != currentScale) {
             val scaleFactor = targetScale / currentScale
-            
-            // Center the zoom (convert view center to TextureView-local coordinates)
-            val centerX = viewBounds.centerX()
-            val centerY = viewBounds.centerY()
-            val tvLeft = (viewBounds.width() - baseContentWidth) / 2f
-            val tvTop = (viewBounds.height() - baseContentHeight) / 2f
-            val localPivotX = if (baseContentWidth > 0f) centerX - tvLeft else centerX
-            val localPivotY = if (baseContentHeight > 0f) centerY - tvTop else centerY
+
+            // Center zoom around visible video surface center
+            val surfaceGeometry = getSurfaceGeometry()
+            val localPivotX = (getViewportRect().centerX() - surfaceGeometry.offsetX)
+                .coerceIn(0f, surfaceGeometry.width)
+            val localPivotY = (getViewportRect().centerY() - surfaceGeometry.offsetY)
+                .coerceIn(0f, surfaceGeometry.height)
             transformMatrix.postScale(scaleFactor, scaleFactor, localPivotX, localPivotY)
             currentScale = targetScale
             constrainTransform()
@@ -261,7 +268,109 @@ class ZoomablePlayerView @JvmOverloads constructor(
         
         return null
     }
+
+    private fun getSurfaceGeometry(): SurfaceGeometry {
+        val contentFrame = findViewById<android.view.View>(androidx.media3.ui.R.id.exo_content_frame)
+        if (contentFrame != null) {
+            val frameWidth = contentFrame.width.toFloat()
+            val frameHeight = contentFrame.height.toFloat()
+            if (frameWidth > 0f && frameHeight > 0f) {
+                if (baseContentWidth > 0f && baseContentHeight > 0f &&
+                    baseContentWidth <= frameWidth + 1f && baseContentHeight <= frameHeight + 1f
+                ) {
+                    return SurfaceGeometry(
+                        width = baseContentWidth,
+                        height = baseContentHeight,
+                        offsetX = contentFrame.x + (frameWidth - baseContentWidth) * 0.5f,
+                        offsetY = contentFrame.y + (frameHeight - baseContentHeight) * 0.5f
+                    )
+                }
+
+                return SurfaceGeometry(
+                    width = frameWidth,
+                    height = frameHeight,
+                    offsetX = contentFrame.x,
+                    offsetY = contentFrame.y
+                )
+            }
+        }
+
+        val surface = findVideoSurface(this)
+        if (surface != null) {
+            val surfaceWidth = surface.width.toFloat()
+            val surfaceHeight = surface.height.toFloat()
+            if (surfaceWidth > 0f && surfaceHeight > 0f) {
+                if (baseContentWidth > 0f && baseContentHeight > 0f &&
+                    baseContentWidth <= surfaceWidth + 1f && baseContentHeight <= surfaceHeight + 1f
+                ) {
+                    return SurfaceGeometry(
+                        width = baseContentWidth,
+                        height = baseContentHeight,
+                        offsetX = surface.x + (surfaceWidth - baseContentWidth) * 0.5f,
+                        offsetY = surface.y + (surfaceHeight - baseContentHeight) * 0.5f
+                    )
+                }
+
+                return SurfaceGeometry(
+                    width = surfaceWidth,
+                    height = surfaceHeight,
+                    offsetX = surface.x,
+                    offsetY = surface.y
+                )
+            }
+        }
+
+        if (baseContentWidth > 0f && baseContentHeight > 0f) {
+            return SurfaceGeometry(
+                width = baseContentWidth,
+                height = baseContentHeight,
+                offsetX = (viewBounds.width() - baseContentWidth) * 0.5f,
+                offsetY = (viewBounds.height() - baseContentHeight) * 0.5f
+            )
+        }
+
+        return SurfaceGeometry(
+            width = viewBounds.width().coerceAtLeast(1f),
+            height = viewBounds.height().coerceAtLeast(1f),
+            offsetX = 0f,
+            offsetY = 0f
+        )
+    }
     
+    private fun getViewportRect(): RectF {
+        val fullWidth = viewBounds.width()
+        val fullHeight = viewBounds.height()
+        if (fullWidth <= 0f || fullHeight <= 0f) {
+            return RectF(0f, 0f, fullWidth, fullHeight)
+        }
+
+        var insetLeft = 0f
+        var insetRight = 0f
+        var insetBottom = 0f
+
+        val insets = rootWindowInsets
+        if (insets != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val navInsets = insets.getInsets(WindowInsets.Type.navigationBars())
+                insetLeft = navInsets.left.toFloat()
+                insetRight = navInsets.right.toFloat()
+                insetBottom = navInsets.bottom.toFloat()
+            } else {
+                @Suppress("DEPRECATION")
+                run {
+                    insetLeft = insets.systemWindowInsetLeft.toFloat()
+                    insetRight = insets.systemWindowInsetRight.toFloat()
+                    insetBottom = insets.systemWindowInsetBottom.toFloat()
+                }
+            }
+        }
+
+        val left = insetLeft.coerceAtLeast(0f)
+        val top = 0f
+        val right = (fullWidth - insetRight).coerceAtLeast(left + 1f)
+        val bottom = (fullHeight - insetBottom).coerceAtLeast(top + 1f)
+        return RectF(left, top, right, bottom)
+    }
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         viewBounds.set(0f, 0f, w.toFloat(), h.toFloat())
@@ -505,30 +614,21 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
 
     private fun applyContinuousZoom(targetZoom: Float) {
-        if (videoWidth <= 0 || videoHeight <= 0 || baseContentWidth <= 0 || baseContentHeight <= 0) return
+        if (videoWidth <= 0f || videoHeight <= 0f) return
 
-        val viewWidth = width.toFloat()
-        val viewHeight = height.toFloat()
+        val clampedTarget = targetZoom.coerceIn(minScale, maxScale)
+        if (clampedTarget == currentScale) return
 
-        if (viewWidth <= 0 || viewHeight <= 0) return
-
-        // Calculate the base scale to fit video in view
-        val scaleX = baseContentWidth / videoWidth
-        val scaleY = baseContentHeight / videoHeight
-        val baseScale = min(scaleX, scaleY)
-
-        val actualTargetScale = targetZoom * baseScale
-        val scaleFactor = actualTargetScale / currentScale
-
-        // Center the zoom
-        val centerX = baseContentWidth * 0.5f
-        val centerY = baseContentHeight * 0.5f
+        val surfaceGeometry = getSurfaceGeometry()
+        val scaleFactor = clampedTarget / currentScale
+        val centerX = (getViewportRect().centerX() - surfaceGeometry.offsetX).coerceIn(0f, surfaceGeometry.width)
+        val centerY = (getViewportRect().centerY() - surfaceGeometry.offsetY).coerceIn(0f, surfaceGeometry.height)
 
         transformMatrix.postScale(scaleFactor, scaleFactor, centerX, centerY)
-        currentScale = actualTargetScale
+        currentScale = clampedTarget
         constrainTransform()
         applyTransformToVideoSurface()
-        onZoomChangeListener?.invoke(targetZoom)
+        onZoomChangeListener?.invoke(currentScale)
     }
 
     private fun getCurrentBrightness(): Float {
@@ -551,51 +651,51 @@ class ZoomablePlayerView @JvmOverloads constructor(
             recomputeBaseContentSize()
         }
 
-        // TextureView is laid out as baseContentWidth/Height centered inside the view
-        val tvLeft = (viewBounds.width() - baseContentWidth) / 2f
-        val tvTop = (viewBounds.height() - baseContentHeight) / 2f
+        val surfaceGeometry = getSurfaceGeometry()
+        if (surfaceGeometry.width <= 0f || surfaceGeometry.height <= 0f) return
 
         // Work in TextureView local coordinates for mapping
-        val baseLocalRect = RectF(0f, 0f, baseContentWidth, baseContentHeight)
+        val baseLocalRect = RectF(0f, 0f, surfaceGeometry.width, surfaceGeometry.height)
         val mappedLocalRect = RectF()
         transformMatrix.mapRect(mappedLocalRect, baseLocalRect)
         // Convert to parent (PlayerView) coordinates
         val mappedRect = RectF(
-            mappedLocalRect.left + tvLeft,
-            mappedLocalRect.top + tvTop,
-            mappedLocalRect.right + tvLeft,
-            mappedLocalRect.bottom + tvTop
+            mappedLocalRect.left + surfaceGeometry.offsetX,
+            mappedLocalRect.top + surfaceGeometry.offsetY,
+            mappedLocalRect.right + surfaceGeometry.offsetX,
+            mappedLocalRect.bottom + surfaceGeometry.offsetY
         )
 
         var deltaX = 0f
         var deltaY = 0f
 
-        val viewW = viewBounds.width()
-        val viewH = viewBounds.height()
+        val viewportRect = getViewportRect()
+        val viewportW = viewportRect.width()
+        val viewportH = viewportRect.height()
 
         // Horizontal constraint
-        if (mappedRect.width() <= viewW) {
-            // Center horizontally
-            val targetLeft = (viewW - mappedRect.width()) / 2f
+        if (mappedRect.width() <= viewportW) {
+            // Center horizontally in visible viewport
+            val targetLeft = viewportRect.left + (viewportW - mappedRect.width()) / 2f
             deltaX = targetLeft - mappedRect.left
         } else {
-            if (mappedRect.left > 0f) {
-                deltaX = -mappedRect.left
-            } else if (mappedRect.right < viewW) {
-                deltaX = viewW - mappedRect.right
+            if (mappedRect.left > viewportRect.left) {
+                deltaX = viewportRect.left - mappedRect.left
+            } else if (mappedRect.right < viewportRect.right) {
+                deltaX = viewportRect.right - mappedRect.right
             }
         }
 
         // Vertical constraint
-        if (mappedRect.height() <= viewH) {
-            // Center vertically
-            val targetTop = (viewH - mappedRect.height()) / 2f
+        if (mappedRect.height() <= viewportH) {
+            // Center vertically in visible viewport
+            val targetTop = viewportRect.top + (viewportH - mappedRect.height()) / 2f
             deltaY = targetTop - mappedRect.top
         } else {
-            if (mappedRect.top > 0f) {
-                deltaY = -mappedRect.top
-            } else if (mappedRect.bottom < viewH) {
-                deltaY = viewH - mappedRect.bottom
+            if (mappedRect.top > viewportRect.top) {
+                deltaY = viewportRect.top - mappedRect.top
+            } else if (mappedRect.bottom < viewportRect.bottom) {
+                deltaY = viewportRect.bottom - mappedRect.bottom
             }
         }
 
@@ -607,32 +707,21 @@ class ZoomablePlayerView @JvmOverloads constructor(
     private inner class ScaleGestureListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
             isZooming = true
-            savedMatrix.set(transformMatrix)
             return true
         }
         
         override fun onScale(detector: ScaleGestureDetector): Boolean {
-            val scaleFactor = detector.scaleFactor
-            val newScale = currentScale * scaleFactor
-            
-            // Constrain scale within limits
-            val constrainedScaleFactor = when {
-                newScale < minScale -> minScale / currentScale
-                newScale > maxScale -> maxScale / currentScale
-                else -> scaleFactor
-            }
+            val newScale = (currentScale * detector.scaleFactor).coerceIn(minScale, maxScale)
+            val constrainedScaleFactor = newScale / currentScale
             
             if (constrainedScaleFactor != 1f) {
-                transformMatrix.set(savedMatrix)
-                
                 // Convert gesture focus from view to TextureView-local coordinates
-                val tvLeft = (viewBounds.width() - baseContentWidth) / 2f
-                val tvTop = (viewBounds.height() - baseContentHeight) / 2f
-                val focusX = detector.focusX - tvLeft
-                val focusY = detector.focusY - tvTop
+                val surfaceGeometry = getSurfaceGeometry()
+                val focusX = (detector.focusX - surfaceGeometry.offsetX).coerceIn(0f, surfaceGeometry.width)
+                val focusY = (detector.focusY - surfaceGeometry.offsetY).coerceIn(0f, surfaceGeometry.height)
                 transformMatrix.postScale(constrainedScaleFactor, constrainedScaleFactor, focusX, focusY)
                 
-                currentScale = newScale.coerceIn(minScale, maxScale)
+                currentScale = newScale
                 constrainTransform()
                 applyTransformToVideoSurface()
                 onZoomChangeListener?.invoke(currentScale)
@@ -645,7 +734,6 @@ class ZoomablePlayerView @JvmOverloads constructor(
         
         override fun onScaleEnd(detector: ScaleGestureDetector) {
             isZooming = false
-            savedMatrix.set(transformMatrix)
         }
     }
     
@@ -694,7 +782,10 @@ class ZoomablePlayerView @JvmOverloads constructor(
                     val targetScale = min(maxScale, minScale * 2f)
                     val scaleFactor = targetScale / currentScale
 
-                    transformMatrix.postScale(scaleFactor, scaleFactor, e.x, e.y)
+                    val surfaceGeometry = getSurfaceGeometry()
+                    val focusX = (e.x - surfaceGeometry.offsetX).coerceIn(0f, surfaceGeometry.width)
+                    val focusY = (e.y - surfaceGeometry.offsetY).coerceIn(0f, surfaceGeometry.height)
+                    transformMatrix.postScale(scaleFactor, scaleFactor, focusX, focusY)
                     currentScale = targetScale
                     constrainTransform()
                     applyTransformToVideoSurface()
@@ -707,3 +798,4 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
 
 }
+
