@@ -632,8 +632,23 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
 
     private fun getCurrentBrightness(): Float {
-        val activity = context as? android.app.Activity
-        return activity?.window?.attributes?.screenBrightness ?: 0.5f
+        val activity = context as? android.app.Activity ?: return 0.5f
+
+        // Window brightness can be -1f (use system default). Handle that explicitly.
+        val windowBrightness = activity.window?.attributes?.screenBrightness ?: -1f
+        if (windowBrightness in 0f..1f) {
+            return windowBrightness
+        }
+
+        return try {
+            val systemBrightness = android.provider.Settings.System.getInt(
+                activity.contentResolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS
+            )
+            (systemBrightness / 255f).coerceIn(0.1f, 1f)
+        } catch (_: Exception) {
+            0.5f
+        }
     }
 
     private fun getCurrentVolume(): Float {
