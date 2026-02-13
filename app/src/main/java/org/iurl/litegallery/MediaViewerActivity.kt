@@ -102,7 +102,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // User left the app (e.g., Home key) – pause playback
+        // User left the app (e.g., Home key) ??pause playback
         pauseAllVisibleVideos()
     }
 
@@ -292,12 +292,12 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-
-                // Track swipe direction
-                if (position > previousPosition) {
-                    lastSwipeDirection = 1 // Swiped right (next)
-                } else if (position < previousPosition) {
-                    lastSwipeDirection = -1 // Swiped left (previous)
+                // Track navigation direction based on actual page transition
+                val oldPosition = currentPosition
+                if (position > oldPosition) {
+                    lastSwipeDirection = 1 // Moving to next item
+                } else if (position < oldPosition) {
+                    lastSwipeDirection = -1 // Moving to previous item
                 }
 
                 // Hide UI when switching from video to photo
@@ -310,8 +310,7 @@ class MediaViewerActivity : AppCompatActivity() {
                         android.util.Log.d("MediaViewerActivity", "Switched from video to photo - hiding UI")
                     }
                 }
-
-                previousPosition = currentPosition
+                previousPosition = oldPosition
                 currentPosition = position
                 updateFileName(position)
 
@@ -550,17 +549,35 @@ class MediaViewerActivity : AppCompatActivity() {
                     if (ok) {
                         android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                         notifyMediaScanner(item.path, item.path)
-                        // Remove from list and update
+
                         val newList = mediaItems.toMutableList()
-                        val idx = currentPosition
-                        if (idx in newList.indices) newList.removeAt(idx)
+                        val deletedIndex = currentPosition
+                        if (deletedIndex in newList.indices) newList.removeAt(deletedIndex)
                         mediaItems = newList
-                        mediaViewerAdapter.submitList(mediaItems)
-                        if (currentPosition >= mediaItems.size) {
-                            currentPosition = (mediaItems.size - 1).coerceAtLeast(0)
-                            previousPosition = currentPosition
+
+                        if (mediaItems.isEmpty()) {
+                            finish()
+                            return@setPositiveButton
                         }
-                        if (mediaItems.isNotEmpty()) updateFileName(currentPosition) else finish()
+                        // Deletion navigation rule:
+                        // - Delete first item  -> stay on new first (old second)
+                        // - Delete last item   -> jump to new last
+                        // - Delete middle item -> follow last navigation direction
+                        //   (next/none keeps same index, previous goes to index - 1)
+                        val directionBeforeDelete = lastSwipeDirection
+                        currentPosition = when {
+                            deletedIndex <= 0 -> 0
+                            deletedIndex >= mediaItems.size -> (mediaItems.size - 1).coerceAtLeast(0)
+                            directionBeforeDelete < 0 -> (deletedIndex - 1).coerceAtLeast(0)
+                            else -> deletedIndex
+                        }
+                        previousPosition = currentPosition
+                        lastSwipeDirection = 0
+
+                        mediaViewerAdapter.submitList(mediaItems) {
+                            binding.viewPager.setCurrentItem(currentPosition, false)
+                            updateFileName(currentPosition)
+                        }
                     } else {
                         android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
                     }
@@ -631,7 +648,7 @@ class MediaViewerActivity : AppCompatActivity() {
         
         // Add dimensions if available
         if (item.width > 0 && item.height > 0) {
-            builder.append("Dimensions: ").append(item.width).append(" × ").append(item.height).append('\n')
+            builder.append("Dimensions: ").append(item.width).append(" ? ").append(item.height).append('\n')
         }
         
         builder.append(getString(R.string.file_date)).append(": ").append(date).append('\n')
@@ -1485,7 +1502,7 @@ class MediaViewerActivity : AppCompatActivity() {
         val closeButton = dialogView.findViewById<android.widget.Button>(R.id.closeButton)
 
         // Prepare adapters for spinners (Chinese labels per requirement)
-        val sortKeyOptions = listOf("時間", "文字", "文字(忽略英數字)")
+        val sortKeyOptions = listOf("??", "??", "??(敹賜?望摮?")
         // Use dropdown layout for better visibility in dialogs
         sortKeySpinner.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sortKeyOptions).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -1593,16 +1610,16 @@ class MediaViewerActivity : AppCompatActivity() {
 
             fun sorted(list: List<String>): List<String> {
                 return when (sortKeyIndex) {
-                    0 -> { // 時間
-                        if (orderIndex == 0) list // 降冪: newest -> oldest (stored order)
-                        else list.asReversed()    // 升冪: oldest -> newest
+                    0 -> { // ??
+                        if (orderIndex == 0) list // ?: newest -> oldest (stored order)
+                        else list.asReversed()    // ?: oldest -> newest
                     }
-                    1 -> { // 文字
+                    1 -> { // ??
                         val cmp = compareBy<String> { it.lowercase() }
                         val s = list.sortedWith(cmp)
                         if (orderIndex == 0) s.asReversed() else s
                     }
-                    2 -> { // 文字(忽略英數字)
+                    2 -> { // ??(敹賜?望摮?
                         val regex = "[A-Za-z0-9]".toRegex()
                         val cmp = compareBy<String> { it.replace(regex, "").lowercase() }
                         val s = list.sortedWith(cmp)
