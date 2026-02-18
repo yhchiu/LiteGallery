@@ -13,7 +13,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     
@@ -110,6 +112,9 @@ class MainActivity : AppCompatActivity() {
             }
         } else if (folderAdapter.itemCount == 0) {
             loadMediaFolders()
+            cleanupExpiredTrashInBackground()
+        } else {
+            cleanupExpiredTrashInBackground()
         }
     }
     
@@ -133,13 +138,10 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
-            // Trash Bin not yet implemented
-            /*
             R.id.action_trash_bin -> {
                 startActivity(Intent(this, TrashBinActivity::class.java))
                 true
             }
-            */
             R.id.action_refresh -> {
                 loadMediaFolders()
                 true
@@ -284,5 +286,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.recyclerView.visibility = View.GONE
+    }
+
+    private fun cleanupExpiredTrashInBackground() {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                TrashBinStore.cleanupExpiredTrash(this@MainActivity)
+            }
+
+            if (result.removedPaths.isNotEmpty()) {
+                result.removedPaths.forEach { oldPath ->
+                    android.media.MediaScannerConnection.scanFile(
+                        this@MainActivity,
+                        arrayOf(oldPath),
+                        null
+                    ) { _, _ -> }
+                }
+            }
+        }
     }
 }

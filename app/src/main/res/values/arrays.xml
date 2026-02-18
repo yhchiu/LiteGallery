@@ -101,6 +101,29 @@
         <item>text_ignore_desc</item>
     </string-array>
 
+    <!-- Trash Retention Options -->
+    <string-array name="trash_retention_days_entries">
+        <item>@string/trash_retention_never</item>
+        <item>@string/trash_retention_days_1</item>
+        <item>@string/trash_retention_days_3</item>
+        <item>@string/trash_retention_days_7</item>
+        <item>@string/trash_retention_days_14</item>
+        <item>@string/trash_retention_days_30</item>
+        <item>@string/trash_retention_days_60</item>
+        <item>@string/trash_retention_days_90</item>
+    </string-array>
+
+    <string-array name="trash_retention_days_values">
+        <item>0</item>
+        <item>1</item>
+        <item>3</item>
+        <item>7</item>
+        <item>14</item>
+        <item>30</item>
+        <item>60</item>
+        <item>90</item>
+    </string-array>
+
     <!-- Filename Max Lines Options -->
     <string-array name="filename_max_lines_entries">
         <item>@string/filename_max_lines_1</item>

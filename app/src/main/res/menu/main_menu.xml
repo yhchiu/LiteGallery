@@ -8,13 +8,10 @@
         android:title="@string/refresh"
         app:showAsAction="ifRoom" />
 
-    <!-- Trash Bin not yet implemented -->
-    <!--
     <item
         android:id="@+id/action_trash_bin"
         android:icon="@drawable/ic_delete"
         android:title="@string/trash_bin_title" />
-    -->
 
     <item
         android:id="@+id/action_settings"

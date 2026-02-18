@@ -20,6 +20,10 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val RENAME_HISTORY_PREFS = "rename_history"
         private const val RENAME_PREFIXES_KEY = "prefixes_list"
         private const val RENAME_SUFFIXES_KEY = "suffixes_list"
+
+        // Delete/Trash constants
+        private const val DELETE_PREFS = "delete_prefs"
+        private const val DELETE_MOVE_TO_TRASH_KEY = "delete_move_to_trash"
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -539,55 +543,134 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun confirmAndDeleteCurrent() {
         val item = getCurrentMediaItem() ?: return
-        android.app.AlertDialog.Builder(this)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_delete_media, null)
+        val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.deleteMessageTextView)
+        val moveToTrashCheckbox = dialogView.findViewById<android.widget.CheckBox>(R.id.moveToTrashCheckBox)
+        messageTextView.text = getString(R.string.delete_confirmation)
+        moveToTrashCheckbox.isChecked = shouldMoveToTrashByDefault()
+
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.delete)
-            .setMessage(R.string.delete_confirmation)
-            .setPositiveButton(R.string.delete) { _, _ ->
-                try {
-                    val file = java.io.File(item.path)
-                    val ok = file.delete()
-                    if (ok) {
-                        android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
-                        notifyMediaScanner(item.path, item.path)
-
-                        val newList = mediaItems.toMutableList()
-                        val deletedIndex = currentPosition
-                        if (deletedIndex in newList.indices) newList.removeAt(deletedIndex)
-                        mediaItems = newList
-
-                        if (mediaItems.isEmpty()) {
-                            finish()
-                            return@setPositiveButton
-                        }
-                        // Deletion navigation rule:
-                        // - Delete first item  -> stay on new first (old second)
-                        // - Delete last item   -> jump to new last
-                        // - Delete middle item -> follow last navigation direction
-                        //   (next/none keeps same index, previous goes to index - 1)
-                        val directionBeforeDelete = lastSwipeDirection
-                        currentPosition = when {
-                            deletedIndex <= 0 -> 0
-                            deletedIndex >= mediaItems.size -> (mediaItems.size - 1).coerceAtLeast(0)
-                            directionBeforeDelete < 0 -> (deletedIndex - 1).coerceAtLeast(0)
-                            else -> deletedIndex
-                        }
-                        previousPosition = currentPosition
-                        lastSwipeDirection = 0
-
-                        mediaViewerAdapter.submitList(mediaItems) {
-                            binding.viewPager.setCurrentItem(currentPosition, false)
-                            updateFileName(currentPosition)
-                        }
-                    } else {
-                        android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("MediaViewerActivity", "Delete failed: ${e.message}")
-                    android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }
+            .setView(dialogView)
+            .setPositiveButton(R.string.delete, null)
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
+            val updatePositiveButtonText = {
+                val textRes = if (moveToTrashCheckbox.isChecked) {
+                    R.string.move_to_trash
+                } else {
+                    R.string.delete_permanently
+                }
+                positiveButton.text = getString(textRes)
+            }
+
+            updatePositiveButtonText()
+
+            moveToTrashCheckbox.setOnCheckedChangeListener { _, _ ->
+                updatePositiveButtonText()
+            }
+
+            positiveButton.setOnClickListener {
+                val moveToTrash = moveToTrashCheckbox.isChecked
+                saveMoveToTrashPreference(moveToTrash)
+                performDelete(item, moveToTrash)
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun shouldMoveToTrashByDefault(): Boolean {
+        val prefs = getSharedPreferences(DELETE_PREFS, MODE_PRIVATE)
+        return prefs.getBoolean(DELETE_MOVE_TO_TRASH_KEY, true)
+    }
+
+    private fun saveMoveToTrashPreference(moveToTrash: Boolean) {
+        val prefs = getSharedPreferences(DELETE_PREFS, MODE_PRIVATE)
+        prefs.edit().putBoolean(DELETE_MOVE_TO_TRASH_KEY, moveToTrash).apply()
+    }
+
+    private fun performDelete(item: MediaItem, moveToTrash: Boolean) {
+        try {
+            val file = java.io.File(item.path)
+            if (!file.exists()) {
+                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val movedFile = if (moveToTrash) moveFileToTrash(file) else null
+            val ok = if (moveToTrash) movedFile != null else file.delete()
+
+            if (ok) {
+                android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
+                // Keep trashed files out of the main media index by only removing old path.
+                notifyMediaScanner(item.path, null)
+                removeDeletedItemFromViewer()
+            } else {
+                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MediaViewerActivity", "Delete failed: ${e.message}")
+            android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun moveFileToTrash(file: java.io.File): java.io.File? {
+        val parent = file.parentFile ?: return null
+        val originalName = file.name
+
+        for (index in 0..9999) {
+            val candidateName = if (index == 0) {
+                "${TrashBinStore.TRASH_FILE_PREFIX}$originalName"
+            } else {
+                "${TrashBinStore.TRASH_FILE_PREFIX}${index}-$originalName"
+            }
+            val candidateFile = java.io.File(parent, candidateName)
+            if (candidateFile.exists()) continue
+            return if (file.renameTo(candidateFile)) {
+                TrashBinStore.rememberTrashedFile(this, candidateFile.absolutePath, originalName)
+                candidateFile
+            } else {
+                null
+            }
+        }
+
+        return null
+    }
+
+    private fun removeDeletedItemFromViewer() {
+        val newList = mediaItems.toMutableList()
+        val deletedIndex = currentPosition
+        if (deletedIndex in newList.indices) newList.removeAt(deletedIndex)
+        mediaItems = newList
+
+        if (mediaItems.isEmpty()) {
+            finish()
+            return
+        }
+        // Deletion navigation rule:
+        // - Delete first item  -> stay on new first (old second)
+        // - Delete last item   -> jump to new last
+        // - Delete middle item -> follow last navigation direction
+        //   (next/none keeps same index, previous goes to index - 1)
+        val directionBeforeDelete = lastSwipeDirection
+        currentPosition = when {
+            deletedIndex <= 0 -> 0
+            deletedIndex >= mediaItems.size -> (mediaItems.size - 1).coerceAtLeast(0)
+            directionBeforeDelete < 0 -> (deletedIndex - 1).coerceAtLeast(0)
+            else -> deletedIndex
+        }
+        previousPosition = currentPosition
+        lastSwipeDirection = 0
+
+        mediaViewerAdapter.submitList(mediaItems) {
+            binding.viewPager.setCurrentItem(currentPosition, false)
+            updateFileName(currentPosition)
+        }
     }
 
     private fun shareCurrent() {
@@ -1389,20 +1472,23 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
     
-    private fun notifyMediaScanner(oldPath: String, newPath: String) {
+    private fun notifyMediaScanner(oldPath: String, newPath: String? = null) {
         // Remove old file from media scanner
         android.media.MediaScannerConnection.scanFile(
             this,
             arrayOf(oldPath),
             null
         ) { _, _ -> }
-        
-        // Add new file to media scanner
-        android.media.MediaScannerConnection.scanFile(
-            this,
-            arrayOf(newPath),
-            null
-        ) { _, _ -> }
+
+        val shouldAddNewPath = !newPath.isNullOrBlank() && newPath != oldPath
+        if (shouldAddNewPath) {
+            // Add new file to media scanner
+            android.media.MediaScannerConnection.scanFile(
+                this,
+                arrayOf(newPath),
+                null
+            ) { _, _ -> }
+        }
     }
     
     private fun getRenamePrefixes(): MutableList<String> {

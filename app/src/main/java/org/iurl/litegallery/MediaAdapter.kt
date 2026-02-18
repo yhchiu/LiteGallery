@@ -12,7 +12,11 @@ import org.iurl.litegallery.databinding.ItemMediaDetailedBinding
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MediaAdapter(private val onMediaClick: (MediaItem, Int) -> Unit) :
+class MediaAdapter(
+    private val onMediaClick: (MediaItem, Int) -> Unit,
+    private val onMediaLongClick: ((MediaItem, Int) -> Unit)? = null,
+    private val isItemSelected: ((MediaItem) -> Boolean)? = null
+) :
     ListAdapter<MediaItem, RecyclerView.ViewHolder>(MediaDiffCallback()) {
 
     var viewMode: ViewMode = ViewMode.GRID
@@ -97,6 +101,17 @@ class MediaAdapter(private val onMediaClick: (MediaItem, Int) -> Unit) :
             binding.root.setOnClickListener {
                 onMediaClick(mediaItem, position)
             }
+
+            binding.root.setOnLongClickListener {
+                if (onMediaLongClick != null) {
+                    onMediaLongClick.invoke(mediaItem, position)
+                    true
+                } else {
+                    false
+                }
+            }
+
+            applySelectionState(binding.root, mediaItem)
         }
     }
 
@@ -134,6 +149,17 @@ class MediaAdapter(private val onMediaClick: (MediaItem, Int) -> Unit) :
             binding.root.setOnClickListener {
                 onMediaClick(mediaItem, position)
             }
+
+            binding.root.setOnLongClickListener {
+                if (onMediaLongClick != null) {
+                    onMediaLongClick.invoke(mediaItem, position)
+                    true
+                } else {
+                    false
+                }
+            }
+
+            applySelectionState(binding.root, mediaItem)
         }
     }
 
@@ -197,7 +223,23 @@ class MediaAdapter(private val onMediaClick: (MediaItem, Int) -> Unit) :
             binding.root.setOnClickListener {
                 onMediaClick(mediaItem, position)
             }
+
+            binding.root.setOnLongClickListener {
+                if (onMediaLongClick != null) {
+                    onMediaLongClick.invoke(mediaItem, position)
+                    true
+                } else {
+                    false
+                }
+            }
+
+            applySelectionState(binding.root, mediaItem)
         }
+    }
+
+    private fun applySelectionState(root: android.view.View, mediaItem: MediaItem) {
+        val selected = isItemSelected?.invoke(mediaItem) == true
+        root.alpha = if (selected) 0.6f else 1f
     }
 
     private fun formatFileSize(bytes: Long): String {

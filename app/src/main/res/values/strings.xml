@@ -87,7 +87,14 @@
     <!-- Trash Bin -->
     <string name="trash_bin_empty">Trash bin is empty</string>
     <string name="restore_all">Restore All</string>
-    
+    <string name="restore_selected">Restore Selected</string>
+    <string name="delete_selected_permanently">Delete Selected Permanently</string>
+    <string name="delete_selected_confirmation">Permanently delete %d selected files?</string>
+    <string name="trash_selected_count">%d selected</string>
+    <string name="select_all">Select All</string>
+    <string name="clear_selection">Clear Selection</string>
+    <string name="trash_auto_cleaned_count">Auto-cleaned %d expired trash files</string>
+
     <!-- Settings -->
     <string name="display_settings">Display Settings</string>
     <string name="action_bar_settings">Action Bar Settings</string>
@@ -98,6 +105,18 @@
     <string name="restore_brightness_summary">Restore original brightness when exiting app</string>
     <string name="restore_volume_title">Restore Volume</string>
     <string name="restore_volume_summary">Restore original volume when exiting app</string>
+    <string name="trash_retention_days_title">Trash Retention</string>
+    <string name="trash_retention_days_summary_default">Auto-delete files older than 30 days</string>
+    <string name="trash_retention_days_summary_disabled">Disabled (manual cleanup only)</string>
+    <string name="trash_retention_days_summary_format">Auto-delete files older than %d days</string>
+    <string name="trash_retention_never">Never auto-delete</string>
+    <string name="trash_retention_days_1">1 day</string>
+    <string name="trash_retention_days_3">3 days</string>
+    <string name="trash_retention_days_7">7 days</string>
+    <string name="trash_retention_days_14">14 days</string>
+    <string name="trash_retention_days_30">30 days</string>
+    <string name="trash_retention_days_60">60 days</string>
+    <string name="trash_retention_days_90">90 days</string>
     <string name="sort_by_date_desc">Sort by Date (Newest First)</string>
     <string name="sort_by_date_asc">Sort by Date (Oldest First)</string>
     <string name="sort_by_name_asc">Sort by Name (A-Z)</string>
