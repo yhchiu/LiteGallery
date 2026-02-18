@@ -145,6 +145,7 @@ class FileSystemScanner(private val context: Context) {
     }
     
     private fun isMediaFile(file: File): Boolean {
+        if (file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)) return false
         val extension = file.extension.lowercase()
         return imageExtensions.contains(extension) || videoExtensions.contains(extension)
     }

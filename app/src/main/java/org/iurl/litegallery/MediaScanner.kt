@@ -71,10 +71,15 @@ class MediaScanner(private val context: Context) {
     }
 
     private fun isMediaFile(file: File): Boolean {
+        if (isTrashedFile(file)) return false
         val extension = file.extension.lowercase()
         val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
         val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
         return imageExtensions.contains(extension) || videoExtensions.contains(extension)
+    }
+
+    private fun isTrashedFile(file: File): Boolean {
+        return file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)
     }
     
     suspend fun scanMediaInFolder(folderPath: String): List<MediaItem> = withContext(Dispatchers.IO) {
@@ -138,7 +143,7 @@ class MediaScanner(private val context: Context) {
                 val file = File(path)
                 val folderPath = file.parent ?: continue
                 
-                if (!file.exists()) continue
+                if (!file.exists() || isTrashedFile(file)) continue
                 
                 val mediaItem = MediaItem(
                     name = it.getString(nameColumn),
@@ -191,7 +196,7 @@ class MediaScanner(private val context: Context) {
                 val file = File(path)
                 val folderPath = file.parent ?: continue
                 
-                if (!file.exists()) continue
+                if (!file.exists() || isTrashedFile(file)) continue
                 
                 val mediaItem = MediaItem(
                     name = it.getString(nameColumn),
@@ -245,7 +250,7 @@ class MediaScanner(private val context: Context) {
                 val path = it.getString(dataColumn)
                 val file = File(path)
                 
-                if (!file.exists() || file.parent != folderPath) continue
+                if (!file.exists() || file.parent != folderPath || isTrashedFile(file)) continue
                 
                 val mediaItem = MediaItem(
                     name = it.getString(nameColumn),
@@ -300,7 +305,7 @@ class MediaScanner(private val context: Context) {
                 val path = it.getString(dataColumn)
                 val file = File(path)
                 
-                if (!file.exists() || file.parent != folderPath) continue
+                if (!file.exists() || file.parent != folderPath || isTrashedFile(file)) continue
                 
                 val mediaItem = MediaItem(
                     name = it.getString(nameColumn),

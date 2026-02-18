@@ -157,6 +157,14 @@
             android:summary="@string/restore_volume_summary"
             android:title="@string/restore_volume_title" />
 
+        <ListPreference
+            android:defaultValue="30"
+            android:entries="@array/trash_retention_days_entries"
+            android:entryValues="@array/trash_retention_days_values"
+            android:key="trash_retention_days"
+            android:summary="@string/trash_retention_days_summary_default"
+            android:title="@string/trash_retention_days_title" />
+
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_backup">

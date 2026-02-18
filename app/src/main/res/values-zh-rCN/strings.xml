@@ -87,6 +87,13 @@
     <!-- Trash Bin -->
     <string name="trash_bin_empty">垃圾桶是空的</string>
     <string name="restore_all">全部还原</string>
+    <string name="restore_selected">还原已选中</string>
+    <string name="delete_selected_permanently">永久删除已选中</string>
+    <string name="delete_selected_confirmation">永久删除已选中的 %d 个文件？</string>
+    <string name="trash_selected_count">已选中 %d 项</string>
+    <string name="select_all">全选</string>
+    <string name="clear_selection">清除选择</string>
+    <string name="trash_auto_cleaned_count">已自动清理 %d 个过期垃圾桶文件</string>
 
     <!-- Settings -->
     <string name="display_settings">显示设置</string>
@@ -98,6 +105,18 @@
     <string name="restore_brightness_summary">退出应用时还原原始亮度</string>
     <string name="restore_volume_title">还原音量</string>
     <string name="restore_volume_summary">退出应用时还原原始音量</string>
+    <string name="trash_retention_days_title">垃圾桶保留天数</string>
+    <string name="trash_retention_days_summary_default">自动删除超过 30 天的垃圾桶文件</string>
+    <string name="trash_retention_days_summary_disabled">停用（仅手动清理）</string>
+    <string name="trash_retention_days_summary_format">自动删除超过 %d 天的垃圾桶文件</string>
+    <string name="trash_retention_never">不自动删除</string>
+    <string name="trash_retention_days_1">1 天</string>
+    <string name="trash_retention_days_3">3 天</string>
+    <string name="trash_retention_days_7">7 天</string>
+    <string name="trash_retention_days_14">14 天</string>
+    <string name="trash_retention_days_30">30 天</string>
+    <string name="trash_retention_days_60">60 天</string>
+    <string name="trash_retention_days_90">90 天</string>
     <string name="sort_by_date_desc">按日期排序（新到旧）</string>
     <string name="sort_by_date_asc">按日期排序（旧到新）</string>
     <string name="sort_by_name_asc">按名称排序（A-Z）</string>

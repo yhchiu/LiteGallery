@@ -171,12 +171,16 @@ class SettingsActivity : AppCompatActivity() {
             // Handle video gesture settings preference changes
             setupVideoGestureSettingsListeners()
 
+            // Handle trash settings preference changes
+            setupTrashSettingsListeners()
+
             // Set initial summaries
             updateLanguageSummary()
             updateThemeSummary()
             updateRenameSummary()
             updateDisplaySummary()
             updateVideoGestureSummary()
+            updateTrashSettingsSummary()
         }
         
         private fun updateThemeSummary() {
@@ -377,6 +381,34 @@ class SettingsActivity : AppCompatActivity() {
             val rightSwipeDownAction = prefs.getString("video_right_swipe_down_action", "brightness_down")
             val rightSwipeDownPreference = findPreference<androidx.preference.ListPreference>("video_right_swipe_down_action")
             rightSwipeDownPreference?.summary = getVideoActionDisplayName(rightSwipeDownAction ?: "brightness_down")
+        }
+
+        private fun setupTrashSettingsListeners() {
+            findPreference<androidx.preference.ListPreference>(TrashBinStore.TRASH_RETENTION_DAYS_KEY)?.setOnPreferenceChangeListener { _, newValue ->
+                val retentionDays = (newValue as String).toIntOrNull() ?: TrashBinStore.TRASH_RETENTION_DEFAULT_DAYS
+                val preference = findPreference<androidx.preference.ListPreference>(TrashBinStore.TRASH_RETENTION_DAYS_KEY)
+                preference?.summary = getTrashRetentionSummary(retentionDays)
+                true
+            }
+        }
+
+        private fun updateTrashSettingsSummary() {
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val retentionDays = prefs.getString(
+                TrashBinStore.TRASH_RETENTION_DAYS_KEY,
+                TrashBinStore.TRASH_RETENTION_DEFAULT_DAYS.toString()
+            )?.toIntOrNull() ?: TrashBinStore.TRASH_RETENTION_DEFAULT_DAYS
+
+            val preference = findPreference<androidx.preference.ListPreference>(TrashBinStore.TRASH_RETENTION_DAYS_KEY)
+            preference?.summary = getTrashRetentionSummary(retentionDays)
+        }
+
+        private fun getTrashRetentionSummary(retentionDays: Int): String {
+            return if (retentionDays <= 0) {
+                getString(R.string.trash_retention_days_summary_disabled)
+            } else {
+                getString(R.string.trash_retention_days_summary_format, retentionDays)
+            }
         }
 
         private fun updateDisplaySummary() {
@@ -623,6 +655,7 @@ class SettingsActivity : AppCompatActivity() {
                     updateRenameSummary()
                     updateDisplaySummary()
                     updateVideoGestureSummary()
+                    updateTrashSettingsSummary()
 
                     // Recreate activity to apply theme changes if any
                     activity?.recreate()
