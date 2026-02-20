@@ -2,6 +2,7 @@ package org.iurl.litegallery
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -19,6 +20,7 @@ class FolderViewActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_FOLDER_PATH = "extra_folder_path"
         const val EXTRA_FOLDER_NAME = "extra_folder_name"
+        private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -31,6 +33,8 @@ class FolderViewActivity : AppCompatActivity() {
     private var currentColorTheme: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
+    private var isLoadingMediaItems = false
+    private var lastSwipeRefreshAtMs = 0L
 
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -42,7 +46,7 @@ class FolderViewActivity : AppCompatActivity() {
 
         val changedFolderPath = data.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
         if (changedFolderPath.isNullOrEmpty() || changedFolderPath == folderPath) {
-            loadMediaItems()
+            loadMediaItems(showBlockingLoading = mediaAdapter.itemCount == 0)
         }
 
         setResult(
@@ -87,6 +91,7 @@ class FolderViewActivity : AppCompatActivity() {
 
         setupToolbar()
         setupRecyclerView()
+        setupSwipeRefresh()
 
         mediaScanner = MediaScanner(this)
         loadMediaItems()
@@ -154,6 +159,19 @@ class FolderViewActivity : AppCompatActivity() {
 
         // Apply view mode
         updateLayoutManager()
+    }
+
+    private fun setupSwipeRefresh() {
+        binding.swipeRefresh.setOnRefreshListener {
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastSwipeRefreshAtMs < SWIPE_REFRESH_THROTTLE_MS) {
+                binding.swipeRefresh.isRefreshing = false
+                return@setOnRefreshListener
+            }
+            lastSwipeRefreshAtMs = now
+
+            loadMediaItems(showBlockingLoading = false, fromSwipeRefresh = true)
+        }
     }
 
     private fun updateLayoutManager() {
@@ -239,10 +257,26 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
     
-    private fun loadMediaItems() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.emptyView.visibility = View.GONE
-        binding.recyclerView.visibility = View.GONE
+    private fun loadMediaItems(
+        showBlockingLoading: Boolean = true,
+        fromSwipeRefresh: Boolean = false
+    ) {
+        if (isLoadingMediaItems) {
+            if (fromSwipeRefresh) {
+                binding.swipeRefresh.isRefreshing = false
+            }
+            return
+        }
+
+        if (showBlockingLoading) {
+            binding.progressBar.visibility = View.VISIBLE
+            binding.emptyView.visibility = View.GONE
+            binding.recyclerView.visibility = View.GONE
+        } else if (fromSwipeRefresh) {
+            binding.swipeRefresh.isRefreshing = true
+        }
+
+        isLoadingMediaItems = true
         
         lifecycleScope.launch {
             try {
@@ -264,6 +298,9 @@ class FolderViewActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 binding.emptyView.visibility = View.VISIBLE
                 binding.recyclerView.visibility = View.GONE
+            } finally {
+                isLoadingMediaItems = false
+                binding.swipeRefresh.isRefreshing = false
             }
         }
     }

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -23,6 +24,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var folderAdapter: FolderAdapter
     private lateinit var mediaScanner: MediaScanner
     private var permissionsGrantedOnStart = false
+    private var isLoadingFolders = false
+    private var lastSwipeRefreshAtMs = 0L
     
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -87,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         
         mediaScanner = MediaScanner(this)
         setupRecyclerView()
+        setupSwipeRefresh()
         
         checkPermissionsAndLoad()
     }
@@ -154,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_refresh -> {
-                loadMediaFolders()
+                loadMediaFolders(showBlockingLoading = folderAdapter.itemCount == 0)
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -173,6 +177,25 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.apply {
             adapter = folderAdapter
             layoutManager = GridLayoutManager(this@MainActivity, 1)
+        }
+    }
+
+    private fun setupSwipeRefresh() {
+        binding.swipeRefresh.setOnRefreshListener {
+            if (!hasStoragePermissions()) {
+                binding.swipeRefresh.isRefreshing = false
+                showPermissionRequired()
+                return@setOnRefreshListener
+            }
+
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastSwipeRefreshAtMs < SWIPE_REFRESH_THROTTLE_MS) {
+                binding.swipeRefresh.isRefreshing = false
+                return@setOnRefreshListener
+            }
+            lastSwipeRefreshAtMs = now
+
+            loadMediaFolders(showBlockingLoading = false, fromSwipeRefresh = true)
         }
     }
     
@@ -261,10 +284,26 @@ class MainActivity : AppCompatActivity() {
         permissionLauncher.launch(permissions)
     }
     
-    private fun loadMediaFolders() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.emptyView.visibility = View.GONE
-        binding.recyclerView.visibility = View.GONE
+    private fun loadMediaFolders(
+        showBlockingLoading: Boolean = true,
+        fromSwipeRefresh: Boolean = false
+    ) {
+        if (isLoadingFolders) {
+            if (fromSwipeRefresh) {
+                binding.swipeRefresh.isRefreshing = false
+            }
+            return
+        }
+
+        if (showBlockingLoading) {
+            binding.progressBar.visibility = View.VISIBLE
+            binding.emptyView.visibility = View.GONE
+            binding.recyclerView.visibility = View.GONE
+        } else if (fromSwipeRefresh) {
+            binding.swipeRefresh.isRefreshing = true
+        }
+
+        isLoadingFolders = true
         
         lifecycleScope.launch {
             try {
@@ -284,11 +323,15 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 binding.emptyView.visibility = View.VISIBLE
                 binding.recyclerView.visibility = View.GONE
+            } finally {
+                isLoadingFolders = false
+                binding.swipeRefresh.isRefreshing = false
             }
         }
     }
     
     private fun showPermissionRequired() {
+        binding.swipeRefresh.isRefreshing = false
         binding.progressBar.visibility = View.GONE
         binding.emptyView.apply {
             visibility = View.VISIBLE
@@ -315,5 +358,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
     }
 }
