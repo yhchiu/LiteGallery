@@ -20,6 +20,7 @@ class TrashBinActivity : AppCompatActivity() {
     private var currentColorTheme: String? = null
     private var trashItems: List<MediaItem> = emptyList()
     private val selectedPaths = mutableSetOf<String>()
+    private var previousSelectionPaths: Set<String> = emptySet()
     private var isSelectionMode = false
 
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
@@ -200,17 +201,18 @@ class TrashBinActivity : AppCompatActivity() {
             trashItems = items
             selectedPaths.retainAll(items.map { it.path }.toSet())
             if (isSelectionMode && selectedPaths.isEmpty()) {
-                exitSelectionMode()
-            } else if (isSelectionMode) {
+                isSelectionMode = false
+            }
+
+            mediaAdapter.submitList(items) {
+                if (items.isEmpty()) {
+                    showEmptyState()
+                } else {
+                    showListState()
+                }
                 updateSelectionUi()
+                invalidateOptionsMenu()
             }
-            mediaAdapter.submitList(items)
-            if (items.isEmpty()) {
-                showEmptyState()
-            } else {
-                showListState()
-            }
-            invalidateOptionsMenu()
         }
     }
 
@@ -669,7 +671,11 @@ class TrashBinActivity : AppCompatActivity() {
         binding.restoreSelectedButton.isEnabled = hasSelection
         binding.deleteSelectedButton.isEnabled = hasSelection
         binding.clearSelectionButton.isEnabled = hasSelection
-        mediaAdapter.notifyDataSetChanged()
+
+        val changedPaths = (previousSelectionPaths + selectedPaths) - (previousSelectionPaths intersect selectedPaths)
+        mediaAdapter.notifySelectionChanged(changedPaths)
+        previousSelectionPaths = selectedPaths.toSet()
+
         invalidateOptionsMenu()
     }
 

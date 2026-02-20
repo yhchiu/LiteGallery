@@ -21,6 +21,7 @@ class MediaAdapter(
 
     var viewMode: ViewMode = ViewMode.GRID
         set(value) {
+            if (field == value) return
             field = value
             notifyDataSetChanged()
         }
@@ -33,6 +34,7 @@ class MediaAdapter(
         private const val VIEW_TYPE_GRID = 0
         private const val VIEW_TYPE_LIST = 1
         private const val VIEW_TYPE_DETAILED = 2
+        private const val PAYLOAD_SELECTION_STATE = "payload_selection_state"
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -67,6 +69,27 @@ class MediaAdapter(
             is GridViewHolder -> holder.bind(mediaItem, position)
             is ListViewHolder -> holder.bind(mediaItem, position)
             is DetailedViewHolder -> holder.bind(mediaItem, position)
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(PAYLOAD_SELECTION_STATE)) {
+            applySelectionState(holder.itemView, getItem(position))
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
+    }
+
+    fun notifySelectionChanged(changedPaths: Collection<String>) {
+        if (changedPaths.isEmpty()) return
+
+        val indexByPath = currentList
+            .mapIndexed { index, mediaItem -> mediaItem.path to index }
+            .toMap()
+
+        changedPaths.forEach { path ->
+            val index = indexByPath[path] ?: return@forEach
+            notifyItemChanged(index, PAYLOAD_SELECTION_STATE)
         }
     }
 
