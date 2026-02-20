@@ -470,8 +470,8 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             // Preferences for order/visibility
-            val prefs = ctx.getSharedPreferences("action_bar_prefs", android.content.Context.MODE_PRIVATE)
-            val defaultOrder = listOf("delete", /*"share", "edit",*/ "rename", "rotate_screen", "properties", /*"rotate_photo", "copy", "move",*/ "reload_video")
+            val prefs = ctx.getSharedPreferences(ActionBarPreferences.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+            val defaultOrder = ActionBarPreferences.DEFAULT_ACTION_ORDER
 
             data class Item(val key: String, val label: String)
             val labelMap = mapOf(
@@ -501,9 +501,13 @@ class SettingsActivity : AppCompatActivity() {
             )
 
             // Load stored preferences and filter out items not in labelMap
-            val storedOrder = prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() }
+            val storedOrder = prefs.getString(ActionBarPreferences.KEY_ORDER, null)?.split(',')?.filter { it.isNotBlank() }
             val order = (storedOrder ?: defaultOrder).filter { labelMap.containsKey(it) }.toMutableList()
-            val visibleSet = prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() && labelMap.containsKey(it) }?.toMutableSet() ?: defaultOrder.toMutableSet()
+            val visibleSet = prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)
+                ?.split(',')
+                ?.filter { it.isNotBlank() && labelMap.containsKey(it) }
+                ?.toMutableSet()
+                ?: defaultOrder.toMutableSet()
 
             val items = order.map { Item(it, labelMap[it] ?: it) }.toMutableList()
 
@@ -592,8 +596,8 @@ class SettingsActivity : AppCompatActivity() {
                 val newOrder = items.map { it.key }
                 val newVisible = visibleSet.toList()
                 prefs.edit()
-                    .putString("order", newOrder.joinToString(","))
-                    .putString("visible", newVisible.joinToString(","))
+                    .putString(ActionBarPreferences.KEY_ORDER, newOrder.joinToString(","))
+                    .putString(ActionBarPreferences.KEY_VISIBLE, newVisible.joinToString(","))
                     .apply()
                 dialog.dismiss()
             }
