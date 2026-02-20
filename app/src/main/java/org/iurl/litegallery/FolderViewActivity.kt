@@ -44,7 +44,7 @@ class FolderViewActivity : AppCompatActivity() {
             data?.getBooleanExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, false) == true
         if (!hasMediaChanged) return@registerForActivityResult
 
-        val changedFolderPath = data.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
+        val changedFolderPath = data?.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
         if (changedFolderPath.isNullOrEmpty() || changedFolderPath == folderPath) {
             loadMediaItems(showBlockingLoading = mediaAdapter.itemCount == 0)
         }
