@@ -314,9 +314,6 @@ class MediaViewerActivity : AppCompatActivity() {
                 mediaViewerAdapter.setActivePosition(position)
                 updateFileName(position)
 
-                // Update reload button visibility based on media type
-                updateReloadButtonVisibility()
-
                 // Reset progress bar when switching to a video (will be updated when player is ready)
                 if (position < mediaItems.size && mediaItems[position].isVideo) {
                     resetVideoProgress()
@@ -471,16 +468,35 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         // Update reload button visibility based on current media type
-        updateReloadButtonVisibility()
+        updateMediaTypeDependentUi(currentPosition)
     }
 
-    private fun updateReloadButtonVisibility() {
-        val currentItem = if (currentPosition < mediaItems.size) mediaItems[currentPosition] else null
+    private fun updateMediaTypeDependentUi(position: Int = currentPosition) {
+        val currentItem = mediaItems.getOrNull(position)
         val isVideo = currentItem?.isVideo == true
 
-        // Only show reload button for videos
-        if (binding.reloadVideoButton.parent != null) {
-            binding.reloadVideoButton.visibility = if (isVideo) android.view.View.VISIBLE else android.view.View.GONE
+        // Type-specific action buttons in bottom toolbar.
+        binding.reloadVideoButton?.let { button ->
+            if (button.parent != null) {
+                button.visibility = if (isVideo) android.view.View.VISIBLE else android.view.View.GONE
+            }
+        }
+        binding.rotatePhotoButton?.let { button ->
+            if (button.parent != null) {
+                button.visibility = if (isVideo) android.view.View.GONE else android.view.View.VISIBLE
+            }
+        }
+
+        // Type-specific playback controls.
+        if (isUIVisible && isVideo) {
+            binding.videoProgressBar.visibility = View.VISIBLE
+            binding.videoControls.visibility = View.VISIBLE
+            startProgressUpdate()
+        } else {
+            binding.videoProgressBar.visibility = View.GONE
+            binding.videoControls.visibility = View.GONE
+            binding.advancedControls.visibility = View.GONE
+            stopProgressUpdate()
         }
     }
 
@@ -910,6 +926,8 @@ class MediaViewerActivity : AppCompatActivity() {
             isZoomed = false
             setViewPagerSwipingEnabled(true)
         }
+
+        updateMediaTypeDependentUi(position)
     }
 
     private fun applyFilenameMaxLinesSetting() {
@@ -938,16 +956,7 @@ class MediaViewerActivity : AppCompatActivity() {
         isUIVisible = true
         binding.topOverlay.visibility = View.VISIBLE
         binding.bottomOverlay.visibility = View.VISIBLE
-        
-        // Show video controls if current item is a video
-        if (currentPosition < mediaItems.size && mediaItems[currentPosition].isVideo) {
-            binding.videoProgressBar.visibility = View.VISIBLE
-            binding.videoControls.visibility = View.VISIBLE
-            startProgressUpdate()
-        } else {
-            binding.videoProgressBar.visibility = View.GONE
-            binding.videoControls.visibility = View.GONE
-        }
+        updateMediaTypeDependentUi(currentPosition)
         
         // Initialize zoom level display
         updateZoomLevelDisplay(1f)
