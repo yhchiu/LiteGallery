@@ -19,63 +19,21 @@ class MediaScanner(private val context: Context) {
         
         // Scan videos
         scanVideos(folders)
-        
-        // Also scan file system for non-media folders
-        val fileSystemFolders = fileSystemScanner.scanAllFoldersForMedia(ignoreNomedia = false)
-        
-        // Merge MediaStore results with file system results
-        val mergedFolders = mutableMapOf<String, MediaFolder>()
-        
-        // Add MediaStore results
-        folders.forEach { (path, items) ->
-            val folderFile = File(path)
-            mergedFolders[path] = MediaFolder(
-                name = folderFile.name,
-                path = path,
-                itemCount = items.size,
-                thumbnail = items.firstOrNull()?.path
-            )
+
+        if (folders.isNotEmpty()) {
+            return@withContext folders.map { (path, items) ->
+                val folderFile = File(path)
+                MediaFolder(
+                    name = folderFile.name,
+                    path = path,
+                    itemCount = items.size,
+                    thumbnail = items.firstOrNull()?.path
+                )
+            }.sortedBy { it.name }
         }
 
-        // Add file system results and merge with existing folders
-        fileSystemFolders.forEach { folder ->
-            val existingFolder = mergedFolders[folder.path]
-            if (existingFolder != null) {
-                // Get the actual count by scanning the folder again to include all files
-                val actualCount = getActualFileCount(folder.path)
-                mergedFolders[folder.path] = existingFolder.copy(itemCount = actualCount)
-            } else {
-                // Add new folder from file system scan
-                mergedFolders[folder.path] = folder
-            }
-        }
-        
-        mergedFolders.values.sortedBy { it.name }
-    }
-
-    private fun getActualFileCount(folderPath: String): Int {
-        return try {
-            val folder = File(folderPath)
-            if (!folder.exists() || !folder.isDirectory) return 0
-
-            var count = 0
-            folder.listFiles()?.forEach { file ->
-                if (file.isFile && isMediaFile(file)) {
-                    count++
-                }
-            }
-            count
-        } catch (e: Exception) {
-            0
-        }
-    }
-
-    private fun isMediaFile(file: File): Boolean {
-        if (isTrashedFile(file)) return false
-        val extension = file.extension.lowercase()
-        val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
-        val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
-        return imageExtensions.contains(extension) || videoExtensions.contains(extension)
+        // Fallback: only do expensive full file-system scan when MediaStore has no results.
+        fileSystemScanner.scanAllFoldersForMedia(ignoreNomedia = false)
     }
 
     private fun isTrashedFile(file: File): Boolean {
