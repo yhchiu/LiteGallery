@@ -3,6 +3,9 @@
     <string name="app_name">LiteGallery</string>
     <string name="settings_title">Settings</string>
     <string name="reload_video">Reload Video</string>
+    <string name="copy_playback_diagnostics">Copy Playback Diagnostics</string>
+    <string name="playback_diagnostics_copied">Playback diagnostics copied</string>
+    <string name="playback_diagnostics_empty">No playback diagnostics yet</string>
     <string name="trash_bin_title">Trash Bin</string>
     
     <!-- Main Activity -->

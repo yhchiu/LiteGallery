@@ -88,18 +88,17 @@ class MediaViewerActivity : AppCompatActivity() {
     
     override fun onPause() {
         super.onPause()
-        // Pause the currently tracked video
-        mediaViewerAdapter.pauseAllVideos()
-        // Ensure every visible video gets paused (not just the tracked one)
+        // Pause visible videos.
         pauseAllVisibleVideos()
-        // Stop progress updates to avoid background handler churn and logs
         stopProgressUpdate()
     }
 
     override fun onStop() {
         super.onStop()
+        mediaViewerAdapter.setActivePosition(androidx.recyclerview.widget.RecyclerView.NO_POSITION)
         // When activity is no longer visible, fully release to free resources
         releaseAllVisibleVideos()
+        VideoViewHolder.releaseSharedPlayer()
         // Ensure progress updates are stopped
         stopProgressUpdate()
     }
@@ -112,6 +111,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        mediaViewerAdapter.setActivePosition(currentPosition)
         // Re-initialize players if user returns to the app (remain paused)
         prepareVisibleVideosIfNeeded()
         // Resume progress updates only if UI is visible and current item is a video
@@ -122,38 +122,16 @@ class MediaViewerActivity : AppCompatActivity() {
 
     
     override fun onDestroy() {
-        super.onDestroy()
-        android.util.Log.d("MediaViewerActivity", "ACTIVITY DESTROY - thorough cleanup")
-        
         stopProgressUpdate()
-        
-        // Thorough cleanup of all resources
-        mediaViewerAdapter.releaseAllPlayers()
-        
-        // Clear ViewPager2 adapter to help with cleanup
+        releaseAllVisibleVideos()
+        VideoViewHolder.releaseSharedPlayer()
         binding.viewPager.adapter = null
-        
-        // Force aggressive garbage collection
-        System.gc()
-        System.runFinalization()
-        System.gc() // Double GC for thorough cleanup
-        
-        android.util.Log.d("MediaViewerActivity", "Activity cleanup completed")
+        super.onDestroy()
     }
     
     override fun onLowMemory() {
         super.onLowMemory()
-        android.util.Log.w("MediaViewerActivity", "Low memory warning - aggressive cleanup")
-        
-        // Force garbage collection and release video players
-        mediaViewerAdapter.releaseAllPlayers()
-        
-        // Force multiple GC cycles for aggressive cleanup
-        System.gc()
-        System.runFinalization()
-        System.gc()
-        
-        // Clear any cached images from Glide
+        releaseAllVisibleVideos()
         com.bumptech.glide.Glide.get(this).clearMemory()
     }
     
@@ -164,19 +142,13 @@ class MediaViewerActivity : AppCompatActivity() {
         when (level) {
             android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
             android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
-                // Critical memory situation - release everything
-                mediaViewerAdapter.releaseAllPlayers()
+                releaseAllVisibleVideos()
                 com.bumptech.glide.Glide.get(this).clearMemory()
-                System.gc()
-                System.runFinalization()
-                System.gc()
             }
             android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
             android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE -> {
-                // Moderate memory pressure - pause videos
-                mediaViewerAdapter.pauseAllVideos()
+                pauseAllVisibleVideos()
                 com.bumptech.glide.Glide.get(this).onTrimMemory(level)
-                System.gc()
             }
         }
     }
@@ -316,6 +288,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 }
                 previousPosition = oldPosition
                 currentPosition = position
+                mediaViewerAdapter.setActivePosition(position)
                 updateFileName(position)
 
                 // Update reload button visibility based on media type
@@ -324,50 +297,6 @@ class MediaViewerActivity : AppCompatActivity() {
                 // Reset progress bar when switching to a video (will be updated when player is ready)
                 if (position < mediaItems.size && mediaItems[position].isVideo) {
                     resetVideoProgress()
-
-                    // Auto-check and reload video if player is not available after binding
-                    // This fixes issues when returning from Settings
-                    binding.viewPager.postDelayed({
-                        if (currentPosition == position && position < mediaItems.size && mediaItems[position].isVideo) {
-                            val videoHolder = getCurrentVideoHolder()
-                            if (videoHolder == null || !videoHolder.isPlayerAvailable()) {
-                                android.util.Log.w("MediaViewerActivity", "Video player not available after page switch - auto-reloading")
-                                reloadCurrentVideo()
-                            }
-                        }
-                    }, 500) // Wait 500ms for binding to complete
-                }
-
-                // Aggressive memory management for large video files
-                if (position < mediaItems.size && mediaItems[position].isVideo) {
-                    // Check available memory before loading video
-                    val runtime = Runtime.getRuntime()
-                    val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-                    val maxMemory = runtime.maxMemory()
-                    val availableMemory = maxMemory - usedMemory
-                    val memoryUsagePercent = (usedMemory.toFloat() / maxMemory * 100).toInt()
-                    
-                    android.util.Log.d("MediaViewerActivity", 
-                        "Memory usage: $memoryUsagePercent% ($usedMemory / $maxMemory), available: $availableMemory")
-                    
-                    // If memory usage is high, force cleanup before loading new video
-                    // BUT avoid breaking current page references
-                    if (memoryUsagePercent > 85) { // Increase threshold to be less aggressive
-                        android.util.Log.w("MediaViewerActivity", "Very high memory usage, selective cleanup")
-                        
-                        // Only release players for non-current pages to preserve current functionality
-                        // Don't use releaseAllPlayers() as it breaks zoom functionality
-                        
-                        com.bumptech.glide.Glide.get(this@MediaViewerActivity).clearMemory()
-                        System.gc()
-                        System.runFinalization()
-                        System.gc()
-                    }
-                    
-                    // Small delay to allow cleanup
-                    binding.viewPager.postDelayed({
-                        System.gc()
-                    }, 300)
                 }
             }
             
@@ -375,12 +304,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 super.onPageScrollStateChanged(state)
                 // Pause all videos when starting to scroll
                 if (state == androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_DRAGGING) {
-                    mediaViewerAdapter.pauseAllVideos()
-                } else if (state == androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_IDLE) {
-                    // Force GC after scroll completes
-                    binding.viewPager.postDelayed({
-                        System.gc()
-                    }, 100)
+                    pauseAllVisibleVideos()
                 }
             }
         })
@@ -394,8 +318,6 @@ class MediaViewerActivity : AppCompatActivity() {
             val mediaHolder = holder as? MediaViewerAdapter.MediaViewHolder
             mediaHolder?.videoViewHolder?.onPause()
         }
-        // Also pause the adapter-tracked holder just in case it's not visible
-        mediaViewerAdapter.getCurrentVideoHolder()?.onPause()
     }
 
     private fun releaseAllVisibleVideos() {
@@ -406,7 +328,6 @@ class MediaViewerActivity : AppCompatActivity() {
             val mediaHolder = holder as? MediaViewerAdapter.MediaViewHolder
             mediaHolder?.videoViewHolder?.releasePlayer()
         }
-        mediaViewerAdapter.getCurrentVideoHolder()?.releasePlayer()
     }
 
     private fun prepareVisibleVideosIfNeeded() {
@@ -669,6 +590,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
         mediaViewerAdapter.submitList(mediaItems) {
             binding.viewPager.setCurrentItem(currentPosition, false)
+            mediaViewerAdapter.setActivePosition(currentPosition)
             updateFileName(currentPosition)
         }
     }
@@ -770,7 +692,10 @@ class MediaViewerActivity : AppCompatActivity() {
                         // Set current position after adapter is updated
                         if (currentPosition < mediaItems.size) {
                             binding.viewPager.setCurrentItem(currentPosition, false)
+                            mediaViewerAdapter.setActivePosition(currentPosition)
                             updateFileName(currentPosition)
+                        } else {
+                            mediaViewerAdapter.setActivePosition(androidx.recyclerview.widget.RecyclerView.NO_POSITION)
                         }
                     }
                 } catch (e: Exception) {
@@ -816,7 +741,10 @@ class MediaViewerActivity : AppCompatActivity() {
             height = dimensions.second
         )
         mediaItems = listOf(mediaItem)
-        mediaViewerAdapter.submitList(mediaItems)
+        mediaViewerAdapter.submitList(mediaItems) {
+            currentPosition = 0
+            mediaViewerAdapter.setActivePosition(currentPosition)
+        }
     }
     
     private fun handleContentUri(uri: android.net.Uri) {
@@ -840,6 +768,8 @@ class MediaViewerActivity : AppCompatActivity() {
                 )
                 mediaItems = listOf(mediaItem)
                 mediaViewerAdapter.submitList(mediaItems) {
+                    currentPosition = 0
+                    mediaViewerAdapter.setActivePosition(currentPosition)
                     // Hide loading after content is ready
                     hideLoadingIndicator()
                 }
@@ -868,6 +798,7 @@ class MediaViewerActivity : AppCompatActivity() {
                                 binding.viewPager.setCurrentItem(currentIndex, false)
                                 currentPosition = currentIndex
                                 previousPosition = currentPosition
+                                mediaViewerAdapter.setActivePosition(currentPosition)
                                 updateFileName(currentIndex)
                             }
                             // Hide loading indicator after content is ready
@@ -1057,16 +988,6 @@ class MediaViewerActivity : AppCompatActivity() {
                 return
             }
 
-            // Fallback: use adapter-tracked holder
-            val adapterVideoHolder = mediaViewerAdapter.getCurrentVideoHolder()
-            val adapterZoomable = adapterVideoHolder?.getZoomablePlayerView()
-            android.util.Log.d("MediaViewerActivity", "Adapter holder: ${adapterVideoHolder != null}, Zoomable: ${adapterZoomable != null}")
-            if (adapterZoomable != null) {
-                adapterZoomable.cycleZoom()
-                android.util.Log.d("MediaViewerActivity", "Video zoom cycled on adapter holder")
-                return
-            }
-
             android.util.Log.e("MediaViewerActivity", "Failed to find ZoomablePlayerView for current video")
             
         } else {
@@ -1204,6 +1125,7 @@ class MediaViewerActivity : AppCompatActivity() {
         
         currentVideoHolder?.let { holder ->
             android.util.Log.d("MediaViewerActivity", "Video holder found, checking player: ${holder.exoPlayer != null}")
+            holder.ensurePreparedIfNeeded()
             holder.exoPlayer?.let { player ->
                 android.util.Log.d("MediaViewerActivity", "Player found, isPlaying: ${player.isPlaying}")
                 if (player.isPlaying) {
@@ -1225,6 +1147,7 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun seekFrameBackward() {
         val currentVideoHolder = getCurrentVideoHolder()
+        currentVideoHolder?.ensurePreparedIfNeeded()
         currentVideoHolder?.exoPlayer?.let { player ->
             // Use Media3's seekBack with custom increment (33ms for frame-by-frame)
             val frameDurationMs = 33L // ~30fps frame duration
@@ -1235,6 +1158,7 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun seekFrameForward() {
         val currentVideoHolder = getCurrentVideoHolder()
+        currentVideoHolder?.ensurePreparedIfNeeded()
         currentVideoHolder?.exoPlayer?.let { player ->
             // Use Media3's seekForward with custom increment (33ms for frame-by-frame)
             val frameDurationMs = 33L // ~30fps frame duration
@@ -1254,15 +1178,6 @@ class MediaViewerActivity : AppCompatActivity() {
             // android.util.Log.d("MediaViewerActivity", "Using visible video holder")
             return visibleVideoHolder
         }
-
-        // Fallback: adapter-tracked holder
-        val adapterVideoHolder = mediaViewerAdapter.getCurrentVideoHolder()
-        if (adapterVideoHolder != null) {
-            android.util.Log.d("MediaViewerActivity", "Using adapter-tracked video holder")
-            return adapterVideoHolder
-        }
-
-        android.util.Log.w("MediaViewerActivity", "No current video holder found")
         return null
     }
     
@@ -1271,7 +1186,7 @@ class MediaViewerActivity : AppCompatActivity() {
         progressUpdateRunnable = object : Runnable {
             override fun run() {
                 updateVideoProgress()
-                progressUpdateHandler.postDelayed(this, 100) // Update every 100ms
+                progressUpdateHandler.postDelayed(this, 250) // Update every 250ms
             }
         }
         progressUpdateHandler.post(progressUpdateRunnable!!)
@@ -1433,7 +1348,9 @@ class MediaViewerActivity : AppCompatActivity() {
                     mediaItems = updatedList
                     
                     // Update adapter
-                    mediaViewerAdapter.submitList(mediaItems)
+                    mediaViewerAdapter.submitList(mediaItems) {
+                        mediaViewerAdapter.setActivePosition(currentPosition)
+                    }
                     
                     // Update filename display
                     updateFileName(currentPosition)
@@ -2104,11 +2021,23 @@ class MediaViewerActivity : AppCompatActivity() {
         val currentItem = if (currentPosition < mediaItems.size) mediaItems[currentPosition] else null
         val reloadItem = popup.menu.findItem(R.id.action_reload_video)
         reloadItem?.isVisible = currentItem?.isVideo == true
+        val diagnosticsItem = popup.menu.findItem(R.id.action_copy_playback_diagnostics)
+        diagnosticsItem?.isVisible = currentItem?.isVideo == true
 
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_reload_video -> {
                     reloadCurrentVideo()
+                    true
+                }
+                R.id.action_copy_playback_diagnostics -> {
+                    val copied = PlaybackDiagnostics.copyRecentReportToClipboard(this)
+                    val messageRes = if (copied) {
+                        R.string.playback_diagnostics_copied
+                    } else {
+                        R.string.playback_diagnostics_empty
+                    }
+                    android.widget.Toast.makeText(this, messageRes, android.widget.Toast.LENGTH_SHORT).show()
                     true
                 }
                 R.id.action_settings -> {

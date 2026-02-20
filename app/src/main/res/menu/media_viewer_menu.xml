@@ -6,6 +6,9 @@
         android:icon="@drawable/ic_refresh"
         android:visible="false" />
     <item
+        android:id="@+id/action_copy_playback_diagnostics"
+        android:title="@string/copy_playback_diagnostics" />
+    <item
         android:id="@+id/action_settings"
         android:title="@string/settings_title"
         android:icon="@drawable/ic_settings" />

@@ -1,77 +1,71 @@
 package org.iurl.litegallery
 
+import android.content.Context
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.view.View
-import androidx.recyclerview.widget.RecyclerView
-import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.recyclerview.widget.RecyclerView
 import org.iurl.litegallery.databinding.ItemMediaViewerBinding
+import java.io.File
 
 class VideoViewHolder(
     private val binding: ItemMediaViewerBinding,
-    private val onMediaClick: () -> Unit
+    private val onMediaClick: () -> Unit,
+    private val onPlayPauseClick: () -> Unit
 ) : RecyclerView.ViewHolder(binding.root) {
-    
+
     var exoPlayer: ExoPlayer? = null
         private set
-    private var isPlayerReady = false
-    private var hasBeenPlayed = false // Track if video has ever been played
+
     private var boundMediaItem: org.iurl.litegallery.MediaItem? = null
-    private var retryCount = 0 // Track retry attempts
-    private val maxRetries = 1 // Maximum number of retry attempts
-    private var loadingTimeoutRunnable: Runnable? = null // Timeout checker for loading
-    private val loadingTimeout = 3000L // 3 seconds timeout for player loading
-    var isInvalidVideo = false // Track if video is invalid/corrupted
+    private var hasBeenPlayed = false
+    private var isPlayerReady = false
+    private var isActive = false
+    var isInvalidVideo = false
         private set
-    
-    fun bind(mediaItem: org.iurl.litegallery.MediaItem) {
-        android.util.Log.d("VideoViewHolder", "=== BIND START: ${mediaItem.name} ===")
-        
-        // Only reset if we don't have a clean state already
-        if (exoPlayer != null) {
-            android.util.Log.d("VideoViewHolder", "Previous player exists - releasing it")
-            releasePlayer()
-        }
+
+    fun bind(mediaItem: org.iurl.litegallery.MediaItem, shouldActivate: Boolean) {
         boundMediaItem = mediaItem
-        
-        // Reset internal state
-        isPlayerReady = false
-        hasBeenPlayed = false
-        retryCount = 0 // Reset retry counter for new media
-        isInvalidVideo = false // Reset invalid flag for new media
-        
-        // Hide photo view, show video container
+        isActive = shouldActivate
+
         binding.photoImageView.visibility = View.GONE
         binding.videoContainer.visibility = View.VISIBLE
-        
-        // Show thumbnail initially
         binding.videoThumbnail?.visibility = View.VISIBLE
-        binding.playButton?.visibility = View.VISIBLE
-        
-        // Setup player immediately - no delay needed for TextureView
-        android.util.Log.d("VideoViewHolder", "Setting up video player for: ${mediaItem.name}")
-        setupVideoPlayer(mediaItem)
-        
-        android.util.Log.d("VideoViewHolder", "=== BIND COMPLETE: ${mediaItem.name} ===")
-        
-        // Set click listener
+        binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+
         binding.root.setOnClickListener {
             onMediaClick()
         }
-        
-        // Set up play button click (only for initial play)
         binding.playButton?.setOnClickListener {
-            togglePlayback()
+            onPlayPauseClick()
+        }
+
+        if (shouldActivate) {
+            activateSharedPlayer()
+        } else {
+            deactivateSharedPlayer()
+        }
+    }
+
+    fun setVideoActive(shouldActivate: Boolean) {
+        isActive = shouldActivate
+        if (shouldActivate) {
+            activateSharedPlayer()
+        } else {
+            deactivateSharedPlayer()
         }
     }
 
     fun ensurePreparedIfNeeded() {
+        if (!isActive) return
         if (exoPlayer == null) {
-            boundMediaItem?.let {
-                android.util.Log.d("VideoViewHolder", "Re-preparing player after release for: ${it.name}")
-                setupVideoPlayer(it)
-            }
+            activateSharedPlayer()
         }
     }
 
@@ -79,360 +73,313 @@ class VideoViewHolder(
         return exoPlayer != null && !isInvalidVideo
     }
 
-    private fun setupVideoPlayer(mediaItem: org.iurl.litegallery.MediaItem) {
-        android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP: ${mediaItem.name} (Retry: $retryCount/$maxRetries) ===")
-        
-        // Ensure we start completely fresh - no reuse of any previous state
-        if (exoPlayer != null) {
-            android.util.Log.w("VideoViewHolder", "Player still exists - forcing release")
-            releasePlayer()
-        }
-        
-        // TextureView setup with guaranteed fresh state
-        try {
-            // Check available memory before creating ExoPlayer (more lenient check)
-            val runtime = Runtime.getRuntime()
-            val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-            val maxMemory = runtime.maxMemory()
-            val availableMemory = maxMemory - usedMemory
-            val memoryUsagePercent = (usedMemory.toFloat() / maxMemory * 100).toInt()
-            
-            android.util.Log.d("VideoViewHolder", 
-                "Memory check before ExoPlayer creation: $memoryUsagePercent% used, ${availableMemory / 1024 / 1024}MB available")
-            
-            // Only prevent player creation if memory is critically low
-            if (memoryUsagePercent > 95 || availableMemory < 20 * 1024 * 1024) { // Less than 20MB available
-                android.util.Log.w("VideoViewHolder", "Critically low memory for video playback - showing thumbnail only")
-                binding.videoThumbnail?.visibility = View.VISIBLE
-                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
-                return
-            }
-            
-            try {
-                android.util.Log.d("VideoViewHolder", "Creating BRAND NEW ExoPlayer instance for: ${mediaItem.name}")
-                
-                exoPlayer = ExoPlayer.Builder(binding.root.context)
-                    .setLoadControl(
-                        // Balanced memory optimization for large video files
-                        DefaultLoadControl.Builder()
-                            .setBufferDurationsMs(
-                                3000,  // Min buffer: 3s (must be >= bufferForPlaybackAfterRebufferMs)
-                                15000, // Max buffer: 15s (balanced approach)
-                                1500,  // Buffer before playback: 1.5s
-                                2500   // Buffer after rebuffer: 2.5s (must be <= minBufferMs)
-                            )
-                            .setTargetBufferBytes(2 * 1024 * 1024) // 2MB target buffer (more reasonable)
-                            .setPrioritizeTimeOverSizeThresholds(true) // Allow larger buffers if needed for playback
-                            .build()
-                    )
-                    .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(binding.root.context))
-                    // Use custom allocator with smaller allocation size
-                    .setMediaSourceFactory(
-                        androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
-                            androidx.media3.datasource.DefaultDataSource.Factory(binding.root.context),
-                            androidx.media3.extractor.DefaultExtractorsFactory()
-                        ).setLoadErrorHandlingPolicy(
-                            androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(2) // Reduce retry attempts
-                        )
-                    )
-                    .build().apply {
-                    
-                    val videoMediaItem = if (mediaItem.path.startsWith("content://")) {
-                        // Handle content URI
-                        MediaItem.fromUri(android.net.Uri.parse(mediaItem.path))
-                    } else {
-                        // Handle file path
-                        MediaItem.fromUri(mediaItem.path)
-                    }
-                    
-                    setMediaItem(videoMediaItem)
-                    playWhenReady = false // Don't auto-play to save memory
-                    
-                    addListener(object : Player.Listener {
-                        override fun onPlaybackStateChanged(playbackState: Int) {
-                            android.util.Log.d("VideoViewHolder", "Playback state changed: $playbackState")
-                            when (playbackState) {
-                                Player.STATE_READY -> {
-                                    isPlayerReady = true
-                                    retryCount = 0 // Reset retry count on successful load
-                                    cancelLoadingTimeout() // Cancel timeout when player is ready
-                                    binding.videoThumbnail?.visibility = View.GONE
-                                    // Show play button only if video has never been played
-                                    binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
-                                    android.util.Log.d("VideoViewHolder", "✅ Player ready successfully")
-                                }
-                                Player.STATE_BUFFERING -> {
-                                    // Hide play button during buffering
-                                    binding.playButton?.visibility = View.GONE
-                                }
-                                Player.STATE_ENDED -> {
-                                    seekTo(0) // Reset to beginning
-                                    pause() // Ensure it's paused
-                                    // Don't show play button - video has been played
-                                }
-                                Player.STATE_IDLE -> {
-                                    // Reset UI state
-                                    binding.videoThumbnail?.visibility = View.VISIBLE
-                                    binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
-                                }
-                            }
-                        }
-                        
-                        override fun onIsPlayingChanged(isPlaying: Boolean) {
-                            updatePlayButton(isPlaying)
-                            // Mark as played when video starts playing
-                            if (isPlaying && !hasBeenPlayed) {
-                                hasBeenPlayed = true
-                                binding.playButton?.visibility = View.GONE
-                            }
-                        }
-                        
-                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                            // Handle playback errors gracefully
-                            binding.videoThumbnail?.visibility = View.VISIBLE
-                            binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
-                            
-                            android.util.Log.e("VideoViewHolder", "Playback error: ${error.message}")
-                            
-                            // Check if this is an OutOfMemoryError
-                            val cause = error.cause
-                            if (cause is OutOfMemoryError || error.message?.contains("OutOfMemory") == true) {
-                                android.util.Log.e("VideoViewHolder", "OutOfMemoryError detected - performing cleanup")
-                                
-                                // Basic cleanup for OOM
-                                releasePlayer()
-                                
-                                // Show error message to user
-                                android.util.Log.w("VideoViewHolder", "Video too large for available memory - showing thumbnail instead")
-                                isInvalidVideo = true
-                                binding.videoThumbnail?.visibility = View.VISIBLE
-                                binding.playButton?.visibility = View.GONE // Hide play button for OOM videos
-                                
-                            } else {
-                                // Try to recover by auto-retrying for other errors
-                                android.util.Log.w("VideoViewHolder", "Playback error - attempting recovery: ${error.message}")
-                                retryPlayerSetup()
-                            }
-                        }
-                        
-                        override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
-                            android.util.Log.d("VideoViewHolder", "Video size changed: ${videoSize.width}x${videoSize.height}")
-                            // Update the ZoomablePlayerView with video dimensions
-                            (binding.playerView as? org.iurl.litegallery.ZoomablePlayerView)?.setVideoSize(videoSize.width, videoSize.height)
-                        }
-                    })
-                }
-                
-                // Attach fresh player to TextureView
-                binding.playerView?.let { playerView ->
-                    try {
-                        android.util.Log.d("VideoViewHolder", "Attaching FRESH ExoPlayer to TextureView for: ${mediaItem.name}")
-                        
-                        // Ensure PlayerView is clean before attachment
-                        if (playerView.player != null) {
-                            android.util.Log.w("VideoViewHolder", "PlayerView still has old player attached!")
-                            playerView.player = null
-                        }
-                        
-                        playerView.player = exoPlayer
-                        playerView.useController = false // We'll use custom controls
-                        
-                        // Prepare immediately - TextureView doesn't need complex surface management
-                        exoPlayer?.prepare()
-                        android.util.Log.d("VideoViewHolder", "✅ FRESH ExoPlayer prepared successfully for: ${mediaItem.name}")
-                        
-                    } catch (e: Exception) {
-                        android.util.Log.e("VideoViewHolder", "❌ Error setting up fresh TextureView player: ${e.message}")
-                        releasePlayer()
-                    }
-                } ?: run {
-                    android.util.Log.e("VideoViewHolder", "❌ PlayerView is null!")
-                }
-                
-                android.util.Log.d("VideoViewHolder", "=== FRESH PLAYER SETUP COMPLETE: ${mediaItem.name} ===")
-                
-            } catch (e: Exception) {
-                android.util.Log.e("VideoViewHolder", "Error creating ExoPlayer: ${e.message}")
-                // Try to retry instead of just showing thumbnail
-                retryPlayerSetup()
-            }
-        } catch (setupError: Exception) {
-            android.util.Log.e("VideoViewHolder", "Error in TextureView setup: ${setupError.message}")
-            retryPlayerSetup()
-        }
-    }
-    
-    /**
-     * Retry player setup if retry limit not reached
-     */
-    private fun retryPlayerSetup() {
-        if (retryCount < maxRetries) {
-            retryCount++
-            android.util.Log.w("VideoViewHolder", "🔄 Attempting automatic retry $retryCount/$maxRetries...")
-
-            // Release current player before retry
-            releasePlayer()
-
-            // Retry after a short delay to allow cleanup
-            binding.root.postDelayed({
-                boundMediaItem?.let { mediaItem ->
-                    android.util.Log.d("VideoViewHolder", "Retrying player setup for: ${mediaItem.name}")
-                    setupVideoPlayer(mediaItem)
-                }
-            }, 500) // 500ms delay before retry
-        } else {
-            android.util.Log.e("VideoViewHolder", "❌ Max retries reached - video is invalid")
-            isInvalidVideo = true // Mark video as invalid
-            releasePlayer()
-            binding.videoThumbnail?.visibility = View.VISIBLE
-            binding.playButton?.visibility = View.GONE // Hide play button for invalid videos
-        }
-    }
-
-    /**
-     * Manually reload the video (called from menu)
-     */
     fun reloadVideo() {
-        android.util.Log.d("VideoViewHolder", "🔄 Manual reload requested")
-
-        // Reset all state
         retryCount = 0
         isInvalidVideo = false
+        hasBeenPlayed = false
+        PlaybackDiagnostics.recordManualReload(binding.root.context, boundMediaItem?.path)
+        if (!isActive) {
+            isActive = true
+            activateSharedPlayer()
+            return
+        }
+        prepareCurrentMedia(force = true)
+    }
 
-        // Reload the video
-        boundMediaItem?.let { mediaItem ->
-            android.util.Log.d("VideoViewHolder", "Reloading video: ${mediaItem.name}")
-            setupVideoPlayer(mediaItem)
+    fun onPause() {
+        if (activeOwner === this) {
+            sharedPlayer?.pause()
         }
     }
 
-    /**
-     * Start a timeout check for player loading
-     */
-    private fun startLoadingTimeout() {
-        cancelLoadingTimeout() // Cancel any existing timeout
-
-        loadingTimeoutRunnable = Runnable {
-            if (!isPlayerReady && exoPlayer != null) {
-                android.util.Log.w("VideoViewHolder", "⏱️ Player loading timeout - player not ready after ${loadingTimeout}ms")
-                retryPlayerSetup()
-            }
-        }
-
-        binding.root.postDelayed(loadingTimeoutRunnable!!, loadingTimeout)
-        android.util.Log.d("VideoViewHolder", "Started loading timeout check (${loadingTimeout}ms)")
-    }
-
-    /**
-     * Cancel any pending loading timeout check
-     */
-    private fun cancelLoadingTimeout() {
-        loadingTimeoutRunnable?.let {
-            binding.root.removeCallbacks(it)
-            loadingTimeoutRunnable = null
-            android.util.Log.d("VideoViewHolder", "Cancelled loading timeout check")
+    fun onResume() {
+        if (activeOwner === this) {
+            sharedPlayer?.playWhenReady = false
         }
     }
 
-    private fun togglePlayback() {
-        exoPlayer?.let { player ->
-            if (player.isPlaying) {
-                player.pause()
-            } else {
-                player.play()
-            }
+    fun releasePlayer() {
+        deactivateSharedPlayer()
+    }
+
+    fun getZoomablePlayerView(): org.iurl.litegallery.ZoomablePlayerView? {
+        return binding.playerView as? org.iurl.litegallery.ZoomablePlayerView
+    }
+
+    private fun activateSharedPlayer() {
+        val mediaItem = boundMediaItem ?: return
+        val player = ensureSharedPlayer(binding.root.context)
+
+        if (activeOwner !== this) {
+            cancelLoadingTimeout()
+            activeOwner?.detachPlayerViewOnly()
+            activeOwner?.exoPlayer = null
+            activeOwner = this
+            retryCount = 0
+        }
+
+        attachPlayer(player)
+
+        if (activePath != mediaItem.path || player.currentMediaItem == null || isInvalidVideo) {
+            hasBeenPlayed = false
+            isInvalidVideo = false
+            prepareCurrentMedia(force = true)
+            return
+        }
+
+        hasBeenPlayed = player.currentPosition > 0L
+        isPlayerReady = player.playbackState == Player.STATE_READY
+        if (isPlayerReady) {
+            showReadyUi()
+        } else {
+            showLoadingUi()
+            scheduleLoadingTimeout()
         }
     }
-    
-    private fun updatePlayButton(isPlaying: Boolean) {
-        // Center play button is only shown before first play
-        // Once video has been played, it's never shown again
+
+    private fun deactivateSharedPlayer() {
+        if (activeOwner === this) {
+            sharedPlayer?.pause()
+            cancelLoadingTimeout()
+            detachPlayerViewOnly()
+            activeOwner = null
+        }
+        exoPlayer = null
+    }
+
+    private fun attachPlayer(player: ExoPlayer) {
+        if (binding.playerView.player !== player) {
+            binding.playerView.player = player
+        }
+        binding.playerView.useController = false
+        exoPlayer = player
+    }
+
+    private fun detachPlayerViewOnly() {
+        if (binding.playerView.player != null) {
+            binding.playerView.player = null
+        }
+    }
+
+    private fun prepareCurrentMedia(force: Boolean) {
+        val item = boundMediaItem ?: return
+        val player = sharedPlayer ?: return
+        if (!isActive || activeOwner !== this) return
+
+        if (!force && activePath == item.path && player.currentMediaItem != null) {
+            return
+        }
+
+        isPlayerReady = false
+        showLoadingUi()
+
+        val mediaUri = if (item.path.startsWith("content://")) {
+            Uri.parse(item.path)
+        } else {
+            Uri.fromFile(File(item.path))
+        }
+
+        player.setMediaItem(MediaItem.fromUri(mediaUri), true)
+        player.prepare()
+        activePath = item.path
+        scheduleLoadingTimeout()
+    }
+
+    private fun showLoadingUi() {
+        binding.videoThumbnail?.visibility = View.VISIBLE
         binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
     }
-    
-    fun onResume() {
-        exoPlayer?.playWhenReady = false
-    }
-    
-    fun onPause() {
-        exoPlayer?.pause()
-    }
-    
-    fun getZoomablePlayerView(): org.iurl.litegallery.ZoomablePlayerView? {
-        val zoomableView = binding.playerView as? org.iurl.litegallery.ZoomablePlayerView
-        android.util.Log.d("VideoViewHolder", "getZoomablePlayerView: ${zoomableView != null}, player: ${exoPlayer != null}, isPlaying: ${exoPlayer?.isPlaying}")
-        return zoomableView
-    }
-    
-    private fun forceCompleteStateReset() {
-        android.util.Log.d("VideoViewHolder", "Complete state reset")
-        
-        // Release any existing player completely
-        releasePlayer()
-        
-        // Reset all internal state variables
-        isPlayerReady = false
-        hasBeenPlayed = false
-        
-        // Clear PlayerView completely
-        binding.playerView?.let { playerView ->
-            playerView.player = null
-            (playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
-        }
-        
-        // Reset UI state
-        binding.videoThumbnail?.visibility = View.VISIBLE
-        binding.playButton?.visibility = View.VISIBLE
-        
-        // Cancel any pending operations
-        binding.root.handler?.removeCallbacksAndMessages(null)
-        
-        android.util.Log.d("VideoViewHolder", "Complete state reset finished")
-    }
-    
-    fun releasePlayer() {
-        // Cancel any pending timeout checks
-        cancelLoadingTimeout()
 
-        exoPlayer?.let { player ->
-            try {
-                android.util.Log.d("VideoViewHolder", "Releasing ExoPlayer (TextureView mode)...")
-                
-                // Detach from PlayerView first
-                binding.playerView?.player = null
-                
-                // Stop and release player
-                try {
-                    if (player.isPlaying) {
-                        player.pause()
-                    }
-                    player.stop()
-                    player.clearMediaItems()
-                    player.release()
-                    android.util.Log.d("VideoViewHolder", "ExoPlayer released successfully")
-                } catch (e: Exception) {
-                    android.util.Log.e("VideoViewHolder", "Error during player release: ${e.message}")
-                }
-                
-            } catch (e: Exception) {
-                android.util.Log.e("VideoViewHolder", "Error in release process: ${e.message}")
-                // Emergency cleanup
-                try {
-                    binding.playerView?.player = null
-                    player.release()
-                } catch (emergencyError: Exception) {
-                    android.util.Log.e("VideoViewHolder", "Emergency release failed: ${emergencyError.message}")
-                }
-            } finally {
-                exoPlayer = null
-                isPlayerReady = false
-                
-                // Reset UI state
-                binding.videoThumbnail?.visibility = View.VISIBLE
-                binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
-                
-                android.util.Log.d("VideoViewHolder", "TextureView player cleanup completed")
+    private fun showReadyUi() {
+        binding.videoThumbnail?.visibility = View.GONE
+        binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+    }
+
+    private fun showInvalidUi() {
+        binding.videoThumbnail?.visibility = View.VISIBLE
+        binding.playButton?.visibility = View.GONE
+    }
+
+    private fun onSharedPlaybackStateChanged(playbackState: Int) {
+        if (activeOwner !== this) return
+
+        when (playbackState) {
+            Player.STATE_READY -> {
+                isPlayerReady = true
+                retryCount = 0
+                cancelLoadingTimeout()
+                showReadyUi()
             }
+
+            Player.STATE_BUFFERING -> {
+                showLoadingUi()
+            }
+
+            Player.STATE_ENDED -> {
+                exoPlayer?.seekTo(0)
+                exoPlayer?.pause()
+            }
+
+            Player.STATE_IDLE -> {
+                showLoadingUi()
+            }
+        }
+    }
+
+    private fun onSharedIsPlayingChanged(isPlaying: Boolean) {
+        if (activeOwner !== this) return
+
+        if (isPlaying && !hasBeenPlayed) {
+            hasBeenPlayed = true
+            binding.playButton?.visibility = View.GONE
+        }
+
+        if (!isPlaying && isPlayerReady && !hasBeenPlayed) {
+            binding.playButton?.visibility = View.VISIBLE
+        }
+    }
+
+    private fun onSharedPlayerError(error: PlaybackException) {
+        if (activeOwner !== this) return
+
+        PlaybackDiagnostics.recordPlaybackError(
+            context = binding.root.context,
+            mediaPath = boundMediaItem?.path,
+            errorCodeName = error.errorCodeName,
+            errorMessage = error.message,
+            retryCount = retryCount
+        )
+
+        android.util.Log.e(
+            "VideoViewHolder",
+            "Playback error: ${error.errorCodeName}, ${error.message}"
+        )
+
+        retryPrepare("player_error")
+    }
+
+    private fun onSharedVideoSizeChanged(videoSize: VideoSize) {
+        if (activeOwner !== this) return
+        getZoomablePlayerView()?.setVideoSize(videoSize.width, videoSize.height)
+    }
+
+    private fun retryPrepare(reason: String) {
+        if (!isActive || activeOwner !== this) return
+
+        if (retryCount >= MAX_RETRIES) {
+            isInvalidVideo = true
+            PlaybackDiagnostics.recordMarkedInvalid(
+                context = binding.root.context,
+                mediaPath = boundMediaItem?.path,
+                reason = reason,
+                retryCount = retryCount
+            )
+            showInvalidUi()
+            android.util.Log.e("VideoViewHolder", "Marking video invalid after retries: $reason")
+            return
+        }
+
+        retryCount++
+        PlaybackDiagnostics.recordRetry(
+            context = binding.root.context,
+            mediaPath = boundMediaItem?.path,
+            reason = reason,
+            retryCount = retryCount,
+            maxRetries = MAX_RETRIES
+        )
+        android.util.Log.w("VideoViewHolder", "Retrying playback ($retryCount/$MAX_RETRIES): $reason")
+        prepareCurrentMedia(force = true)
+    }
+
+    companion object {
+        private var sharedPlayer: ExoPlayer? = null
+        private var sharedPlayerListener: Player.Listener? = null
+        private var activeOwner: VideoViewHolder? = null
+        private var activePath: String? = null
+        private var retryCount = 0
+
+        private const val MAX_RETRIES = 2
+        private const val LOADING_TIMEOUT_MS = 8000L
+
+        private val mainHandler = Handler(Looper.getMainLooper())
+        private var loadingTimeoutRunnable: Runnable? = null
+
+        @Synchronized
+        private fun ensureSharedPlayer(context: Context): ExoPlayer {
+            val existing = sharedPlayer
+            if (existing != null) return existing
+
+            val player = ExoPlayer.Builder(context.applicationContext).build()
+            val listener = object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    activeOwner?.onSharedPlaybackStateChanged(playbackState)
+                }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    activeOwner?.onSharedIsPlayingChanged(isPlaying)
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    activeOwner?.onSharedPlayerError(error)
+                }
+
+                override fun onVideoSizeChanged(videoSize: VideoSize) {
+                    activeOwner?.onSharedVideoSizeChanged(videoSize)
+                }
+            }
+            player.addListener(listener)
+
+            sharedPlayerListener = listener
+            sharedPlayer = player
+            return player
+        }
+
+        private fun scheduleLoadingTimeout() {
+            cancelLoadingTimeout()
+            loadingTimeoutRunnable = Runnable {
+                val owner = activeOwner ?: return@Runnable
+                val player = sharedPlayer ?: return@Runnable
+                if (owner.isPlayerReady || player.playbackState == Player.STATE_READY) {
+                    return@Runnable
+                }
+                PlaybackDiagnostics.recordLoadingTimeout(
+                    context = owner.binding.root.context,
+                    mediaPath = owner.boundMediaItem?.path,
+                    playbackState = player.playbackState,
+                    retryCount = retryCount,
+                    maxRetries = MAX_RETRIES
+                )
+                owner.retryPrepare("loading_timeout")
+            }
+            mainHandler.postDelayed(loadingTimeoutRunnable!!, LOADING_TIMEOUT_MS)
+        }
+
+        private fun cancelLoadingTimeout() {
+            loadingTimeoutRunnable?.let {
+                mainHandler.removeCallbacks(it)
+                loadingTimeoutRunnable = null
+            }
+        }
+
+        @JvmStatic
+        fun releaseSharedPlayer() {
+            cancelLoadingTimeout()
+
+            activeOwner?.detachPlayerViewOnly()
+            activeOwner?.exoPlayer = null
+            activeOwner = null
+            activePath = null
+            retryCount = 0
+
+            sharedPlayer?.let { player ->
+                sharedPlayerListener?.let { listener ->
+                    player.removeListener(listener)
+                }
+                player.release()
+            }
+
+            sharedPlayer = null
+            sharedPlayerListener = null
         }
     }
 }
