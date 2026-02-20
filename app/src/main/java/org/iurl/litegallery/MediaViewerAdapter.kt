@@ -18,6 +18,27 @@ class MediaViewerAdapter(
     private var onBrightnessChange: ((Float) -> Unit)? = null
     private var onVolumeChange: ((Float) -> Unit)? = null
     private var onValueDisplay: ((String, Float) -> Unit)? = null
+    private var activePosition: Int = RecyclerView.NO_POSITION
+
+    fun setActivePosition(position: Int) {
+        val normalizedPosition = if (position in 0 until itemCount) {
+            position
+        } else {
+            RecyclerView.NO_POSITION
+        }
+
+        if (activePosition == normalizedPosition) return
+
+        val oldPosition = activePosition
+        activePosition = normalizedPosition
+
+        if (oldPosition in 0 until itemCount) {
+            notifyItemChanged(oldPosition, PAYLOAD_ACTIVE_STATE)
+        }
+        if (normalizedPosition in 0 until itemCount) {
+            notifyItemChanged(normalizedPosition, PAYLOAD_ACTIVE_STATE)
+        }
+    }
     
     fun setVideoDoubleClickListener(listener: () -> Unit) {
         android.util.Log.d("MediaViewerAdapter", "Video double-click listener set")
@@ -40,8 +61,6 @@ class MediaViewerAdapter(
         onValueDisplay = listener
     }
 
-    private var currentVideoHolder: MediaViewHolder? = null
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaViewHolder {
         val binding = ItemMediaViewerBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return MediaViewHolder(binding)
@@ -49,43 +68,24 @@ class MediaViewerAdapter(
 
     override fun onBindViewHolder(holder: MediaViewHolder, position: Int) {
         val mediaItem = getItem(position)
-        
-        android.util.Log.d("MediaViewerAdapter", "Binding ViewHolder for: ${mediaItem.name} (position: $position)")
-        
-        // Log memory status before cleanup
-        logMemoryStatus("BEFORE cleanup")
-
-        // Release player ONLY if this holder is being reused for new content
-        // This prevents memory leaks when ViewHolder is recycled
-        holder.releasePlayer()
 
         // Selective state reset - only reset what's necessary
         holder.prepareForNewContent(mediaItem)
         
         // Bind the new content
-        holder.bind(mediaItem)
-        
-        // Track video holder for management
-        if (mediaItem.isVideo) {
-            currentVideoHolder = holder
-        } else {
-            // Clear video holder reference for photos
-            if (currentVideoHolder == holder) {
-                currentVideoHolder = null
-            }
-        }
-        
-        // Log memory status after setup
-        logMemoryStatus("AFTER setup")
+        holder.bind(mediaItem, position == activePosition)
     }
-    
-    private fun logMemoryStatus(stage: String) {
-        val runtime = Runtime.getRuntime()
-        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-        val maxMemory = runtime.maxMemory()
-        val memoryUsagePercent = (usedMemory.toFloat() / maxMemory * 100).toInt()
-        android.util.Log.d("MediaViewerAdapter", 
-            "$stage - Memory: $memoryUsagePercent% (${usedMemory / 1024 / 1024}MB / ${maxMemory / 1024 / 1024}MB)")
+
+    override fun onBindViewHolder(
+        holder: MediaViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.contains(PAYLOAD_ACTIVE_STATE)) {
+            holder.setVideoActive(position == activePosition)
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
     }
 
     override fun onViewRecycled(holder: MediaViewHolder) {
@@ -94,12 +94,6 @@ class MediaViewerAdapter(
         
         // Release player if this holder has one
         holder.releasePlayer()
-        
-        // Clear current video holder reference
-        if (currentVideoHolder == holder) {
-            android.util.Log.d("MediaViewerAdapter", "Clearing current video holder reference")
-            currentVideoHolder = null
-        }
         
         // Clear Glide image cache for this holder
         holder.clearGlideCache()
@@ -118,39 +112,6 @@ class MediaViewerAdapter(
         // Pause any active video when detached
         holder.onPause()
     }
-    
-    fun pauseAllVideos() {
-        currentVideoHolder?.onPause()
-    }
-    
-    fun releaseAllPlayers() {
-        android.util.Log.d("MediaViewerAdapter", "Releasing current video player only")
-        
-        // Release current video holder only
-        currentVideoHolder?.let { holder ->
-            android.util.Log.d("MediaViewerAdapter", "Releasing current video holder")
-            holder.releasePlayer()
-            holder.videoViewHolder?.releasePlayer()
-        }
-        currentVideoHolder = null
-        
-        android.util.Log.d("MediaViewerAdapter", "Current video player released")
-    }
-    
-    fun getCurrentVideoHolder(): VideoViewHolder? {
-        val videoHolder = currentVideoHolder?.videoViewHolder
-        android.util.Log.d("MediaViewerAdapter", "getCurrentVideoHolder: currentVideoHolder=${currentVideoHolder != null}, videoViewHolder=${videoHolder != null}")
-        return videoHolder
-    }
-    
-    fun getCurrentMediaViewHolder(): MediaViewHolder? {
-        return currentVideoHolder
-    }
-    
-    fun setCurrentVideoHolder(holder: MediaViewHolder?) {
-        android.util.Log.d("MediaViewerAdapter", "Manually setting current video holder: ${holder != null}")
-        currentVideoHolder = holder
-    }
 
     inner class MediaViewHolder(private val binding: ItemMediaViewerBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -158,7 +119,7 @@ class MediaViewerAdapter(
         var videoViewHolder: VideoViewHolder? = null
             private set
 
-        fun bind(mediaItem: MediaItem) {
+        fun bind(mediaItem: MediaItem, shouldActivateVideo: Boolean) {
             if (mediaItem.isVideo) {
                 // Hide image view, show video container
                 binding.photoImageView.visibility = View.GONE
@@ -174,8 +135,14 @@ class MediaViewerAdapter(
                 }
                 
                 // Set up video player
-                videoViewHolder = VideoViewHolder(binding, onMediaClick)
-                videoViewHolder?.bind(mediaItem)
+                if (videoViewHolder == null) {
+                    videoViewHolder = VideoViewHolder(
+                        binding = binding,
+                        onMediaClick = onMediaClick,
+                        onPlayPauseClick = { onVideoDoubleClick?.invoke() }
+                    )
+                }
+                videoViewHolder?.bind(mediaItem, shouldActivateVideo)
                 
                 // CRITICAL: Set up gesture detection for videos AFTER player is ready
                 setupVideoGestures()
@@ -212,6 +179,10 @@ class MediaViewerAdapter(
                 // Remove any touch listeners that might interfere
                 binding.root.setOnTouchListener(null)
             }
+        }
+
+        fun setVideoActive(isActive: Boolean) {
+            videoViewHolder?.setVideoActive(isActive)
         }
         
         private fun setupVideoGestures() {
@@ -456,5 +427,9 @@ class MediaViewerAdapter(
         override fun areContentsTheSame(oldItem: MediaItem, newItem: MediaItem): Boolean {
             return oldItem == newItem
         }
+    }
+
+    companion object {
+        private const val PAYLOAD_ACTIVE_STATE = "payload_active_state"
     }
 }
