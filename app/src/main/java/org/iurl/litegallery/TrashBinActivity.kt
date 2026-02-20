@@ -36,6 +36,17 @@ class TrashBinActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTrashBinBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Handle window insets for status/navigation bars.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        }
+        binding.root.setOnApplyWindowInsetsListener { view, insets ->
+            val navigationInsets = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
+            val statusInsets = insets.getInsets(android.view.WindowInsets.Type.statusBars())
+            view.setPadding(0, statusInsets.top, 0, navigationInsets.bottom)
+            insets
+        }
         
         // Initialize current color theme
         currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
