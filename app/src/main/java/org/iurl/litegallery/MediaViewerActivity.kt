@@ -1330,6 +1330,8 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun performRename(originalFile: java.io.File, newName: String) {
         lifecycleScope.launch {
             try {
+                val sourcePosition = currentPosition
+                val directionForAutoNavigate = lastSwipeDirection
                 val fileExtension = originalFile.extension
                 val newFileName = if (fileExtension.isNotEmpty()) "$newName.$fileExtension" else newName
                 val newFile = java.io.File(originalFile.parent, newFileName)
@@ -1346,43 +1348,54 @@ class MediaViewerActivity : AppCompatActivity() {
                 val success = originalFile.renameTo(newFile)
                 
                 if (success) {
+                    if (sourcePosition !in mediaItems.indices) {
+                        android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
                     // Update media item
-                    val updatedMediaItem = mediaItems[currentPosition].copy(
+                    val updatedMediaItem = mediaItems[sourcePosition].copy(
                         name = newFileName,
                         path = newFile.absolutePath
                     )
                     
                     // Update the list
                     val updatedList = mediaItems.toMutableList()
-                    updatedList[currentPosition] = updatedMediaItem
+                    updatedList[sourcePosition] = updatedMediaItem
                     mediaItems = updatedList
-                    
-                    // Update adapter
-                    mediaViewerAdapter.submitList(mediaItems) {
-                        mediaViewerAdapter.setActivePosition(currentPosition)
+
+                    val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+                    val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {
+                        when (directionForAutoNavigate) {
+                            1 -> if (safeCurrentPosition < mediaItems.size - 1) safeCurrentPosition + 1 else 0
+                            -1 -> if (safeCurrentPosition > 0) safeCurrentPosition - 1 else mediaItems.size - 1
+                            else -> safeCurrentPosition
+                        }
+                    } else {
+                        null
                     }
                     
-                    // Update filename display
-                    updateFileName(currentPosition)
-                    
+                    // Update adapter and run follow-up navigation using the captured source index
+                    // to avoid double-advance when currentPosition changes during list diff dispatch.
+                    mediaViewerAdapter.submitList(mediaItems) {
+                        currentPosition = safeCurrentPosition
+                        previousPosition = safeCurrentPosition
+                        mediaViewerAdapter.setActivePosition(currentPosition)
+                        updateFileName(currentPosition)
+
+                        autoNavigateTarget?.let { target ->
+                            if (target != currentPosition) {
+                                binding.viewPager.setCurrentItem(target, true)
+                            }
+                        }
+                    }
+
                     // Notify media scanner about the change
                     notifyMediaScanner(originalFile.absolutePath, newFile.absolutePath)
                     
                     android.widget.Toast.makeText(this@MediaViewerActivity,
                         "File renamed to '$newFileName'",
                         android.widget.Toast.LENGTH_SHORT).show()
-
-                    // Auto navigate to next/previous file based on last swipe direction
-                    if (lastSwipeDirection != 0) {
-                        val nextPosition = when (lastSwipeDirection) {
-                            1 -> if (currentPosition < mediaItems.size - 1) currentPosition + 1 else 0 // Next (wrap to start)
-                            -1 -> if (currentPosition > 0) currentPosition - 1 else mediaItems.size - 1 // Previous (wrap to end)
-                            else -> currentPosition
-                        }
-
-                        // Navigate to the next file with a slight delay to allow UI updates
-                        binding.viewPager.setCurrentItem(nextPosition, true)
-                    }
                         
                 } else {
                     android.widget.Toast.makeText(this@MediaViewerActivity, 
