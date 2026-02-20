@@ -1,5 +1,6 @@
 package org.iurl.litegallery
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -22,6 +23,7 @@ class TrashBinActivity : AppCompatActivity() {
     private val selectedPaths = mutableSetOf<String>()
     private var previousSelectionPaths: Set<String> = emptySet()
     private var isSelectionMode = false
+    private var hasMediaCollectionChanged = false
 
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
     private val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
@@ -59,6 +61,18 @@ class TrashBinActivity : AppCompatActivity() {
         currentColorTheme = newColorTheme
 
         loadTrashItems()
+    }
+
+    override fun finish() {
+        if (hasMediaCollectionChanged) {
+            setResult(
+                RESULT_OK,
+                Intent().apply {
+                    putExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, true)
+                }
+            )
+        }
+        super.finish()
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -353,6 +367,7 @@ class TrashBinActivity : AppCompatActivity() {
             if (success) {
                 TrashBinStore.removeTrashedPath(this@TrashBinActivity, oldPath)
                 notifyMediaScanner(oldPath, targetFile.absolutePath)
+                hasMediaCollectionChanged = true
                 android.widget.Toast.makeText(this@TrashBinActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                 loadTrashItems()
             } else {
@@ -406,6 +421,9 @@ class TrashBinActivity : AppCompatActivity() {
             result.scannerUpdates.forEach { update ->
                 notifyMediaScanner(update.oldPath, update.newPath)
             }
+            if (result.scannerUpdates.isNotEmpty()) {
+                hasMediaCollectionChanged = true
+            }
 
             val message = if (result.failedCount == 0) R.string.success else R.string.error
             android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
@@ -427,6 +445,9 @@ class TrashBinActivity : AppCompatActivity() {
             }
             result.scannerUpdates.forEach { update ->
                 notifyMediaScanner(update.oldPath, update.newPath)
+            }
+            if (result.scannerUpdates.isNotEmpty()) {
+                hasMediaCollectionChanged = true
             }
 
             val message = if (result.failedCount == 0) R.string.success else R.string.error

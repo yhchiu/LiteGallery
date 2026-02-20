@@ -61,6 +61,17 @@ class MainActivity : AppCompatActivity() {
             loadMediaFolders()
         }
     }
+
+    private val trashBinLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        val hasMediaChanged = result.resultCode == RESULT_OK &&
+            data?.getBooleanExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, false) == true
+        if (hasMediaChanged && hasStoragePermissions()) {
+            loadMediaFolders(showBlockingLoading = false)
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -154,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_trash_bin -> {
-                startActivity(Intent(this, TrashBinActivity::class.java))
+                trashBinLauncher.launch(Intent(this, TrashBinActivity::class.java))
                 true
             }
             R.id.action_refresh -> {
