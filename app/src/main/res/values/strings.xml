@@ -110,6 +110,8 @@
     <string name="action_bar_settings">Action Bar Settings</string>
     <string name="general_settings">General Settings</string>
     <string name="default_view_mode">Default View Mode</string>
+    <string name="remember_folder_view_mode_title">Remember Folder View Mode</string>
+    <string name="remember_folder_view_mode_summary">Use the last selected view mode when opening folders next time</string>
     <string name="customize_action_bar_summary">Customize button order and visibility</string>
     <string name="restore_brightness_title">Restore Brightness</string>
     <string name="restore_brightness_summary">Restore original brightness when exiting app</string>

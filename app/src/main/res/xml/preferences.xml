@@ -20,6 +20,12 @@
             android:summary="@string/thumbnail_view"
             android:title="@string/default_view_mode" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="remember_folder_view_mode"
+            android:summary="@string/remember_folder_view_mode_summary"
+            android:title="@string/remember_folder_view_mode_title" />
+
         <ListPreference
             android:defaultValue="1"
             android:entries="@array/filename_max_lines_entries"

@@ -21,6 +21,9 @@ class FolderViewActivity : AppCompatActivity() {
         const val EXTRA_FOLDER_PATH = "extra_folder_path"
         const val EXTRA_FOLDER_NAME = "extra_folder_name"
         private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
+        private const val PREF_DEFAULT_VIEW_MODE = "default_view_mode"
+        private const val PREF_REMEMBER_FOLDER_VIEW_MODE = "remember_folder_view_mode"
+        private const val PREF_LAST_FOLDER_VIEW_MODE = "last_folder_view_mode"
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -184,11 +187,18 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun loadViewModePreference() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val viewModeValue = prefs.getString("default_view_mode", "grid")
-        currentViewMode = when (viewModeValue) {
-            "list" -> MediaAdapter.ViewMode.LIST
-            "detailed" -> MediaAdapter.ViewMode.DETAILED
-            else -> MediaAdapter.ViewMode.GRID
+        val defaultViewMode = prefs.getString(PREF_DEFAULT_VIEW_MODE, "grid") ?: "grid"
+        val rememberViewMode = prefs.getBoolean(PREF_REMEMBER_FOLDER_VIEW_MODE, false)
+        val resolvedViewMode = if (rememberViewMode) {
+            prefs.getString(PREF_LAST_FOLDER_VIEW_MODE, defaultViewMode)
+        } else {
+            defaultViewMode
+        }
+        currentViewMode = parseViewModePreference(resolvedViewMode)
+
+        // Initialize remembered value when feature is enabled for the first time.
+        if (rememberViewMode && !prefs.contains(PREF_LAST_FOLDER_VIEW_MODE)) {
+            prefs.edit().putString(PREF_LAST_FOLDER_VIEW_MODE, viewModeToPreferenceValue(currentViewMode)).apply()
         }
     }
 
@@ -200,6 +210,7 @@ class FolderViewActivity : AppCompatActivity() {
         }
         updateLayoutManager()
         maybeReloadForDetailedMode()
+        persistCurrentViewModeIfNeeded()
 
         // Show toast to indicate current view mode
         val modeName = when (currentViewMode) {
@@ -208,6 +219,28 @@ class FolderViewActivity : AppCompatActivity() {
             MediaAdapter.ViewMode.DETAILED -> getString(R.string.detailed_view)
         }
         android.widget.Toast.makeText(this, modeName, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    private fun parseViewModePreference(viewModeValue: String?): MediaAdapter.ViewMode {
+        return when (viewModeValue) {
+            "list" -> MediaAdapter.ViewMode.LIST
+            "detailed" -> MediaAdapter.ViewMode.DETAILED
+            else -> MediaAdapter.ViewMode.GRID
+        }
+    }
+
+    private fun viewModeToPreferenceValue(viewMode: MediaAdapter.ViewMode): String {
+        return when (viewMode) {
+            MediaAdapter.ViewMode.GRID -> "grid"
+            MediaAdapter.ViewMode.LIST -> "list"
+            MediaAdapter.ViewMode.DETAILED -> "detailed"
+        }
+    }
+
+    private fun persistCurrentViewModeIfNeeded() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(PREF_REMEMBER_FOLDER_VIEW_MODE, false)) return
+        prefs.edit().putString(PREF_LAST_FOLDER_VIEW_MODE, viewModeToPreferenceValue(currentViewMode)).apply()
     }
 
     private fun loadSortOrderPreference() {
