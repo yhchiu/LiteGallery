@@ -109,6 +109,8 @@
     <string name="restore_brightness_summary">離開應用程式時還原原始亮度</string>
     <string name="restore_volume_title">還原音量</string>
     <string name="restore_volume_summary">離開應用程式時還原原始音量</string>
+    <string name="playback_diagnostics_setting_title">啟用播放診斷</string>
+    <string name="playback_diagnostics_setting_summary">收集播放事件以便疑難排解</string>
     <string name="trash_retention_days_title">垃圾桶保留天數</string>
     <string name="trash_retention_days_summary_default">自動刪除超過 30 天的垃圾桶檔案</string>
     <string name="trash_retention_days_summary_disabled">停用（僅手動清理）</string>

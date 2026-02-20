@@ -2022,7 +2022,7 @@ class MediaViewerActivity : AppCompatActivity() {
         val reloadItem = popup.menu.findItem(R.id.action_reload_video)
         reloadItem?.isVisible = currentItem?.isVideo == true
         val diagnosticsItem = popup.menu.findItem(R.id.action_copy_playback_diagnostics)
-        diagnosticsItem?.isVisible = currentItem?.isVideo == true
+        diagnosticsItem?.isVisible = currentItem?.isVideo == true && PlaybackDiagnostics.isEnabled(this)
 
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {

@@ -109,6 +109,8 @@
     <string name="restore_brightness_summary">Restore original brightness when exiting app</string>
     <string name="restore_volume_title">Restore Volume</string>
     <string name="restore_volume_summary">Restore original volume when exiting app</string>
+    <string name="playback_diagnostics_setting_title">Enable Playback Diagnostics</string>
+    <string name="playback_diagnostics_setting_summary">Collect playback events for troubleshooting</string>
     <string name="trash_retention_days_title">Trash Retention</string>
     <string name="trash_retention_days_summary_default">Auto-delete files older than 30 days</string>
     <string name="trash_retention_days_summary_disabled">Disabled (manual cleanup only)</string>

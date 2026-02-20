@@ -157,6 +157,12 @@
             android:summary="@string/restore_volume_summary"
             android:title="@string/restore_volume_title" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="enable_playback_diagnostics"
+            android:summary="@string/playback_diagnostics_setting_summary"
+            android:title="@string/playback_diagnostics_setting_title" />
+
         <ListPreference
             android:defaultValue="30"
             android:entries="@array/trash_retention_days_entries"
