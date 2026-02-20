@@ -149,8 +149,23 @@
 
     <!-- Quick Rename Settings -->
     <string name="quick_rename_settings">快速重新命名設定</string>
+    <string name="quick_rename_options_title">快速重新命名選項</string>
     <string name="rename_history_count">歷史記錄數量</string>
     <string name="rename_default_sort">預設排序</string>
+    <string name="rename_sort_key_time">時間</string>
+    <string name="rename_sort_key_text">文字</string>
+    <string name="rename_sort_key_text_ignore_alphanum">文字（忽略數字）</string>
+    <string name="rename_options_header_prefixes">--- 前綴 ---</string>
+    <string name="rename_options_header_suffixes">--- 後綴 ---</string>
+    <string name="rename_option_delete_title">刪除重新命名選項</string>
+    <string name="rename_option_delete_message">要從%2$s刪除「%1$s」嗎？</string>
+    <string name="rename_option_category_prefix">前綴</string>
+    <string name="rename_option_category_suffix">後綴</string>
+    <string name="rename_add_prefix_hint">輸入要新增的前綴</string>
+    <string name="rename_add_suffix_hint">輸入要新增的後綴</string>
+    <string name="rename_add_prefix_title">新增前綴</string>
+    <string name="rename_add_suffix_title">新增後綴</string>
+    <string name="rename_preview_format">預覽：%1$s</string>
     <string name="time_descending">時間（新到舊）</string>
     <string name="time_ascending">時間（舊到新）</string>
     <string name="text_ascending">文字（A-Z）</string>
