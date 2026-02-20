@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mediaScanner: MediaScanner
     private var permissionsGrantedOnStart = false
     private var isLoadingFolders = false
-    private var lastSwipeRefreshAtMs = 0L
+    private var lastUserRefreshAtMs = 0L
     
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -158,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_refresh -> {
-                loadMediaFolders(showBlockingLoading = folderAdapter.itemCount == 0)
+                refreshFromUserAction(fromSwipeRefresh = false)
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -182,21 +182,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
-            if (!hasStoragePermissions()) {
-                binding.swipeRefresh.isRefreshing = false
-                showPermissionRequired()
-                return@setOnRefreshListener
-            }
-
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastSwipeRefreshAtMs < SWIPE_REFRESH_THROTTLE_MS) {
-                binding.swipeRefresh.isRefreshing = false
-                return@setOnRefreshListener
-            }
-            lastSwipeRefreshAtMs = now
-
-            loadMediaFolders(showBlockingLoading = false, fromSwipeRefresh = true)
+            refreshFromUserAction(fromSwipeRefresh = true)
         }
+    }
+
+    private fun refreshFromUserAction(fromSwipeRefresh: Boolean) {
+        if (!hasStoragePermissions()) {
+            if (fromSwipeRefresh) {
+                binding.swipeRefresh.isRefreshing = false
+            }
+            showPermissionRequired()
+            return
+        }
+
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastUserRefreshAtMs < REFRESH_THROTTLE_MS) {
+            if (fromSwipeRefresh) {
+                binding.swipeRefresh.isRefreshing = false
+            }
+            return
+        }
+        lastUserRefreshAtMs = now
+
+        val showBlockingLoading = !fromSwipeRefresh && folderAdapter.itemCount == 0
+        loadMediaFolders(showBlockingLoading = showBlockingLoading, fromSwipeRefresh = fromSwipeRefresh)
     }
     
     private fun hasStoragePermissions(): Boolean {
@@ -361,6 +370,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
+        private const val REFRESH_THROTTLE_MS = 1_200L
     }
 }
