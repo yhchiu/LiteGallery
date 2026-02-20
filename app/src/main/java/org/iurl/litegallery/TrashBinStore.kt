@@ -14,6 +14,8 @@ object TrashBinStore {
     private const val KEY_TRASHED_PATHS = "trashed_paths"
     private const val KEY_ORIGINAL_NAME_PREFIX = "original_name::"
     private const val KEY_TRASHED_AT_PREFIX = "trashed_at::"
+    private const val KEY_LAST_REINDEX_AT = "last_reindex_at"
+    private const val REINDEX_INTERVAL_MS = 6L * 60L * 60L * 1000L
 
     fun rememberTrashedFile(
         context: Context,
@@ -143,6 +145,99 @@ object TrashBinStore {
         }
 
         return CleanupResult(removedPaths, failedCount)
+    }
+
+    fun reindexOrphanTrashedFiles(
+        context: Context,
+        nowMs: Long = System.currentTimeMillis(),
+        force: Boolean = false
+    ): Int {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastReindexAt = prefs.getLong(KEY_LAST_REINDEX_AT, 0L)
+        if (!force && nowMs - lastReindexAt < REINDEX_INTERVAL_MS) {
+            return 0
+        }
+
+        val existingPaths = getTrashedPaths(context).toMutableSet()
+        var addedCount = 0
+
+        getAccessibleStoragePaths(context).forEach { rootPath ->
+            val root = File(rootPath)
+            scanForTrashedFiles(
+                directory = root,
+                maxDepth = 6,
+                currentDepth = 0
+            ) { file ->
+                val path = file.absolutePath
+                if (path in existingPaths) return@scanForTrashedFiles
+
+                val originalName = fallbackOriginalNameFromTrashedName(file.name)
+                // Orphan files have no reliable trashed timestamp; use now for safe retention behavior.
+                rememberTrashedFile(
+                    context = context,
+                    trashedPath = path,
+                    originalName = originalName,
+                    trashedAtMs = nowMs
+                )
+                existingPaths.add(path)
+                addedCount++
+            }
+        }
+
+        prefs.edit().putLong(KEY_LAST_REINDEX_AT, nowMs).apply()
+        return addedCount
+    }
+
+    private fun getAccessibleStoragePaths(context: Context): List<String> {
+        val paths = mutableListOf<String>()
+
+        android.os.Environment.getExternalStorageDirectory()?.let { primaryStorage ->
+            if (primaryStorage.exists() && primaryStorage.canRead()) {
+                paths.add(primaryStorage.absolutePath)
+            }
+        }
+
+        context.getExternalFilesDirs(null)?.forEach { dir ->
+            dir?.let { externalDir ->
+                var parent = externalDir.parentFile
+                while (parent != null && parent.name != "Android") {
+                    val tempParent = parent.parentFile
+                    if (tempParent == null) break
+                    parent = tempParent
+                }
+                parent?.let { root ->
+                    if (root.exists() && root.canRead() && !paths.contains(root.absolutePath)) {
+                        paths.add(root.absolutePath)
+                    }
+                }
+            }
+        }
+
+        return paths
+    }
+
+    private fun scanForTrashedFiles(
+        directory: File,
+        maxDepth: Int,
+        currentDepth: Int,
+        onFound: (File) -> Unit
+    ) {
+        if (currentDepth > maxDepth || !directory.exists() || !directory.isDirectory) return
+
+        try {
+            directory.listFiles()?.forEach { file ->
+                when {
+                    file.isFile && file.name.startsWith(TRASH_FILE_PREFIX) -> onFound(file)
+                    file.isDirectory && !file.name.startsWith(".") -> {
+                        scanForTrashedFiles(file, maxDepth, currentDepth + 1, onFound)
+                    }
+                }
+            }
+        } catch (_: SecurityException) {
+            // Skip restricted folders.
+        } catch (_: Exception) {
+            // Skip unreadable folders.
+        }
     }
 
     data class CleanupResult(

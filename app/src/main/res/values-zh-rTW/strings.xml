@@ -94,6 +94,7 @@
     <string name="select_all">全選</string>
     <string name="clear_selection">清除選取</string>
     <string name="trash_auto_cleaned_count">已自動清理 %d 個過期垃圾桶檔案</string>
+    <string name="trash_reindexed_count">已重新索引 %d 個垃圾桶檔案</string>
 
     <!-- Settings -->
     <string name="display_settings">顯示設定</string>

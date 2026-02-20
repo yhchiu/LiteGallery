@@ -179,9 +179,18 @@ class TrashBinActivity : AppCompatActivity() {
     
     private fun loadTrashItems() {
         lifecycleScope.launch {
-            val (cleanupResult, items) = withContext(Dispatchers.IO) {
+            val (reindexedCount, cleanupResult, items) = withContext(Dispatchers.IO) {
+                val reindexed = TrashBinStore.reindexOrphanTrashedFiles(this@TrashBinActivity)
                 val cleanup = TrashBinStore.cleanupExpiredTrash(this@TrashBinActivity)
-                cleanup to scanTrashItems()
+                Triple(reindexed, cleanup, scanTrashItems())
+            }
+
+            if (reindexedCount > 0) {
+                android.widget.Toast.makeText(
+                    this@TrashBinActivity,
+                    getString(R.string.trash_reindexed_count, reindexedCount),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
             }
 
             if (cleanupResult.removedPaths.isNotEmpty()) {
