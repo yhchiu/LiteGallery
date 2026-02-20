@@ -2,13 +2,20 @@ package org.iurl.litegallery
 
 import android.content.Context
 import android.text.format.DateFormat
+import androidx.preference.PreferenceManager
 
 object PlaybackDiagnostics {
 
     private const val PREFS_NAME = "playback_diagnostics"
     private const val KEY_EVENTS = "events"
+    const val KEY_ENABLE_PLAYBACK_DIAGNOSTICS = "enable_playback_diagnostics"
     private const val MAX_EVENTS = 100
     private const val DEFAULT_REPORT_COUNT = 40
+
+    fun isEnabled(context: Context): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        return prefs.getBoolean(KEY_ENABLE_PLAYBACK_DIAGNOSTICS, false)
+    }
 
     fun recordManualReload(context: Context, mediaPath: String?) {
         record(
@@ -99,6 +106,8 @@ object PlaybackDiagnostics {
     }
 
     fun buildRecentReport(context: Context, count: Int = DEFAULT_REPORT_COUNT): String {
+        if (!isEnabled(context)) return ""
+
         val events = getRecentEvents(context, count)
         if (events.isEmpty()) return ""
 
@@ -129,6 +138,8 @@ object PlaybackDiagnostics {
         mediaPath: String?,
         details: Map<String, String>
     ) {
+        if (!isEnabled(context)) return
+
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val currentEvents = prefs.getString(KEY_EVENTS, "")
             ?.split('\n')
