@@ -675,31 +675,119 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun showPropertiesDialog() {
         val item = getCurrentMediaItem() ?: return
         val file = java.io.File(item.path)
-        val name = item.name
-        val size = if (file.exists()) file.length() else 0L
-        val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(file.lastModified()))
-        val builder = StringBuilder()
-        builder.append(getString(R.string.file_name)).append(": ").append(name).append('\n')
-        builder.append(getString(R.string.file_size)).append(": ").append(formatSize(size)).append('\n')
-        
-        // Add dimensions if available
-        if (item.width > 0 && item.height > 0) {
-            builder.append("Dimensions: ").append(item.width).append(" ? ").append(item.height).append('\n')
+        val unknown = getString(R.string.unknown_value)
+
+        val fileName = item.name.ifBlank { file.name.ifBlank { unknown } }
+        val mimeType = item.mimeType.ifBlank { unknown }
+        val sizeBytes = when {
+            file.exists() -> file.length()
+            item.size > 0L -> item.size
+            else -> -1L
         }
-        
-        builder.append(getString(R.string.file_date)).append(": ").append(date).append('\n')
-        builder.append(getString(R.string.file_path)).append(": ").append(item.path)
+        val sizeText = formatSize(sizeBytes)
+        val modifiedMs = when {
+            file.exists() && file.lastModified() > 0L -> file.lastModified()
+            item.dateModified > 0L -> item.dateModified
+            else -> -1L
+        }
+        val dateText = formatDateTime(modifiedMs)
+        val hasResolution = item.width > 0 && item.height > 0
+        val resolutionText = if (hasResolution) "${item.width} x ${item.height}" else unknown
+        val showDuration = item.isVideo
+        val durationText = if (item.duration > 0L) formatTime(item.duration) else unknown
+        val pathText = item.path.ifBlank { unknown }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_media_properties, null)
+        val fileNameValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyFileNameValue)
+        val fileTypeValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyFileTypeValue)
+        val fileSizeValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyFileSizeValue)
+        val fileDateValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyFileDateValue)
+        val resolutionRow = dialogView.findViewById<android.view.View>(R.id.propertyResolutionRow)
+        val resolutionValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyResolutionValue)
+        val durationRow = dialogView.findViewById<android.view.View>(R.id.propertyDurationRow)
+        val durationValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyDurationValue)
+        val pathValue = dialogView.findViewById<android.widget.TextView>(R.id.propertyPathValue)
+        val copyPathButton = dialogView.findViewById<android.widget.Button>(R.id.propertyCopyPathButton)
+
+        fileNameValue.text = fileName
+        fileTypeValue.text = mimeType
+        fileSizeValue.text = sizeText
+        fileDateValue.text = dateText
+
+        resolutionRow.visibility = if (hasResolution) View.VISIBLE else View.GONE
+        resolutionValue.text = resolutionText
+
+        durationRow.visibility = if (showDuration) View.VISIBLE else View.GONE
+        durationValue.text = durationText
+
+        pathValue.text = pathText
+        copyPathButton.setOnClickListener {
+            if (copyTextToClipboard(getString(R.string.file_path), pathText)) {
+                android.widget.Toast.makeText(this, R.string.properties_path_copied, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        val copySummary = buildPropertiesCopyText(
+            fileName = fileName,
+            mimeType = mimeType,
+            fileSize = sizeText,
+            fileDate = dateText,
+            resolution = if (hasResolution) resolutionText else null,
+            duration = if (showDuration) durationText else null,
+            filePath = pathText
+        )
+
         android.app.AlertDialog.Builder(this)
             .setTitle(R.string.properties)
-            .setMessage(builder.toString())
+            .setView(dialogView)
+            .setNeutralButton(R.string.copy_all_info) { _, _ ->
+                if (copyTextToClipboard(getString(R.string.properties), copySummary)) {
+                    android.widget.Toast.makeText(this, R.string.properties_copied, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             .setPositiveButton(R.string.ok, null)
             .show()
     }
 
     private fun formatSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val z = (63 - java.lang.Long.numberOfLeadingZeros(bytes)) / 10
-        return String.format(java.util.Locale.US, "%.1f %sB", bytes / (1L shl (z * 10)).toDouble(), " KMGTPE"[z])
+        if (bytes < 0L) return getString(R.string.unknown_value)
+        return android.text.format.Formatter.formatFileSize(this, bytes)
+    }
+
+    private fun formatDateTime(timestampMs: Long): String {
+        if (timestampMs <= 0L) return getString(R.string.unknown_value)
+        return java.text.DateFormat.getDateTimeInstance(
+            java.text.DateFormat.MEDIUM,
+            java.text.DateFormat.SHORT,
+            java.util.Locale.getDefault()
+        ).format(java.util.Date(timestampMs))
+    }
+
+    private fun copyTextToClipboard(label: String, text: String): Boolean {
+        val clipboardManager = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            ?: return false
+        clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+        return true
+    }
+
+    private fun buildPropertiesCopyText(
+        fileName: String,
+        mimeType: String,
+        fileSize: String,
+        fileDate: String,
+        resolution: String?,
+        duration: String?,
+        filePath: String
+    ): String {
+        return buildString {
+            append(getString(R.string.file_name)).append(": ").append(fileName).append('\n')
+            append(getString(R.string.file_type)).append(": ").append(mimeType).append('\n')
+            append(getString(R.string.file_size)).append(": ").append(fileSize).append('\n')
+            append(getString(R.string.file_date)).append(": ").append(fileDate).append('\n')
+            resolution?.let { append(getString(R.string.resolution)).append(": ").append(it).append('\n') }
+            duration?.let { append(getString(R.string.duration)).append(": ").append(it).append('\n') }
+            append(getString(R.string.file_path)).append(": ").append(filePath)
+        }
     }
     
     private fun loadMedia() {

@@ -51,11 +51,17 @@
     
     <!-- Properties -->
     <string name="file_name">File Name</string>
+    <string name="file_type">File Type</string>
     <string name="file_size">File Size</string>
     <string name="file_date">Date</string>
     <string name="file_path">Path</string>
     <string name="resolution">Resolution</string>
     <string name="duration">Duration</string>
+    <string name="copy_path">Copy Path</string>
+    <string name="copy_all_info">Copy All Info</string>
+    <string name="properties_path_copied">Path copied</string>
+    <string name="properties_copied">Properties copied</string>
+    <string name="unknown_value">Unknown</string>
     
     <!-- Settings -->
     <string name="default_sort_order">Default Sort Order</string>
