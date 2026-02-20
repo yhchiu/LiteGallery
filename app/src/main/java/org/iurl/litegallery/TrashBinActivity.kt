@@ -77,7 +77,6 @@ class TrashBinActivity : AppCompatActivity() {
             deleteItem?.isVisible = false
             selectAllItem?.isVisible = true
             selectAllItem?.isEnabled = hasItems && selectedPaths.size < trashItems.size
-            menu.findItem(R.id.action_clear_selection)?.isVisible = false
         } else {
             restoreItem?.isVisible = true
             deleteItem?.isVisible = true
@@ -86,7 +85,6 @@ class TrashBinActivity : AppCompatActivity() {
             restoreItem?.isEnabled = hasItems
             deleteItem?.isEnabled = hasItems
             selectAllItem?.isVisible = false
-            menu.findItem(R.id.action_clear_selection)?.isVisible = false
         }
         return super.onPrepareOptionsMenu(menu)
     }
@@ -119,10 +117,6 @@ class TrashBinActivity : AppCompatActivity() {
             }
             R.id.action_select_all -> {
                 selectAllItems()
-                true
-            }
-            R.id.action_clear_selection -> {
-                clearSelection()
                 true
             }
             else -> super.onOptionsItemSelected(item)
