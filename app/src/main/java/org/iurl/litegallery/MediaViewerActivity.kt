@@ -1654,11 +1654,31 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         fun refresh() {
+            val oldSize = optionsList.size
             val orderIndex = if (isDesc) 0 else 1
             buildList(sortKeySpinner.selectedItemPosition, orderIndex)
-            // Use notifyDataSetChanged to force complete refresh
+
+            val newSize = optionsList.size
             recyclerView.post {
-                adapter.notifyDataSetChanged()
+                when {
+                    oldSize == 0 && newSize > 0 -> {
+                        adapter.notifyItemRangeInserted(0, newSize)
+                    }
+                    oldSize > 0 && newSize == 0 -> {
+                        adapter.notifyItemRangeRemoved(0, oldSize)
+                    }
+                    oldSize == newSize -> {
+                        adapter.notifyItemRangeChanged(0, newSize)
+                    }
+                    oldSize < newSize -> {
+                        adapter.notifyItemRangeChanged(0, oldSize)
+                        adapter.notifyItemRangeInserted(oldSize, newSize - oldSize)
+                    }
+                    else -> {
+                        adapter.notifyItemRangeChanged(0, newSize)
+                        adapter.notifyItemRangeRemoved(newSize, oldSize - newSize)
+                    }
+                }
                 // Force layout refresh
                 recyclerView.invalidateItemDecorations()
             }
