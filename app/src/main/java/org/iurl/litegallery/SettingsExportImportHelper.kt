@@ -41,6 +41,7 @@ class SettingsExportImportHelper(private val context: Context) {
             "color_theme_preference",
             "restore_brightness",
             "restore_volume",
+            "enable_playback_diagnostics",
             "trash_retention_days"
         )
     }
