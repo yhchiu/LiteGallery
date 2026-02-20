@@ -13,8 +13,14 @@ object TrashBinStore {
     private const val PREFS_NAME = "trash_bin_store"
     private const val KEY_TRASHED_PATHS = "trashed_paths"
     private const val KEY_ORIGINAL_NAME_PREFIX = "original_name::"
+    private const val KEY_TRASHED_AT_PREFIX = "trashed_at::"
 
-    fun rememberTrashedFile(context: Context, trashedPath: String, originalName: String) {
+    fun rememberTrashedFile(
+        context: Context,
+        trashedPath: String,
+        originalName: String,
+        trashedAtMs: Long = System.currentTimeMillis()
+    ) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val paths = prefs.getStringSet(KEY_TRASHED_PATHS, emptySet())?.toMutableSet() ?: mutableSetOf()
         paths.add(trashedPath)
@@ -22,6 +28,7 @@ object TrashBinStore {
         prefs.edit()
             .putStringSet(KEY_TRASHED_PATHS, paths)
             .putString(originalNameKey(trashedPath), originalName)
+            .putLong(trashedAtKey(trashedPath), trashedAtMs)
             .apply()
     }
 
@@ -44,6 +51,7 @@ object TrashBinStore {
         trashedPaths.forEach { path ->
             currentPaths.remove(path)
             editor.remove(originalNameKey(path))
+            editor.remove(trashedAtKey(path))
         }
 
         editor.putStringSet(KEY_TRASHED_PATHS, currentPaths).apply()
@@ -79,6 +87,10 @@ object TrashBinStore {
         return "$KEY_ORIGINAL_NAME_PREFIX$path"
     }
 
+    private fun trashedAtKey(path: String): String {
+        return "$KEY_TRASHED_AT_PREFIX$path"
+    }
+
     fun getTrashRetentionDays(context: Context): Int {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         return prefs.getString(TRASH_RETENTION_DAYS_KEY, TRASH_RETENTION_DEFAULT_DAYS.toString())
@@ -94,17 +106,36 @@ object TrashBinStore {
         }
 
         val thresholdMs = nowMs - retentionDays * 24L * 60L * 60L * 1000L
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val backfillEditor = prefs.edit()
+        var hasBackfill = false
+
         val removedPaths = mutableListOf<String>()
         var failedCount = 0
 
         getTrashedPaths(context).forEach { path ->
             val file = File(path)
+            val storedTrashedAt = prefs.getLong(trashedAtKey(path), -1L)
+            val normalizedTrashedAt = if (storedTrashedAt > 0L) {
+                storedTrashedAt
+            } else {
+                // Legacy entries might not have trashedAt.
+                // Use "now" as a safe migration default to avoid accidental immediate deletion.
+                hasBackfill = true
+                backfillEditor.putLong(trashedAtKey(path), nowMs)
+                nowMs
+            }
+
             when {
                 !file.exists() -> removedPaths.add(path)
-                file.lastModified() >= thresholdMs -> Unit
+                normalizedTrashedAt >= thresholdMs -> Unit
                 file.delete() -> removedPaths.add(path)
                 else -> failedCount++
             }
+        }
+
+        if (hasBackfill) {
+            backfillEditor.apply()
         }
 
         if (removedPaths.isNotEmpty()) {
