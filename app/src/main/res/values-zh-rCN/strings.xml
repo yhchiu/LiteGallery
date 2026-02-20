@@ -51,11 +51,17 @@
 
     <!-- Properties -->
     <string name="file_name">文件名</string>
+    <string name="file_type">文件类型</string>
     <string name="file_size">文件大小</string>
     <string name="file_date">日期</string>
     <string name="file_path">路径</string>
     <string name="resolution">分辨率</string>
     <string name="duration">时长</string>
+    <string name="copy_path">复制路径</string>
+    <string name="copy_all_info">复制全部信息</string>
+    <string name="properties_path_copied">已复制路径</string>
+    <string name="properties_copied">已复制文件信息</string>
+    <string name="unknown_value">未知</string>
 
     <!-- Settings -->
     <string name="default_sort_order">默认排序</string>
