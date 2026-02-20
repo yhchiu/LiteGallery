@@ -199,6 +199,7 @@ class FolderViewActivity : AppCompatActivity() {
             MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
         }
         updateLayoutManager()
+        maybeReloadForDetailedMode()
 
         // Show toast to indicate current view mode
         val modeName = when (currentViewMode) {
@@ -256,6 +257,18 @@ class FolderViewActivity : AppCompatActivity() {
             binding.recyclerView.scrollToPosition(0)
         }
     }
+
+    private fun maybeReloadForDetailedMode() {
+        if (currentViewMode != MediaAdapter.ViewMode.DETAILED) return
+        if (mediaItems.isEmpty()) return
+
+        val hasDeferredMetadata = mediaItems.any { item ->
+            item.size <= 0L || item.width <= 0 || item.height <= 0
+        }
+        if (!hasDeferredMetadata) return
+
+        loadMediaItems(showBlockingLoading = false)
+    }
     
     private fun loadMediaItems(
         showBlockingLoading: Boolean = true,
@@ -280,7 +293,10 @@ class FolderViewActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                mediaItems = mediaScanner.scanMediaInFolder(folderPath)
+                mediaItems = mediaScanner.scanMediaInFolder(
+                    folderPath = folderPath,
+                    includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
+                )
 
                 if (mediaItems.isEmpty()) {
                     binding.progressBar.visibility = View.GONE

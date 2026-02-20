@@ -673,15 +673,38 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun showPropertiesDialog() {
-        val item = getCurrentMediaItem() ?: return
+        val position = currentPosition
+        val item = mediaItems.getOrNull(position) ?: return
+
+        lifecycleScope.launch {
+            val enrichedItem = try {
+                mediaScanner.enrichItemWithSizeAndDimensions(item)
+            } catch (_: Exception) {
+                item
+            }
+
+            if (position in mediaItems.indices &&
+                mediaItems[position].path == item.path &&
+                mediaItems[position] != enrichedItem
+            ) {
+                val updated = mediaItems.toMutableList()
+                updated[position] = enrichedItem
+                mediaItems = updated
+            }
+
+            showPropertiesDialogForItem(enrichedItem)
+        }
+    }
+
+    private fun showPropertiesDialogForItem(item: MediaItem) {
         val file = java.io.File(item.path)
         val unknown = getString(R.string.unknown_value)
 
         val fileName = item.name.ifBlank { file.name.ifBlank { unknown } }
         val mimeType = item.mimeType.ifBlank { unknown }
         val sizeBytes = when {
-            file.exists() -> file.length()
             item.size > 0L -> item.size
+            file.exists() -> file.length()
             else -> -1L
         }
         val sizeText = formatSize(sizeBytes)
