@@ -161,6 +161,10 @@ class TrashBinDatabase private constructor(context: Context) :
         }
     }
 
+    fun clearAllRecords() {
+        writableDatabase.delete(TABLE_TRASH_RECORDS, null, null)
+    }
+
     data class TrashRecord(
         val path: String,
         val originalName: String,
