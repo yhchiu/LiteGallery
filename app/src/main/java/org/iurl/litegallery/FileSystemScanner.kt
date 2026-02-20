@@ -156,7 +156,8 @@ class FileSystemScanner(private val context: Context) {
             name = file.name,
             path = file.absolutePath,
             dateModified = file.lastModified(),
-            size = file.length(),
+            // Keep folder scanning lightweight; load size when detailed/properties asks for it.
+            size = 0,
             mimeType = getMimeTypeFromExtension(extension, isVideo),
             // Keep folder scanning lightweight: skip expensive metadata probing.
             duration = 0,
