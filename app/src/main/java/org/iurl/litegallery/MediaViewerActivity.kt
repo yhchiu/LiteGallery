@@ -1654,34 +1654,12 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         fun refresh() {
-            val oldSize = optionsList.size
             val orderIndex = if (isDesc) 0 else 1
             buildList(sortKeySpinner.selectedItemPosition, orderIndex)
-
-            val newSize = optionsList.size
-            recyclerView.post {
-                when {
-                    oldSize == 0 && newSize > 0 -> {
-                        adapter.notifyItemRangeInserted(0, newSize)
-                    }
-                    oldSize > 0 && newSize == 0 -> {
-                        adapter.notifyItemRangeRemoved(0, oldSize)
-                    }
-                    oldSize == newSize -> {
-                        adapter.notifyItemRangeChanged(0, newSize)
-                    }
-                    oldSize < newSize -> {
-                        adapter.notifyItemRangeChanged(0, oldSize)
-                        adapter.notifyItemRangeInserted(oldSize, newSize - oldSize)
-                    }
-                    else -> {
-                        adapter.notifyItemRangeChanged(0, newSize)
-                        adapter.notifyItemRangeRemoved(newSize, oldSize - newSize)
-                    }
-                }
-                // Force layout refresh
-                recyclerView.invalidateItemDecorations()
-            }
+            // This dialog list can be rebuilt rapidly (spinner init + swipe + dismiss callbacks).
+            // A full refresh avoids stale range notifications and prevents RecyclerView inconsistency crashes.
+            adapter.notifyDataSetChanged()
+            recyclerView.invalidateItemDecorations()
         }
         
         // Set up swipe-to-delete functionality
@@ -1691,7 +1669,8 @@ class MediaViewerActivity : AppCompatActivity() {
             }
             
             override fun getSwipeDirs(recyclerView: androidx.recyclerview.widget.RecyclerView, viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder): Int {
-                val position = viewHolder.adapterPosition
+                val position = viewHolder.bindingAdapterPosition
+                if (position == androidx.recyclerview.widget.RecyclerView.NO_POSITION) return 0
                 val option = optionsList.getOrNull(position)
                 // Only allow swipe on actual rename options (not headers or separators)
                 return if (option != null && !option.isHeader && !option.isSeparator && option.action != null) {
@@ -1702,14 +1681,20 @@ class MediaViewerActivity : AppCompatActivity() {
             }
             
             override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.adapterPosition
+                val position = viewHolder.bindingAdapterPosition
+                if (position == androidx.recyclerview.widget.RecyclerView.NO_POSITION || position !in optionsList.indices) {
+                    refresh()
+                    return
+                }
                 val option = optionsList[position]
+                var actionHandled = false
                 
                 // Show confirmation dialog
                 android.app.AlertDialog.Builder(this@MediaViewerActivity)
                     .setTitle("Delete Rename Option")
                     .setMessage("Delete \"${option.text}\" from ${if (option.isPrefix) "prefixes" else "suffixes"}?")
                     .setPositiveButton("Delete") { _, _ ->
+                        actionHandled = true
                         // Remove from the appropriate list
                         if (option.isPrefix) {
                             val currentPrefixes = getRenamePrefixes()
@@ -1725,12 +1710,15 @@ class MediaViewerActivity : AppCompatActivity() {
                         refresh()
                     }
                     .setNegativeButton("Cancel") { _, _ ->
+                        actionHandled = true
                         // Restore the item by refreshing the entire list to ensure proper state
                         refresh()
                     }
                     .setOnDismissListener {
                         // Restore the item if dialog is dismissed without action
-                        refresh()
+                        if (!actionHandled) {
+                            refresh()
+                        }
                     }
                     .show()
             }
