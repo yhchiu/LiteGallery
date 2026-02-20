@@ -1,6 +1,5 @@
 package org.iurl.litegallery
 
-import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -257,20 +256,8 @@ class TrashBinActivity : AppCompatActivity() {
             dateModified = file.lastModified(),
             size = file.length(),
             mimeType = getMimeTypeFromExtension(extension, isVideo),
-            duration = if (isVideo) getVideoDuration(file) else 0L
+            duration = 0L
         )
-    }
-
-    private fun getVideoDuration(file: File): Long {
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(file.absolutePath)
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-        } catch (_: Exception) {
-            0L
-        } finally {
-            retriever.release()
-        }
     }
 
     private fun getMimeTypeFromExtension(extension: String, isVideo: Boolean): String {
