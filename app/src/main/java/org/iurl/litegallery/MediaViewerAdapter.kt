@@ -130,7 +130,7 @@ class MediaViewerAdapter(
                 if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                     Glide.with(context)
                         .load(mediaItem.path)
-                        .centerCrop()
+                        .fitCenter()
                         .into(binding.videoThumbnail)
                 }
                 

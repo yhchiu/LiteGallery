@@ -27,6 +27,7 @@ class VideoViewHolder(
     private var hasBeenPlayed = false
     private var isPlayerReady = false
     private var hasRenderedFrame = false
+    private var showLoadingIndicatorRunnable: Runnable? = null
     private var isActive = false
     var isInvalidVideo = false
         private set
@@ -37,7 +38,8 @@ class VideoViewHolder(
 
         binding.photoImageView.visibility = View.GONE
         binding.videoContainer.visibility = View.VISIBLE
-        binding.videoThumbnail?.visibility = View.VISIBLE
+        binding.videoThumbnail?.visibility = View.GONE
+        binding.videoLoadingIndicator?.visibility = View.GONE
         binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
 
         binding.root.setOnClickListener {
@@ -79,6 +81,7 @@ class VideoViewHolder(
         isInvalidVideo = false
         hasBeenPlayed = false
         hasRenderedFrame = false
+        hideLoadingIndicator()
         PlaybackDiagnostics.recordManualReload(binding.root.context, boundMediaItem?.path)
         if (!isActive) {
             isActive = true
@@ -114,6 +117,7 @@ class VideoViewHolder(
 
         if (activeOwner !== this) {
             cancelLoadingTimeout()
+            activeOwner?.hideLoadingIndicator()
             activeOwner?.detachPlayerViewOnly()
             activeOwner?.exoPlayer = null
             activeOwner = this
@@ -131,16 +135,19 @@ class VideoViewHolder(
 
         hasBeenPlayed = player.currentPosition > 0L
         isPlayerReady = player.playbackState == Player.STATE_READY
-        hasRenderedFrame = isPlayerReady || player.currentPosition > 0L
-        if (isPlayerReady) {
+        hasRenderedFrame = hasRenderedFrame || hasLikelyRenderedFrame(player)
+        if (hasRenderedFrame) {
             showReadyUi()
         } else {
             showLoadingUi()
+        }
+        if (!isPlayerReady) {
             scheduleLoadingTimeout()
         }
     }
 
     private fun deactivateSharedPlayer() {
+        hideLoadingIndicator()
         if (activeOwner === this) {
             sharedPlayer?.pause()
             cancelLoadingTimeout()
@@ -154,6 +161,7 @@ class VideoViewHolder(
         if (binding.playerView.player !== player) {
             binding.playerView.player = player
         }
+        binding.playerView.setKeepContentOnPlayerReset(true)
         binding.playerView.useController = false
         exoPlayer = player
     }
@@ -175,6 +183,7 @@ class VideoViewHolder(
 
         isPlayerReady = false
         hasRenderedFrame = false
+        hideLoadingIndicator()
         showLoadingUi()
 
         val mediaUri = if (item.path.startsWith("content://")) {
@@ -190,20 +199,49 @@ class VideoViewHolder(
     }
 
     private fun showLoadingUi() {
-        binding.videoThumbnail?.visibility = if (hasRenderedFrame) View.GONE else View.VISIBLE
-        binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
+        if (hasRenderedFrame) {
+            hideLoadingIndicator()
+            binding.videoThumbnail?.visibility = View.GONE
+        } else {
+            scheduleLoadingIndicator()
+            binding.videoThumbnail?.visibility = View.GONE
+        }
+        binding.playButton?.visibility = if (hasRenderedFrame && !hasBeenPlayed) View.VISIBLE else View.GONE
     }
 
     private fun showReadyUi() {
+        hideLoadingIndicator()
         hasRenderedFrame = true
         binding.videoThumbnail?.visibility = View.GONE
         binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
     }
 
     private fun showInvalidUi() {
+        hideLoadingIndicator()
         hasRenderedFrame = false
         binding.videoThumbnail?.visibility = View.VISIBLE
         binding.playButton?.visibility = View.GONE
+    }
+
+    private fun scheduleLoadingIndicator() {
+        if (hasRenderedFrame) return
+        hideLoadingIndicator()
+        val loadingIndicator = binding.videoLoadingIndicator ?: return
+        val runnable = Runnable {
+            showLoadingIndicatorRunnable = null
+            if (!isActive || activeOwner !== this || hasRenderedFrame) return@Runnable
+            loadingIndicator.visibility = View.VISIBLE
+        }
+        showLoadingIndicatorRunnable = runnable
+        loadingIndicator.postDelayed(runnable, LOADING_INDICATOR_DELAY_MS)
+    }
+
+    private fun hideLoadingIndicator() {
+        showLoadingIndicatorRunnable?.let { runnable ->
+            binding.videoLoadingIndicator?.removeCallbacks(runnable)
+        }
+        showLoadingIndicatorRunnable = null
+        binding.videoLoadingIndicator?.visibility = View.GONE
     }
 
     private fun onSharedPlaybackStateChanged(playbackState: Int) {
@@ -214,7 +252,11 @@ class VideoViewHolder(
                 isPlayerReady = true
                 retryCount = 0
                 cancelLoadingTimeout()
-                showReadyUi()
+                if (hasLikelyRenderedFrame(exoPlayer)) {
+                    showReadyUi()
+                } else {
+                    showLoadingUi()
+                }
             }
 
             Player.STATE_BUFFERING -> {
@@ -271,6 +313,20 @@ class VideoViewHolder(
         getZoomablePlayerView()?.setVideoSize(videoSize.width, videoSize.height)
     }
 
+    private fun onSharedRenderedFirstFrame() {
+        if (activeOwner !== this) return
+        showReadyUi()
+    }
+
+    private fun hasLikelyRenderedFrame(player: ExoPlayer?): Boolean {
+        val currentPlayer = player ?: return false
+        if (currentPlayer.currentPosition > 0L) return true
+        val videoSize = currentPlayer.videoSize
+        return currentPlayer.playbackState == Player.STATE_READY &&
+            videoSize.width > 0 &&
+            videoSize.height > 0
+    }
+
     private fun retryPrepare(reason: String) {
         if (!isActive || activeOwner !== this) return
 
@@ -308,6 +364,7 @@ class VideoViewHolder(
 
         private const val MAX_RETRIES = 2
         private const val LOADING_TIMEOUT_MS = 8000L
+        private const val LOADING_INDICATOR_DELAY_MS = 250L
 
         private val mainHandler = Handler(Looper.getMainLooper())
         private var loadingTimeoutRunnable: Runnable? = null
@@ -333,6 +390,10 @@ class VideoViewHolder(
 
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     activeOwner?.onSharedVideoSizeChanged(videoSize)
+                }
+
+                override fun onRenderedFirstFrame() {
+                    activeOwner?.onSharedRenderedFirstFrame()
                 }
             }
             player.addListener(listener)
@@ -373,6 +434,7 @@ class VideoViewHolder(
         fun releaseSharedPlayer() {
             cancelLoadingTimeout()
 
+            activeOwner?.hideLoadingIndicator()
             activeOwner?.detachPlayerViewOnly()
             activeOwner?.exoPlayer = null
             activeOwner = null
