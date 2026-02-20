@@ -15,6 +15,8 @@ class MediaViewerActivity : AppCompatActivity() {
         const val EXTRA_MEDIA_PATH = "extra_media_path"
         const val EXTRA_FOLDER_PATH = "extra_folder_path"
         const val EXTRA_CURRENT_POSITION = "extra_current_position"
+        const val RESULT_MEDIA_CHANGED = "result_media_changed"
+        const val RESULT_FOLDER_PATH = "result_folder_path"
         
         // Rename history constants
         private const val RENAME_HISTORY_PREFS = "rename_history"
@@ -36,6 +38,8 @@ class MediaViewerActivity : AppCompatActivity() {
     private var isUIVisible = false
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentPosition = 0
+    private var hasMediaCollectionChanged = false
+    private var sourceFolderPath: String? = null
     
     // Video control variables
     private var progressUpdateHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -65,9 +69,23 @@ class MediaViewerActivity : AppCompatActivity() {
         setupViewPager()
         setupUI()
         loadMedia()
+        sourceFolderPath = intent.getStringExtra(EXTRA_FOLDER_PATH)
 
         // Apply initial filename max lines setting
         applyFilenameMaxLinesSetting()
+    }
+
+    override fun finish() {
+        if (hasMediaCollectionChanged) {
+            setResult(
+                RESULT_OK,
+                android.content.Intent().apply {
+                    putExtra(RESULT_MEDIA_CHANGED, true)
+                    sourceFolderPath?.let { putExtra(RESULT_FOLDER_PATH, it) }
+                }
+            )
+        }
+        super.finish()
     }
     
     override fun onResume() {
@@ -533,6 +551,7 @@ class MediaViewerActivity : AppCompatActivity() {
             val ok = if (moveToTrash) movedFile != null else file.delete()
 
             if (ok) {
+                hasMediaCollectionChanged = true
                 android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                 // Keep trashed files out of the main media index by only removing old path.
                 notifyMediaScanner(item.path, null)
@@ -1348,6 +1367,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 val success = originalFile.renameTo(newFile)
                 
                 if (success) {
+                    hasMediaCollectionChanged = true
                     if (sourcePosition !in mediaItems.indices) {
                         android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
                         return@launch

@@ -47,6 +47,17 @@ class MainActivity : AppCompatActivity() {
             showPermissionRequired()
         }
     }
+
+    private val folderViewLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        val hasMediaChanged = result.resultCode == RESULT_OK &&
+            data?.getBooleanExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, false) == true
+        if (hasMediaChanged && hasStoragePermissions()) {
+            loadMediaFolders()
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -156,7 +167,7 @@ class MainActivity : AppCompatActivity() {
                 putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
                 putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, folder.name)
             }
-            startActivity(intent)
+            folderViewLauncher.launch(intent)
         }
         
         binding.recyclerView.apply {

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -30,6 +31,28 @@ class FolderViewActivity : AppCompatActivity() {
     private var currentColorTheme: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
+
+    private val mediaViewerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        val hasMediaChanged = result.resultCode == RESULT_OK &&
+            data?.getBooleanExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, false) == true
+        if (!hasMediaChanged) return@registerForActivityResult
+
+        val changedFolderPath = data.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
+        if (changedFolderPath.isNullOrEmpty() || changedFolderPath == folderPath) {
+            loadMediaItems()
+        }
+
+        setResult(
+            RESULT_OK,
+            Intent().apply {
+                putExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, true)
+                putExtra(MediaViewerActivity.RESULT_FOLDER_PATH, changedFolderPath ?: folderPath)
+            }
+        )
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -123,7 +146,7 @@ class FolderViewActivity : AppCompatActivity() {
                     putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
                     putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
                 }
-                startActivity(intent)
+                mediaViewerLauncher.launch(intent)
             }
         )
 
