@@ -299,16 +299,6 @@ class MediaViewerActivity : AppCompatActivity() {
                     lastSwipeDirection = -1 // Moving to previous item
                 }
 
-                // Hide UI when switching from video to photo
-                if (currentPosition < mediaItems.size && position < mediaItems.size) {
-                    val previousItem = mediaItems[currentPosition] // Current position before update
-                    val newItem = mediaItems[position] // New position we're switching to
-
-                    if (previousItem.isVideo && !newItem.isVideo && isUIVisible) {
-                        hideUI()
-                        android.util.Log.d("MediaViewerActivity", "Switched from video to photo - hiding UI")
-                    }
-                }
                 previousPosition = oldPosition
                 currentPosition = position
                 mediaViewerAdapter.setActivePosition(position)
