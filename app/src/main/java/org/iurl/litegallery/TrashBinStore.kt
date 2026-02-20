@@ -11,6 +11,7 @@ object TrashBinStore {
     const val TRASH_RETENTION_DEFAULT_DAYS = 30
 
     private const val PREFS_NAME = "trash_bin_store"
+    // Legacy keys for migration from SharedPreferences to SQLite.
     private const val KEY_TRASHED_PATHS = "trashed_paths"
     private const val KEY_ORIGINAL_NAME_PREFIX = "original_name::"
     private const val KEY_TRASHED_AT_PREFIX = "trashed_at::"
@@ -23,20 +24,15 @@ object TrashBinStore {
         originalName: String,
         trashedAtMs: Long = System.currentTimeMillis()
     ) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val paths = prefs.getStringSet(KEY_TRASHED_PATHS, emptySet())?.toMutableSet() ?: mutableSetOf()
-        paths.add(trashedPath)
-
-        prefs.edit()
-            .putStringSet(KEY_TRASHED_PATHS, paths)
-            .putString(originalNameKey(trashedPath), originalName)
-            .putLong(trashedAtKey(trashedPath), trashedAtMs)
-            .apply()
+        openDatabase(context).upsertRecord(
+            path = trashedPath,
+            originalName = originalName,
+            trashedAtMs = trashedAtMs
+        )
     }
 
     fun getTrashedPaths(context: Context): Set<String> {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getStringSet(KEY_TRASHED_PATHS, emptySet())?.toSet() ?: emptySet()
+        return openDatabase(context).getAllPaths()
     }
 
     fun removeTrashedPath(context: Context, trashedPath: String) {
@@ -46,22 +42,11 @@ object TrashBinStore {
     fun removeTrashedPaths(context: Context, trashedPaths: Collection<String>) {
         if (trashedPaths.isEmpty()) return
 
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val currentPaths = prefs.getStringSet(KEY_TRASHED_PATHS, emptySet())?.toMutableSet() ?: mutableSetOf()
-        val editor = prefs.edit()
-
-        trashedPaths.forEach { path ->
-            currentPaths.remove(path)
-            editor.remove(originalNameKey(path))
-            editor.remove(trashedAtKey(path))
-        }
-
-        editor.putStringSet(KEY_TRASHED_PATHS, currentPaths).apply()
+        openDatabase(context).removePaths(trashedPaths)
     }
 
     fun resolveOriginalName(context: Context, trashedFile: File): String {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val rememberedName = prefs.getString(originalNameKey(trashedFile.absolutePath), null)
+        val rememberedName = openDatabase(context).getOriginalName(trashedFile.absolutePath)
         return rememberedName ?: fallbackOriginalNameFromTrashedName(trashedFile.name)
     }
 
@@ -108,23 +93,20 @@ object TrashBinStore {
         }
 
         val thresholdMs = nowMs - retentionDays * 24L * 60L * 60L * 1000L
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val backfillEditor = prefs.edit()
-        var hasBackfill = false
+        val database = openDatabase(context)
+        val records = database.getAllRecords()
 
         val removedPaths = mutableListOf<String>()
+        val needsBackfillPaths = mutableListOf<String>()
         var failedCount = 0
 
-        getTrashedPaths(context).forEach { path ->
+        records.forEach { record ->
+            val path = record.path
             val file = File(path)
-            val storedTrashedAt = prefs.getLong(trashedAtKey(path), -1L)
-            val normalizedTrashedAt = if (storedTrashedAt > 0L) {
-                storedTrashedAt
+            val normalizedTrashedAt = if (record.trashedAtMs > 0L) {
+                record.trashedAtMs
             } else {
-                // Legacy entries might not have trashedAt.
-                // Use "now" as a safe migration default to avoid accidental immediate deletion.
-                hasBackfill = true
-                backfillEditor.putLong(trashedAtKey(path), nowMs)
+                needsBackfillPaths.add(path)
                 nowMs
             }
 
@@ -136,12 +118,12 @@ object TrashBinStore {
             }
         }
 
-        if (hasBackfill) {
-            backfillEditor.apply()
+        if (needsBackfillPaths.isNotEmpty()) {
+            database.updateTrashedAt(needsBackfillPaths, nowMs)
         }
 
         if (removedPaths.isNotEmpty()) {
-            removeTrashedPaths(context, removedPaths)
+            database.removePaths(removedPaths)
         }
 
         return CleanupResult(removedPaths, failedCount)
@@ -158,8 +140,9 @@ object TrashBinStore {
             return 0
         }
 
-        val existingPaths = getTrashedPaths(context).toMutableSet()
-        var addedCount = 0
+        val database = openDatabase(context)
+        val existingPaths = database.getAllPaths().toMutableSet()
+        val discoveredRecords = mutableListOf<TrashBinDatabase.TrashRecord>()
 
         getAccessibleStoragePaths(context).forEach { rootPath ->
             val root = File(rootPath)
@@ -173,19 +156,63 @@ object TrashBinStore {
 
                 val originalName = fallbackOriginalNameFromTrashedName(file.name)
                 // Orphan files have no reliable trashed timestamp; use now for safe retention behavior.
-                rememberTrashedFile(
-                    context = context,
-                    trashedPath = path,
-                    originalName = originalName,
-                    trashedAtMs = nowMs
+                discoveredRecords.add(
+                    TrashBinDatabase.TrashRecord(
+                        path = path,
+                        originalName = originalName,
+                        trashedAtMs = nowMs
+                    )
                 )
                 existingPaths.add(path)
-                addedCount++
             }
         }
 
+        if (discoveredRecords.isNotEmpty()) {
+            database.upsertRecords(discoveredRecords)
+        }
+
         prefs.edit().putLong(KEY_LAST_REINDEX_AT, nowMs).apply()
-        return addedCount
+        return discoveredRecords.size
+    }
+
+    private fun openDatabase(context: Context): TrashBinDatabase {
+        val appContext = context.applicationContext
+        migrateLegacyPrefsIfNeeded(appContext)
+        return TrashBinDatabase.getInstance(appContext)
+    }
+
+    @Synchronized
+    private fun migrateLegacyPrefsIfNeeded(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val legacyPaths = prefs.getStringSet(KEY_TRASHED_PATHS, emptySet())?.toList().orEmpty()
+        if (legacyPaths.isEmpty()) return
+
+        val nowMs = System.currentTimeMillis()
+        val legacyRecords = legacyPaths.map { path ->
+            val rememberedName = prefs.getString(originalNameKey(path), null)
+                ?: fallbackOriginalNameFromTrashedName(File(path).name)
+            val storedTrashedAt = prefs.getLong(trashedAtKey(path), -1L)
+            val normalizedTrashedAt = if (storedTrashedAt > 0L) storedTrashedAt else nowMs
+            TrashBinDatabase.TrashRecord(
+                path = path,
+                originalName = rememberedName,
+                trashedAtMs = normalizedTrashedAt
+            )
+        }
+
+        try {
+            TrashBinDatabase.getInstance(context).upsertRecords(legacyRecords)
+        } catch (_: Exception) {
+            // Keep legacy data untouched and retry on next access.
+            return
+        }
+
+        val editor = prefs.edit().remove(KEY_TRASHED_PATHS)
+        legacyPaths.forEach { path ->
+            editor.remove(originalNameKey(path))
+            editor.remove(trashedAtKey(path))
+        }
+        editor.apply()
     }
 
     private fun getAccessibleStoragePaths(context: Context): List<String> {
