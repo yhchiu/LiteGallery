@@ -933,20 +933,34 @@ class MediaViewerActivity : AppCompatActivity() {
             
             lifecycleScope.launch {
                 try {
-                    val allItems = mediaScanner.scanMediaInFolder(path)
-                    val currentIndex = allItems.indexOfFirst { it.path == filePath }
-                    
-                    if (allItems.isNotEmpty()) {
+                    var allItems = mediaScanner.scanMediaInFolder(
+                        folderPath = path,
+                        includeDeferredMetadata = false,
+                        includeVideoDuration = false,
+                        mergeFileSystemFallback = false
+                    )
+                    var currentIndex = findMediaItemIndexByPath(allItems, filePath)
+
+                    // Fallback only when target file is not found in lightweight MediaStore results.
+                    if (currentIndex < 0) {
+                        allItems = mediaScanner.scanMediaInFolder(
+                            folderPath = path,
+                            includeDeferredMetadata = false,
+                            includeVideoDuration = false,
+                            mergeFileSystemFallback = true
+                        )
+                        currentIndex = findMediaItemIndexByPath(allItems, filePath)
+                    }
+
+                    if (allItems.isNotEmpty() && currentIndex >= 0) {
                         mediaItems = allItems
                         mediaViewerAdapter.submitList(mediaItems) {
-                            if (currentIndex >= 0) {
-                                binding.viewPager.setCurrentItem(currentIndex, false)
-                                currentPosition = currentIndex
-                                previousPosition = currentPosition
-                                mediaViewerAdapter.setActivePosition(currentPosition)
-                                updateFileName(currentIndex)
-                                applyRememberedBrightnessIfEnabledForVideo(currentPosition)
-                            }
+                            binding.viewPager.setCurrentItem(currentIndex, false)
+                            currentPosition = currentIndex
+                            previousPosition = currentPosition
+                            mediaViewerAdapter.setActivePosition(currentPosition)
+                            updateFileName(currentIndex)
+                            applyRememberedBrightnessIfEnabledForVideo(currentPosition)
                             // Hide loading indicator after content is ready
                             hideLoadingIndicator()
                         }
@@ -964,6 +978,25 @@ class MediaViewerActivity : AppCompatActivity() {
         } ?: run {
             // Fallback to single file if no parent path
             handleSingleMediaFile(filePath)
+        }
+    }
+
+    private fun findMediaItemIndexByPath(items: List<MediaItem>, targetPath: String): Int {
+        val directMatchIndex = items.indexOfFirst { item -> item.path == targetPath }
+        if (directMatchIndex >= 0) {
+            return directMatchIndex
+        }
+
+        val normalizedTargetPath = normalizeFilePath(targetPath)
+        return items.indexOfFirst { item -> normalizeFilePath(item.path) == normalizedTargetPath }
+    }
+
+    private fun normalizeFilePath(path: String): String {
+        val file = java.io.File(path)
+        return try {
+            file.canonicalPath
+        } catch (_: Exception) {
+            file.absolutePath
         }
     }
     

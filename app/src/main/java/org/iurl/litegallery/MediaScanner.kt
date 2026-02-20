@@ -50,7 +50,9 @@ class MediaScanner(private val context: Context) {
     
     suspend fun scanMediaInFolder(
         folderPath: String,
-        includeDeferredMetadata: Boolean = false
+        includeDeferredMetadata: Boolean = false,
+        includeVideoDuration: Boolean = true,
+        mergeFileSystemFallback: Boolean = true
     ): List<MediaItem> = withContext(Dispatchers.IO) {
         val items = mutableListOf<MediaItem>()
         
@@ -58,19 +60,21 @@ class MediaScanner(private val context: Context) {
         scanImagesInFolder(folderPath, items, includeDeferredMetadata)
         
         // Scan videos in folder
-        scanVideosInFolder(folderPath, items, includeDeferredMetadata)
+        scanVideosInFolder(folderPath, items, includeDeferredMetadata, includeVideoDuration)
         
-        // If MediaStore didn't find anything, try file system scan (for non-media folders)
-        if (items.isEmpty()) {
-            val fileSystemItems = fileSystemScanner.scanFolderForMedia(folderPath, ignoreNomedia = true)
-            items.addAll(fileSystemItems)
-        } else {
-            // Merge with file system results to get files not in MediaStore
-            val fileSystemItems = fileSystemScanner.scanFolderForMedia(folderPath, ignoreNomedia = true)
-            val existingPaths = items.map { it.path }.toSet()
-            fileSystemItems.forEach { item ->
-                if (!existingPaths.contains(item.path)) {
-                    items.add(item)
+        if (mergeFileSystemFallback) {
+            // If MediaStore didn't find anything, try file system scan (for non-media folders)
+            if (items.isEmpty()) {
+                val fileSystemItems = fileSystemScanner.scanFolderForMedia(folderPath, ignoreNomedia = true)
+                items.addAll(fileSystemItems)
+            } else {
+                // Merge with file system results to get files not in MediaStore
+                val fileSystemItems = fileSystemScanner.scanFolderForMedia(folderPath, ignoreNomedia = true)
+                val existingPaths = items.map { it.path }.toSet()
+                fileSystemItems.forEach { item ->
+                    if (!existingPaths.contains(item.path)) {
+                        items.add(item)
+                    }
                 }
             }
         }
@@ -293,28 +297,24 @@ class MediaScanner(private val context: Context) {
     private fun scanVideosInFolder(
         folderPath: String,
         items: MutableList<MediaItem>,
-        includeDeferredMetadata: Boolean
+        includeDeferredMetadata: Boolean,
+        includeVideoDuration: Boolean
     ) {
-        val projection = if (includeDeferredMetadata) {
-            arrayOf(
-                MediaStore.Video.Media.DISPLAY_NAME,
-                MediaStore.Video.Media.DATA,
-                MediaStore.Video.Media.DATE_MODIFIED,
-                MediaStore.Video.Media.MIME_TYPE,
-                MediaStore.Video.Media.DURATION,
-                MediaStore.Video.Media.SIZE,
-                MediaStore.Video.Media.WIDTH,
-                MediaStore.Video.Media.HEIGHT
-            )
-        } else {
-            arrayOf(
-                MediaStore.Video.Media.DISPLAY_NAME,
-                MediaStore.Video.Media.DATA,
-                MediaStore.Video.Media.DATE_MODIFIED,
-                MediaStore.Video.Media.MIME_TYPE,
-                MediaStore.Video.Media.DURATION
-            )
+        val projectionList = mutableListOf(
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.DATE_MODIFIED,
+            MediaStore.Video.Media.MIME_TYPE
+        )
+        if (includeVideoDuration) {
+            projectionList.add(MediaStore.Video.Media.DURATION)
         }
+        if (includeDeferredMetadata) {
+            projectionList.add(MediaStore.Video.Media.SIZE)
+            projectionList.add(MediaStore.Video.Media.WIDTH)
+            projectionList.add(MediaStore.Video.Media.HEIGHT)
+        }
+        val projection = projectionList.toTypedArray()
         
         val selection = "${MediaStore.Video.Media.DATA} LIKE ?"
         val selectionArgs = arrayOf("$folderPath%")
@@ -332,7 +332,11 @@ class MediaScanner(private val context: Context) {
             val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
             val dateColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
             val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
-            val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+            val durationColumn = if (includeVideoDuration) {
+                it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+            } else {
+                -1
+            }
             val sizeColumn = if (includeDeferredMetadata) {
                 it.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             } else {
@@ -366,7 +370,7 @@ class MediaScanner(private val context: Context) {
                         0
                     },
                     mimeType = it.getString(mimeColumn) ?: "video/*",
-                    duration = it.getLong(durationColumn),
+                    duration = if (includeVideoDuration) it.getLong(durationColumn).coerceAtLeast(0L) else 0L,
                     width = if (includeDeferredMetadata) it.getInt(widthColumn).coerceAtLeast(0) else 0,
                     height = if (includeDeferredMetadata) it.getInt(heightColumn).coerceAtLeast(0) else 0
                 )
