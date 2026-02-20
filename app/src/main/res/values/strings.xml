@@ -94,6 +94,7 @@
     <string name="select_all">Select All</string>
     <string name="clear_selection">Clear Selection</string>
     <string name="trash_auto_cleaned_count">Auto-cleaned %d expired trash files</string>
+    <string name="trash_reindexed_count">Re-indexed %d trash files</string>
 
     <!-- Settings -->
     <string name="display_settings">Display Settings</string>
