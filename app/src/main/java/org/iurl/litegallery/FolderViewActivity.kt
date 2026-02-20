@@ -116,14 +116,16 @@ class FolderViewActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        mediaAdapter = MediaAdapter { mediaItem, position ->
-            val intent = Intent(this, MediaViewerActivity::class.java).apply {
-                putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, mediaItem.path)
-                putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
-                putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
+        mediaAdapter = MediaAdapter(
+            onMediaClick = { mediaItem, position ->
+                val intent = Intent(this, MediaViewerActivity::class.java).apply {
+                    putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, mediaItem.path)
+                    putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
+                    putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
+                }
+                startActivity(intent)
             }
-            startActivity(intent)
-        }
+        )
 
         binding.recyclerView.adapter = mediaAdapter
 
