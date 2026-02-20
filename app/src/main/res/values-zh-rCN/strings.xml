@@ -110,6 +110,8 @@
     <string name="action_bar_settings">操作栏设置</string>
     <string name="general_settings">常规设置</string>
     <string name="default_view_mode">默认视图模式</string>
+    <string name="remember_folder_view_mode_title">记忆文件夹视图模式</string>
+    <string name="remember_folder_view_mode_summary">下次打开文件夹时使用上次选择的视图模式</string>
     <string name="customize_action_bar_summary">自定义按钮顺序和可见性</string>
     <string name="restore_brightness_title">还原亮度</string>
     <string name="restore_brightness_summary">退出应用时还原原始亮度</string>

@@ -21,6 +21,8 @@ class SettingsExportImportHelper(private val context: Context) {
             // Display Settings
             "default_sort_order",
             "default_view_mode",
+            "remember_folder_view_mode",
+            "last_folder_view_mode",
             "filename_max_lines",
             "zoom_max_scale",
 
