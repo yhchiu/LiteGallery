@@ -418,10 +418,10 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun applyActionBarCustomization() {
-        val prefs = getSharedPreferences("action_bar_prefs", MODE_PRIVATE)
-        val defaultOrder = listOf("delete", "share", "edit", "rename", "rotate_screen", "properties", "rotate_photo", "copy", "move", "reload_video")
-        val order = (prefs.getString("order", null)?.split(',')?.filter { it.isNotBlank() } ?: defaultOrder)
-        val visible = (prefs.getString("visible", null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: defaultOrder.toSet())
+        val prefs = getSharedPreferences(ActionBarPreferences.PREFS_NAME, MODE_PRIVATE)
+        val defaultOrder = ActionBarPreferences.DEFAULT_ACTION_ORDER
+        val order = (prefs.getString(ActionBarPreferences.KEY_ORDER, null)?.split(',')?.filter { it.isNotBlank() } ?: defaultOrder)
+        val visible = (prefs.getString(ActionBarPreferences.KEY_VISIBLE, null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: defaultOrder.toSet())
 
         val container = binding.actionButtonsContainer
         container.removeAllViews()
