@@ -3,14 +3,12 @@ package org.iurl.litegallery
 import android.content.Context
 import android.graphics.Matrix
 import android.graphics.RectF
-import android.os.Build
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.TextureView
 import android.view.ViewConfiguration
-import android.view.WindowInsets
 import androidx.media3.ui.PlayerView
 import androidx.preference.PreferenceManager
 import kotlin.math.*
@@ -20,6 +18,11 @@ class ZoomablePlayerView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : PlayerView(context, attrs, defStyleAttr) {
+
+    companion object {
+        // Tolerance for float rounding errors when clamping edges.
+        private const val EDGE_EPSILON_PX = 1.5f
+    }
 
     // Zoom limits
     private val minScale = 1f
@@ -199,6 +202,13 @@ class ZoomablePlayerView @JvmOverloads constructor(
         videoHeight = height.toFloat()
         recomputeBaseContentSize()
         resetZoom()
+        // Re-apply constraints after PlayerView children complete layout.
+        post {
+            if (videoWidth > 0f && videoHeight > 0f) {
+                constrainTransform()
+                applyTransformToVideoSurface()
+            }
+        }
     }
     
     private fun applyTransformToVideoSurface() {
@@ -269,30 +279,41 @@ class ZoomablePlayerView @JvmOverloads constructor(
         return null
     }
 
-    private fun getSurfaceGeometry(): SurfaceGeometry {
-        val contentFrame = findViewById<android.view.View>(androidx.media3.ui.R.id.exo_content_frame)
-        if (contentFrame != null) {
-            val frameWidth = contentFrame.width.toFloat()
-            val frameHeight = contentFrame.height.toFloat()
-            if (frameWidth > 0f && frameHeight > 0f) {
-                if (baseContentWidth > 0f && baseContentHeight > 0f &&
-                    baseContentWidth <= frameWidth + 1f && baseContentHeight <= frameHeight + 1f
-                ) {
-                    return SurfaceGeometry(
-                        width = baseContentWidth,
-                        height = baseContentHeight,
-                        offsetX = contentFrame.x + (frameWidth - baseContentWidth) * 0.5f,
-                        offsetY = contentFrame.y + (frameHeight - baseContentHeight) * 0.5f
-                    )
-                }
+    private fun getContentFrameRect(): RectF? {
+        val contentFrame = findViewById<android.view.View>(androidx.media3.ui.R.id.exo_content_frame) ?: return null
+        val frameWidth = contentFrame.width.toFloat()
+        val frameHeight = contentFrame.height.toFloat()
+        if (frameWidth <= 0f || frameHeight <= 0f) return null
+        return RectF(
+            contentFrame.x,
+            contentFrame.y,
+            contentFrame.x + frameWidth,
+            contentFrame.y + frameHeight
+        )
+    }
 
-                return SurfaceGeometry(
-                    width = frameWidth,
-                    height = frameHeight,
-                    offsetX = contentFrame.x,
-                    offsetY = contentFrame.y
-                )
-            }
+    private fun getSurfaceGeometry(): SurfaceGeometry {
+        getContentFrameRect()?.let { frameRect ->
+            val frameWidth = frameRect.width()
+            val frameHeight = frameRect.height()
+            val contentWidth =
+                if (baseContentWidth > 0f && baseContentWidth <= frameWidth + EDGE_EPSILON_PX) {
+                    baseContentWidth
+                } else {
+                    frameWidth
+                }
+            val contentHeight =
+                if (baseContentHeight > 0f && baseContentHeight <= frameHeight + EDGE_EPSILON_PX) {
+                    baseContentHeight
+                } else {
+                    frameHeight
+                }
+            return SurfaceGeometry(
+                width = contentWidth.coerceAtLeast(1f),
+                height = contentHeight.coerceAtLeast(1f),
+                offsetX = frameRect.left + (frameWidth - contentWidth) * 0.5f,
+                offsetY = frameRect.top + (frameHeight - contentHeight) * 0.5f
+            )
         }
 
         val surface = findVideoSurface(this)
@@ -301,7 +322,8 @@ class ZoomablePlayerView @JvmOverloads constructor(
             val surfaceHeight = surface.height.toFloat()
             if (surfaceWidth > 0f && surfaceHeight > 0f) {
                 if (baseContentWidth > 0f && baseContentHeight > 0f &&
-                    baseContentWidth <= surfaceWidth + 1f && baseContentHeight <= surfaceHeight + 1f
+                    baseContentWidth <= surfaceWidth + EDGE_EPSILON_PX &&
+                    baseContentHeight <= surfaceHeight + EDGE_EPSILON_PX
                 ) {
                     return SurfaceGeometry(
                         width = baseContentWidth,
@@ -338,38 +360,14 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
     
     private fun getViewportRect(): RectF {
+        getContentFrameRect()?.let { return it }
+
         val fullWidth = viewBounds.width()
         val fullHeight = viewBounds.height()
         if (fullWidth <= 0f || fullHeight <= 0f) {
             return RectF(0f, 0f, fullWidth, fullHeight)
         }
-
-        var insetLeft = 0f
-        var insetRight = 0f
-        var insetBottom = 0f
-
-        val insets = rootWindowInsets
-        if (insets != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val navInsets = insets.getInsets(WindowInsets.Type.navigationBars())
-                insetLeft = navInsets.left.toFloat()
-                insetRight = navInsets.right.toFloat()
-                insetBottom = navInsets.bottom.toFloat()
-            } else {
-                @Suppress("DEPRECATION")
-                run {
-                    insetLeft = insets.systemWindowInsetLeft.toFloat()
-                    insetRight = insets.systemWindowInsetRight.toFloat()
-                    insetBottom = insets.systemWindowInsetBottom.toFloat()
-                }
-            }
-        }
-
-        val left = insetLeft.coerceAtLeast(0f)
-        val top = 0f
-        val right = (fullWidth - insetRight).coerceAtLeast(left + 1f)
-        val bottom = (fullHeight - insetBottom).coerceAtLeast(top + 1f)
-        return RectF(left, top, right, bottom)
+        return RectF(0f, 0f, fullWidth, fullHeight)
     }
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -689,27 +687,33 @@ class ZoomablePlayerView @JvmOverloads constructor(
         val viewportH = viewportRect.height()
 
         // Horizontal constraint
-        if (mappedRect.width() <= viewportW) {
+        if (mappedRect.width() <= viewportW + EDGE_EPSILON_PX) {
             // Center horizontally in visible viewport
             val targetLeft = viewportRect.left + (viewportW - mappedRect.width()) / 2f
-            deltaX = targetLeft - mappedRect.left
+            val offset = targetLeft - mappedRect.left
+            if (abs(offset) > EDGE_EPSILON_PX) {
+                deltaX = offset
+            }
         } else {
-            if (mappedRect.left > viewportRect.left) {
+            if (mappedRect.left > viewportRect.left + EDGE_EPSILON_PX) {
                 deltaX = viewportRect.left - mappedRect.left
-            } else if (mappedRect.right < viewportRect.right) {
+            } else if (mappedRect.right < viewportRect.right - EDGE_EPSILON_PX) {
                 deltaX = viewportRect.right - mappedRect.right
             }
         }
 
         // Vertical constraint
-        if (mappedRect.height() <= viewportH) {
+        if (mappedRect.height() <= viewportH + EDGE_EPSILON_PX) {
             // Center vertically in visible viewport
             val targetTop = viewportRect.top + (viewportH - mappedRect.height()) / 2f
-            deltaY = targetTop - mappedRect.top
+            val offset = targetTop - mappedRect.top
+            if (abs(offset) > EDGE_EPSILON_PX) {
+                deltaY = offset
+            }
         } else {
-            if (mappedRect.top > viewportRect.top) {
+            if (mappedRect.top > viewportRect.top + EDGE_EPSILON_PX) {
                 deltaY = viewportRect.top - mappedRect.top
-            } else if (mappedRect.bottom < viewportRect.bottom) {
+            } else if (mappedRect.bottom < viewportRect.bottom - EDGE_EPSILON_PX) {
                 deltaY = viewportRect.bottom - mappedRect.bottom
             }
         }
@@ -813,4 +817,3 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
 
 }
-
