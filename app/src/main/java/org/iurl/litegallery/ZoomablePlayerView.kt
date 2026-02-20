@@ -198,8 +198,15 @@ class ZoomablePlayerView @JvmOverloads constructor(
     }
     
     fun setVideoSize(width: Int, height: Int) {
-        videoWidth = width.toFloat()
-        videoHeight = height.toFloat()
+        if (width <= 0 || height <= 0) return
+
+        val newWidth = width.toFloat()
+        val newHeight = height.toFloat()
+        val sizeChanged = videoWidth != newWidth || videoHeight != newHeight
+        if (!sizeChanged) return
+
+        videoWidth = newWidth
+        videoHeight = newHeight
         recomputeBaseContentSize()
         resetZoom()
         // Re-apply constraints after PlayerView children complete layout.

@@ -26,6 +26,7 @@ class VideoViewHolder(
     private var boundMediaItem: org.iurl.litegallery.MediaItem? = null
     private var hasBeenPlayed = false
     private var isPlayerReady = false
+    private var hasRenderedFrame = false
     private var isActive = false
     var isInvalidVideo = false
         private set
@@ -77,6 +78,7 @@ class VideoViewHolder(
         retryCount = 0
         isInvalidVideo = false
         hasBeenPlayed = false
+        hasRenderedFrame = false
         PlaybackDiagnostics.recordManualReload(binding.root.context, boundMediaItem?.path)
         if (!isActive) {
             isActive = true
@@ -129,6 +131,7 @@ class VideoViewHolder(
 
         hasBeenPlayed = player.currentPosition > 0L
         isPlayerReady = player.playbackState == Player.STATE_READY
+        hasRenderedFrame = isPlayerReady || player.currentPosition > 0L
         if (isPlayerReady) {
             showReadyUi()
         } else {
@@ -171,6 +174,7 @@ class VideoViewHolder(
         }
 
         isPlayerReady = false
+        hasRenderedFrame = false
         showLoadingUi()
 
         val mediaUri = if (item.path.startsWith("content://")) {
@@ -186,16 +190,18 @@ class VideoViewHolder(
     }
 
     private fun showLoadingUi() {
-        binding.videoThumbnail?.visibility = View.VISIBLE
+        binding.videoThumbnail?.visibility = if (hasRenderedFrame) View.GONE else View.VISIBLE
         binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
     }
 
     private fun showReadyUi() {
+        hasRenderedFrame = true
         binding.videoThumbnail?.visibility = View.GONE
         binding.playButton?.visibility = if (hasBeenPlayed) View.GONE else View.VISIBLE
     }
 
     private fun showInvalidUi() {
+        hasRenderedFrame = false
         binding.videoThumbnail?.visibility = View.VISIBLE
         binding.playButton?.visibility = View.GONE
     }
@@ -221,6 +227,8 @@ class VideoViewHolder(
             }
 
             Player.STATE_IDLE -> {
+                isPlayerReady = false
+                hasRenderedFrame = false
                 showLoadingUi()
             }
         }
