@@ -107,6 +107,8 @@
     <string name="customize_action_bar_summary">自定义按钮顺序和可见性</string>
     <string name="restore_brightness_title">还原亮度</string>
     <string name="restore_brightness_summary">退出应用时还原原始亮度</string>
+    <string name="remember_video_brightness_title">记忆视频亮度</string>
+    <string name="remember_video_brightness_summary">下次播放视频时使用上次调整的亮度</string>
     <string name="restore_volume_title">还原音量</string>
     <string name="restore_volume_summary">退出应用时还原原始音量</string>
     <string name="playback_diagnostics_setting_title">启用播放诊断</string>

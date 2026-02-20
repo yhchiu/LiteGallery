@@ -152,6 +152,12 @@
             android:title="@string/restore_brightness_title" />
 
         <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="remember_video_brightness"
+            android:summary="@string/remember_video_brightness_summary"
+            android:title="@string/remember_video_brightness_title" />
+
+        <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="restore_volume"
             android:summary="@string/restore_volume_summary"
