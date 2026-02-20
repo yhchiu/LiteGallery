@@ -10,24 +10,29 @@ import java.io.File
 class MediaScanner(private val context: Context) {
     
     private val fileSystemScanner = FileSystemScanner(context)
+
+    private data class FolderAggregate(
+        var itemCount: Int = 0,
+        var thumbnailPath: String? = null,
+        var latestDateModifiedMs: Long = Long.MIN_VALUE
+    )
     
     suspend fun scanMediaFolders(): List<MediaFolder> = withContext(Dispatchers.IO) {
-        val folders = mutableMapOf<String, MutableList<MediaItem>>()
+        val folders = mutableMapOf<String, FolderAggregate>()
         
-        // Scan images
-        scanImages(folders)
+        // Lightweight scan for folder list: only count items and keep a representative thumbnail path.
+        scanImagesForFolderList(folders)
         
-        // Scan videos
-        scanVideos(folders)
+        scanVideosForFolderList(folders)
 
         if (folders.isNotEmpty()) {
-            return@withContext folders.map { (path, items) ->
+            return@withContext folders.map { (path, aggregate) ->
                 val folderFile = File(path)
                 MediaFolder(
                     name = folderFile.name,
                     path = path,
-                    itemCount = items.size,
-                    thumbnail = items.firstOrNull()?.path
+                    itemCount = aggregate.itemCount,
+                    thumbnail = aggregate.thumbnailPath
                 )
             }.sortedBy { it.name }
         }
@@ -67,16 +72,10 @@ class MediaScanner(private val context: Context) {
         items.sortedByDescending { it.dateModified }
     }
     
-    private fun scanImages(folders: MutableMap<String, MutableList<MediaItem>>) {
+    private fun scanImagesForFolderList(folders: MutableMap<String, FolderAggregate>) {
         val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.MIME_TYPE,
-            MediaStore.Images.Media.WIDTH,
-            MediaStore.Images.Media.HEIGHT
+            MediaStore.Images.Media.DATE_MODIFIED
         )
         
         val cursor: Cursor? = context.contentResolver.query(
@@ -88,13 +87,8 @@ class MediaScanner(private val context: Context) {
         )
         
         cursor?.use {
-            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val dataColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
             val dateColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
-            val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-            val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
-            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
-            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
             
             while (it.moveToNext()) {
                 val path = it.getString(dataColumn)
@@ -102,33 +96,17 @@ class MediaScanner(private val context: Context) {
                 val folderPath = file.parent ?: continue
                 
                 if (!file.exists() || isTrashedFile(file)) continue
-                
-                val mediaItem = MediaItem(
-                    name = it.getString(nameColumn),
-                    path = path,
-                    dateModified = it.getLong(dateColumn) * 1000,
-                    size = it.getLong(sizeColumn),
-                    mimeType = it.getString(mimeColumn) ?: "image/*",
-                    width = it.getInt(widthColumn),
-                    height = it.getInt(heightColumn)
-                )
-                
-                folders.getOrPut(folderPath) { mutableListOf() }.add(mediaItem)
+
+                val dateModifiedMs = it.getLong(dateColumn) * 1000
+                updateFolderAggregate(folders, folderPath, path, dateModifiedMs)
             }
         }
     }
     
-    private fun scanVideos(folders: MutableMap<String, MutableList<MediaItem>>) {
+    private fun scanVideosForFolderList(folders: MutableMap<String, FolderAggregate>) {
         val projection = arrayOf(
-            MediaStore.Video.Media._ID,
-            MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.DATE_MODIFIED,
-            MediaStore.Video.Media.SIZE,
-            MediaStore.Video.Media.MIME_TYPE,
-            MediaStore.Video.Media.DURATION,
-            MediaStore.Video.Media.WIDTH,
-            MediaStore.Video.Media.HEIGHT
+            MediaStore.Video.Media.DATE_MODIFIED
         )
         
         val cursor: Cursor? = context.contentResolver.query(
@@ -140,14 +118,8 @@ class MediaScanner(private val context: Context) {
         )
         
         cursor?.use {
-            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
             val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
             val dateColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
-            val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-            val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
-            val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
-            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
             
             while (it.moveToNext()) {
                 val path = it.getString(dataColumn)
@@ -155,20 +127,24 @@ class MediaScanner(private val context: Context) {
                 val folderPath = file.parent ?: continue
                 
                 if (!file.exists() || isTrashedFile(file)) continue
-                
-                val mediaItem = MediaItem(
-                    name = it.getString(nameColumn),
-                    path = path,
-                    dateModified = it.getLong(dateColumn) * 1000,
-                    size = it.getLong(sizeColumn),
-                    mimeType = it.getString(mimeColumn) ?: "video/*",
-                    duration = it.getLong(durationColumn),
-                    width = it.getInt(widthColumn),
-                    height = it.getInt(heightColumn)
-                )
-                
-                folders.getOrPut(folderPath) { mutableListOf() }.add(mediaItem)
+
+                val dateModifiedMs = it.getLong(dateColumn) * 1000
+                updateFolderAggregate(folders, folderPath, path, dateModifiedMs)
             }
+        }
+    }
+
+    private fun updateFolderAggregate(
+        folders: MutableMap<String, FolderAggregate>,
+        folderPath: String,
+        mediaPath: String,
+        dateModifiedMs: Long
+    ) {
+        val aggregate = folders.getOrPut(folderPath) { FolderAggregate() }
+        aggregate.itemCount += 1
+        if (aggregate.thumbnailPath == null || dateModifiedMs > aggregate.latestDateModifiedMs) {
+            aggregate.thumbnailPath = mediaPath
+            aggregate.latestDateModifiedMs = dateModifiedMs
         }
     }
     
