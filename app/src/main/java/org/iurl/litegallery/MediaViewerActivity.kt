@@ -24,6 +24,10 @@ class MediaViewerActivity : AppCompatActivity() {
         // Delete/Trash constants
         private const val DELETE_PREFS = "delete_prefs"
         private const val DELETE_MOVE_TO_TRASH_KEY = "delete_move_to_trash"
+
+        // Video brightness memory preference keys
+        private const val REMEMBER_VIDEO_BRIGHTNESS_KEY = "remember_video_brightness"
+        private const val SAVED_VIDEO_BRIGHTNESS_KEY = "saved_video_brightness"
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -112,6 +116,7 @@ class MediaViewerActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         mediaViewerAdapter.setActivePosition(currentPosition)
+        applyRememberedBrightnessIfEnabledForVideo(currentPosition)
         // Re-initialize players if user returns to the app (remain paused)
         prepareVisibleVideosIfNeeded()
         // Resume progress updates only if UI is visible and current item is a video
@@ -297,6 +302,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 // Reset progress bar when switching to a video (will be updated when player is ready)
                 if (position < mediaItems.size && mediaItems[position].isVideo) {
                     resetVideoProgress()
+                    applyRememberedBrightnessIfEnabledForVideo(position)
                 }
             }
             
@@ -694,6 +700,7 @@ class MediaViewerActivity : AppCompatActivity() {
                             binding.viewPager.setCurrentItem(currentPosition, false)
                             mediaViewerAdapter.setActivePosition(currentPosition)
                             updateFileName(currentPosition)
+                            applyRememberedBrightnessIfEnabledForVideo(currentPosition)
                         } else {
                             mediaViewerAdapter.setActivePosition(androidx.recyclerview.widget.RecyclerView.NO_POSITION)
                         }
@@ -744,6 +751,7 @@ class MediaViewerActivity : AppCompatActivity() {
         mediaViewerAdapter.submitList(mediaItems) {
             currentPosition = 0
             mediaViewerAdapter.setActivePosition(currentPosition)
+            applyRememberedBrightnessIfEnabledForVideo(currentPosition)
         }
     }
     
@@ -770,6 +778,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 mediaViewerAdapter.submitList(mediaItems) {
                     currentPosition = 0
                     mediaViewerAdapter.setActivePosition(currentPosition)
+                    applyRememberedBrightnessIfEnabledForVideo(currentPosition)
                     // Hide loading after content is ready
                     hideLoadingIndicator()
                 }
@@ -800,6 +809,7 @@ class MediaViewerActivity : AppCompatActivity() {
                                 previousPosition = currentPosition
                                 mediaViewerAdapter.setActivePosition(currentPosition)
                                 updateFileName(currentIndex)
+                                applyRememberedBrightnessIfEnabledForVideo(currentPosition)
                             }
                             // Hide loading indicator after content is ready
                             hideLoadingIndicator()
@@ -1889,12 +1899,40 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
-    private fun setBrightness(brightness: Float) {
+    private fun applyRememberedBrightnessIfEnabledForVideo(position: Int) {
+        if (position !in mediaItems.indices || !mediaItems[position].isVideo) return
+
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val shouldRemember = prefs.getBoolean(REMEMBER_VIDEO_BRIGHTNESS_KEY, false)
+        if (!shouldRemember || !prefs.contains(SAVED_VIDEO_BRIGHTNESS_KEY)) return
+
+        val rememberedBrightness = prefs.getFloat(SAVED_VIDEO_BRIGHTNESS_KEY, -1f)
+        if (rememberedBrightness !in 0.1f..1.0f) return
+
+        setBrightness(rememberedBrightness, persistIfEnabled = false)
+    }
+
+    private fun saveRememberedBrightnessIfEnabled(brightness: Float) {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(REMEMBER_VIDEO_BRIGHTNESS_KEY, false)) return
+
+        val currentSaved = prefs.getFloat(SAVED_VIDEO_BRIGHTNESS_KEY, -1f)
+        if (kotlin.math.abs(currentSaved - brightness) < 0.001f) return
+
+        prefs.edit().putFloat(SAVED_VIDEO_BRIGHTNESS_KEY, brightness).apply()
+    }
+
+    private fun setBrightness(brightness: Float, persistIfEnabled: Boolean = true) {
+        val clampedBrightness = brightness.coerceIn(0.1f, 1.0f)
         val layoutParams = window.attributes
-        layoutParams.screenBrightness = brightness.coerceIn(0.1f, 1.0f)
+        layoutParams.screenBrightness = clampedBrightness
         window.attributes = layoutParams
 
-        android.util.Log.d("MediaViewerActivity", "Brightness set to: $brightness")
+        if (persistIfEnabled) {
+            saveRememberedBrightnessIfEnabled(clampedBrightness)
+        }
+
+        android.util.Log.d("MediaViewerActivity", "Brightness set to: $clampedBrightness")
     }
 
     private fun setVolume(volume: Float) {

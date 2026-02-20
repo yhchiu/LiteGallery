@@ -40,6 +40,8 @@ class SettingsExportImportHelper(private val context: Context) {
             "theme_preference",
             "color_theme_preference",
             "restore_brightness",
+            "remember_video_brightness",
+            "saved_video_brightness",
             "restore_volume",
             "enable_playback_diagnostics",
             "trash_retention_days"
