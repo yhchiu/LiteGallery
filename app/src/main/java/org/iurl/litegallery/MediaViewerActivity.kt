@@ -1504,8 +1504,11 @@ class MediaViewerActivity : AppCompatActivity() {
         val orderDescButton = dialogView.findViewById<android.widget.ImageButton>(R.id.orderDescButton)
         val closeButton = dialogView.findViewById<android.widget.Button>(R.id.closeButton)
 
-        // Prepare adapters for spinners (Chinese labels per requirement)
-        val sortKeyOptions = listOf("??", "??", "??(敹賜?望摮?")
+        val sortKeyOptions = listOf(
+            getString(R.string.rename_sort_key_time),
+            getString(R.string.rename_sort_key_text),
+            getString(R.string.rename_sort_key_text_ignore_alphanum)
+        )
         // Use dropdown layout for better visibility in dialogs
         sortKeySpinner.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sortKeyOptions).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -1613,16 +1616,16 @@ class MediaViewerActivity : AppCompatActivity() {
 
             fun sorted(list: List<String>): List<String> {
                 return when (sortKeyIndex) {
-                    0 -> { // ??
-                        if (orderIndex == 0) list // ?: newest -> oldest (stored order)
-                        else list.asReversed()    // ?: oldest -> newest
+                    0 -> { // Time
+                        if (orderIndex == 0) list // Newest -> oldest (stored order)
+                        else list.asReversed()    // Oldest -> newest
                     }
-                    1 -> { // ??
+                    1 -> { // Text
                         val cmp = compareBy<String> { it.lowercase() }
                         val s = list.sortedWith(cmp)
                         if (orderIndex == 0) s.asReversed() else s
                     }
-                    2 -> { // ??(敹賜?望摮?
+                    2 -> { // Text (ignore numbers)
                         val regex = "[A-Za-z0-9]".toRegex()
                         val cmp = compareBy<String> { it.replace(regex, "").lowercase() }
                         val s = list.sortedWith(cmp)
@@ -1636,7 +1639,7 @@ class MediaViewerActivity : AppCompatActivity() {
             val sortedSuffixes = sorted(currentSuffixes)
 
             if (sortedPrefixes.isNotEmpty()) {
-                optionsList.add(RenameOption("--- PREFIXES ---", null, isHeader = true))
+                optionsList.add(RenameOption(getString(R.string.rename_options_header_prefixes), null, isHeader = true))
                 sortedPrefixes.forEach { prefix ->
                     optionsList.add(RenameOption(prefix, { name -> prefix + name }, isPrefix = true))
                 }
@@ -1646,7 +1649,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 if (optionsList.isNotEmpty()) {
                     optionsList.add(RenameOption("", null, isSeparator = true))
                 }
-                optionsList.add(RenameOption("--- SUFFIXES ---", null, isHeader = true))
+                optionsList.add(RenameOption(getString(R.string.rename_options_header_suffixes), null, isHeader = true))
                 sortedSuffixes.forEach { suffix ->
                     optionsList.add(RenameOption(suffix, { name -> name + suffix }, isPrefix = false))
                 }
@@ -1690,10 +1693,15 @@ class MediaViewerActivity : AppCompatActivity() {
                 var actionHandled = false
                 
                 // Show confirmation dialog
+                val categoryLabel = if (option.isPrefix) {
+                    getString(R.string.rename_option_category_prefix)
+                } else {
+                    getString(R.string.rename_option_category_suffix)
+                }
                 android.app.AlertDialog.Builder(this@MediaViewerActivity)
-                    .setTitle("Delete Rename Option")
-                    .setMessage("Delete \"${option.text}\" from ${if (option.isPrefix) "prefixes" else "suffixes"}?")
-                    .setPositiveButton("Delete") { _, _ ->
+                    .setTitle(R.string.rename_option_delete_title)
+                    .setMessage(getString(R.string.rename_option_delete_message, option.text, categoryLabel))
+                    .setPositiveButton(R.string.delete) { _, _ ->
                         actionHandled = true
                         // Remove from the appropriate list
                         if (option.isPrefix) {
@@ -1709,7 +1717,7 @@ class MediaViewerActivity : AppCompatActivity() {
                         // Refresh the list
                         refresh()
                     }
-                    .setNegativeButton("Cancel") { _, _ ->
+                    .setNegativeButton(R.string.cancel) { _, _ ->
                         actionHandled = true
                         // Restore the item by refreshing the entire list to ensure proper state
                         refresh()
@@ -1747,7 +1755,7 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Quick Rename Options")
+            .setTitle(R.string.quick_rename_options_title)
             .setView(dialogView)
             .create()
 
@@ -1758,9 +1766,17 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun showPrefixSuffixDialog(editText: android.widget.EditText, originalName: String, isPrefix: Boolean, existingItems: List<String>) {
         val input = android.widget.EditText(this)
-        input.hint = if (isPrefix) "Enter prefix to add" else "Enter suffix to add"
+        input.hint = if (isPrefix) {
+            getString(R.string.rename_add_prefix_hint)
+        } else {
+            getString(R.string.rename_add_suffix_hint)
+        }
         
-        val dialogTitle = if (isPrefix) "Add Prefix" else "Add Suffix"
+        val dialogTitle = if (isPrefix) {
+            getString(R.string.rename_add_prefix_title)
+        } else {
+            getString(R.string.rename_add_suffix_title)
+        }
         val previewText = android.widget.TextView(this)
         previewText.textSize = 14f
         previewText.setPadding(0, 16, 0, 0)
@@ -1778,7 +1794,7 @@ class MediaViewerActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val preview = if (isPrefix) "${s}$originalName" else "$originalName$s"
-                previewText.text = "Preview: $preview"
+                previewText.text = getString(R.string.rename_preview_format, preview)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })

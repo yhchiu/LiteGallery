@@ -149,8 +149,23 @@
     
     <!-- Quick Rename Settings -->
     <string name="quick_rename_settings">Quick Rename Settings</string>
+    <string name="quick_rename_options_title">Quick Rename Options</string>
     <string name="rename_history_count">History Count</string>
     <string name="rename_default_sort">Default Sort Order</string>
+    <string name="rename_sort_key_time">Time</string>
+    <string name="rename_sort_key_text">Text</string>
+    <string name="rename_sort_key_text_ignore_alphanum">Text (Ignore Numbers)</string>
+    <string name="rename_options_header_prefixes">--- PREFIXES ---</string>
+    <string name="rename_options_header_suffixes">--- SUFFIXES ---</string>
+    <string name="rename_option_delete_title">Delete Rename Option</string>
+    <string name="rename_option_delete_message">Delete "%1$s" from %2$s?</string>
+    <string name="rename_option_category_prefix">prefixes</string>
+    <string name="rename_option_category_suffix">suffixes</string>
+    <string name="rename_add_prefix_hint">Enter prefix to add</string>
+    <string name="rename_add_suffix_hint">Enter suffix to add</string>
+    <string name="rename_add_prefix_title">Add Prefix</string>
+    <string name="rename_add_suffix_title">Add Suffix</string>
+    <string name="rename_preview_format">Preview: %1$s</string>
     <string name="time_descending">Time (Newest First)</string>
     <string name="time_ascending">Time (Oldest First)</string>
     <string name="text_ascending">Text (A-Z)</string>
