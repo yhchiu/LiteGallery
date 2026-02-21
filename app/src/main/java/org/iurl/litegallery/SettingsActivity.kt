@@ -402,18 +402,13 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun setupAdvancedStorageAccessListener() {
-            findPreference<androidx.preference.SwitchPreferenceCompat>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
-                ?.setOnPreferenceChangeListener { _, newValue ->
-                    val enabled = newValue as? Boolean ?: false
-                    if (!enabled) return@setOnPreferenceChangeListener true
-                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return@setOnPreferenceChangeListener true
-
-                    if (openAdvancedAllFilesSettings()) {
-                        true
-                    } else {
+            findPreference<androidx.preference.Preference>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
+                ?.setOnPreferenceClickListener {
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return@setOnPreferenceClickListener true
+                    if (!openAdvancedAllFilesSettings()) {
                         showToast(getString(R.string.advanced_full_storage_open_failed))
-                        false
                     }
+                    true
                 }
         }
 
@@ -430,7 +425,7 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun updateAdvancedStorageAccessSummary() {
             val preference =
-                findPreference<androidx.preference.SwitchPreferenceCompat>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
+                findPreference<androidx.preference.Preference>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
                     ?: return
 
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
@@ -438,12 +433,11 @@ class SettingsActivity : AppCompatActivity() {
                 return
             }
 
-            val requested = preference.isChecked
             val granted = android.os.Environment.isExternalStorageManager()
-            preference.summary = when {
-                requested && granted -> getString(R.string.advanced_full_storage_mode_summary_enabled)
-                requested -> getString(R.string.advanced_full_storage_mode_summary_permission_missing)
-                else -> getString(R.string.advanced_full_storage_mode_summary)
+            preference.summary = if (granted) {
+                getString(R.string.advanced_full_storage_mode_summary_enabled)
+            } else {
+                getString(R.string.advanced_full_storage_mode_summary_permission_missing)
             }
         }
 

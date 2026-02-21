@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -329,13 +328,7 @@ class MediaScanner(private val context: Context) {
 
     private fun canUseDeepFileSystemFallback(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
-        if (!isAdvancedFullStorageModeEnabled()) return false
         return Environment.isExternalStorageManager()
-    }
-
-    private fun isAdvancedFullStorageModeEnabled(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        return prefs.getBoolean(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE, false)
     }
 
     private fun resolveAbsolutePathFromRelative(relativePath: String?, displayName: String?): String? {
