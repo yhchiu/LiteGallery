@@ -202,7 +202,7 @@ class MediaScanner(private val context: Context) {
             projection,
             null,
             null,
-            MediaStore.Images.Media.DATE_MODIFIED + " DESC"
+            null
         )
         
         cursor?.use {
@@ -246,7 +246,7 @@ class MediaScanner(private val context: Context) {
             projection,
             null,
             null,
-            MediaStore.Video.Media.DATE_MODIFIED + " DESC"
+            null
         )
         
         cursor?.use {
