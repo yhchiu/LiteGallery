@@ -40,8 +40,6 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val REMEMBER_VIDEO_BRIGHTNESS_KEY = "remember_video_brightness"
         private const val SAVED_VIDEO_BRIGHTNESS_KEY = "saved_video_brightness"
 
-        // External intent folder-access prompt behavior
-        private const val EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED_KEY = "external_folder_access_prompt_enabled"
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -1362,7 +1360,11 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         if (hasPromptedExternalFolderAccessForCurrentIntent) return
-        if (!shouldShowExternalFolderAccessPrompt()) return
+        if (!shouldShowExternalFolderAccessPrompt()) {
+            hasPromptedExternalFolderAccessForCurrentIntent = true
+            showExternalFolderAccessCancelledToast()
+            return
+        }
         hasPromptedExternalFolderAccessForCurrentIntent = true
         promptExternalFolderAccess(uri, targetName)
     }
@@ -1384,20 +1386,29 @@ class MediaViewerActivity : AppCompatActivity() {
             }
             .setNegativeButton(R.string.cancel) { _, _ ->
                 saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
+                showExternalFolderAccessCancelledToast()
             }
             .create()
 
         dialog.show()
     }
 
+    private fun showExternalFolderAccessCancelledToast() {
+        android.widget.Toast.makeText(
+            this,
+            R.string.external_folder_access_cancelled,
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
     private fun shouldShowExternalFolderAccessPrompt(): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        return prefs.getBoolean(EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED_KEY, true)
+        return prefs.getBoolean(StorageAccessPreferences.KEY_EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED, true)
     }
 
     private fun saveShouldShowExternalFolderAccessPrompt(shouldShow: Boolean) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        prefs.edit().putBoolean(EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED_KEY, shouldShow).apply()
+        prefs.edit().putBoolean(StorageAccessPreferences.KEY_EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED, shouldShow).apply()
     }
 
     private fun applyTreeFolderContinuation(
