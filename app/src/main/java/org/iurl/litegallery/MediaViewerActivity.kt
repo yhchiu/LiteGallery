@@ -59,6 +59,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private var pendingExternalFolderTargetUri: android.net.Uri? = null
     private var pendingExternalFolderTargetName: String? = null
     private var hasPromptedExternalFolderAccessForCurrentIntent = false
+    private var pendingDeleteUserAction: PendingDeleteUserAction? = null
 
     private val openExternalFolderTreeLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -76,7 +77,8 @@ class MediaViewerActivity : AppCompatActivity() {
         try {
             contentResolver.takePersistableUriPermission(
                 treeUri,
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         } catch (_: Exception) {
             // Keep going; provider may already have a persisted grant.
@@ -84,6 +86,38 @@ class MediaViewerActivity : AppCompatActivity() {
 
         ExternalFolderGrantStore.rememberTreeUriForContentUri(this, targetUri, treeUri)
         applyTreeFolderContinuation(treeUri, targetUri, targetName)
+    }
+
+    private val deleteUserActionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val pending = pendingDeleteUserAction
+        pendingDeleteUserAction = null
+        if (pending == null) return@registerForActivityResult
+
+        if (result.resultCode == RESULT_OK) {
+            lifecycleScope.launch {
+                val requiresRetry = android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.Q
+                val postActionSuccess = if (requiresRetry) {
+                    withContext(Dispatchers.IO) {
+                        when (pending.actionType) {
+                            DeleteUserActionType.DELETE_URI -> deleteContentUriDirect(pending.uri)
+                            DeleteUserActionType.TRASH_URI -> trashContentUriDirect(pending.uri)
+                        }
+                    }
+                } else {
+                    true
+                }
+
+                if (postActionSuccess) {
+                    onDeleteSuccess(pending.item)
+                } else {
+                    android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -527,11 +561,13 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun confirmAndDeleteCurrent() {
         val item = getCurrentMediaItem() ?: return
+        val supportsTrashOption = supportsTrashOption(item)
         val dialogView = layoutInflater.inflate(R.layout.dialog_delete_media, null)
         val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.deleteMessageTextView)
         val moveToTrashCheckbox = dialogView.findViewById<android.widget.CheckBox>(R.id.moveToTrashCheckBox)
         messageTextView.text = getString(R.string.delete_confirmation)
-        moveToTrashCheckbox.isChecked = shouldMoveToTrashByDefault()
+        moveToTrashCheckbox.isChecked = supportsTrashOption && shouldMoveToTrashByDefault()
+        moveToTrashCheckbox.visibility = if (supportsTrashOption) View.VISIBLE else View.GONE
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.delete)
@@ -543,7 +579,7 @@ class MediaViewerActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             val positiveButton = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
             val updatePositiveButtonText = {
-                val textRes = if (moveToTrashCheckbox.isChecked) {
+                val textRes = if (supportsTrashOption && moveToTrashCheckbox.isChecked) {
                     R.string.move_to_trash
                 } else {
                     R.string.delete_permanently
@@ -553,13 +589,17 @@ class MediaViewerActivity : AppCompatActivity() {
 
             updatePositiveButtonText()
 
-            moveToTrashCheckbox.setOnCheckedChangeListener { _, _ ->
-                updatePositiveButtonText()
+            if (supportsTrashOption) {
+                moveToTrashCheckbox.setOnCheckedChangeListener { _, _ ->
+                    updatePositiveButtonText()
+                }
             }
 
             positiveButton.setOnClickListener {
-                val moveToTrash = moveToTrashCheckbox.isChecked
-                saveMoveToTrashPreference(moveToTrash)
+                val moveToTrash = supportsTrashOption && moveToTrashCheckbox.isChecked
+                if (supportsTrashOption) {
+                    saveMoveToTrashPreference(moveToTrash)
+                }
                 performDelete(item, moveToTrash)
                 dialog.dismiss()
             }
@@ -582,13 +622,47 @@ class MediaViewerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val deleteResult = withContext(Dispatchers.IO) {
                 try {
-                    val file = java.io.File(item.path)
-                    if (!file.exists()) {
-                        DeleteOperationResult(success = false)
+                    if (item.path.startsWith("content://")) {
+                        val contentUri = android.net.Uri.parse(item.path)
+                        if (moveToTrash && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            val mediaStoreUri = resolveMediaStoreUriForItem(item)
+                            if (mediaStoreUri != null) {
+                                trashContentUriWithFallback(mediaStoreUri)
+                            } else {
+                                deleteContentUriWithFallback(contentUri)
+                            }
+                        } else {
+                            deleteContentUriWithFallback(contentUri)
+                        }
                     } else {
-                        val movedFile = if (moveToTrash) moveFileToTrash(file) else null
-                        val success = if (moveToTrash) movedFile != null else file.delete()
-                        DeleteOperationResult(success = success)
+                        val file = java.io.File(item.path)
+                        if (!file.exists()) {
+                            DeleteOperationResult(success = false)
+                        } else {
+                            val mediaUri = resolveMediaStoreUriForPath(file.absolutePath, item.mimeType)
+                            if (moveToTrash) {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && mediaUri != null) {
+                                    trashContentUriWithFallback(mediaUri)
+                                } else {
+                                    val movedFile = moveFileToTrash(file)
+                                    if (movedFile != null) {
+                                        DeleteOperationResult(success = true)
+                                    } else {
+                                        DeleteOperationResult(success = false)
+                                    }
+                                }
+                            } else {
+                                if (file.delete()) {
+                                    DeleteOperationResult(success = true)
+                                } else {
+                                    if (mediaUri == null) {
+                                        DeleteOperationResult(success = false)
+                                    } else {
+                                        deleteContentUriWithFallback(mediaUri)
+                                    }
+                                }
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     DeleteOperationResult(success = false, error = e)
@@ -596,11 +670,21 @@ class MediaViewerActivity : AppCompatActivity() {
             }
 
             if (deleteResult.success) {
-                hasMediaCollectionChanged = true
-                android.widget.Toast.makeText(this@MediaViewerActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
-                // Keep trashed files out of the main media index by only removing old path.
-                notifyMediaScanner(item.path, null)
-                removeDeletedItemFromViewer()
+                onDeleteSuccess(item)
+            } else if (deleteResult.userActionIntentSender != null && deleteResult.userActionType != null && deleteResult.userActionUri != null) {
+                pendingDeleteUserAction = PendingDeleteUserAction(
+                    item = item,
+                    uri = deleteResult.userActionUri,
+                    actionType = deleteResult.userActionType
+                )
+                try {
+                    val request = androidx.activity.result.IntentSenderRequest.Builder(deleteResult.userActionIntentSender).build()
+                    deleteUserActionLauncher.launch(request)
+                } catch (e: Exception) {
+                    pendingDeleteUserAction = null
+                    android.util.Log.e("MediaViewerActivity", "Failed to launch delete user action: ${e.message}")
+                    android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                }
             } else {
                 deleteResult.error?.let { e ->
                     android.util.Log.e("MediaViewerActivity", "Delete failed: ${e.message}")
@@ -633,9 +717,230 @@ class MediaViewerActivity : AppCompatActivity() {
         return null
     }
 
-    private fun removeDeletedItemFromViewer() {
+    private fun supportsTrashOption(item: MediaItem): Boolean {
+        if (!item.path.startsWith("content://")) return true
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+        return resolveMediaStoreUriForItem(item) != null
+    }
+
+    private fun resolveMediaStoreUriForItem(item: MediaItem): android.net.Uri? {
+        if (item.path.startsWith("content://")) {
+            val uri = android.net.Uri.parse(item.path)
+            return if (isDirectMediaStoreUri(uri)) uri else null
+        }
+        return resolveMediaStoreUriForPath(item.path, item.mimeType)
+    }
+
+    private fun isDirectMediaStoreUri(uri: android.net.Uri): Boolean {
+        return uri.scheme == "content" && uri.authority == "media"
+    }
+
+    private fun onDeleteSuccess(item: MediaItem) {
+        hasMediaCollectionChanged = true
+        android.widget.Toast.makeText(this@MediaViewerActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
+        if (!item.path.startsWith("content://")) {
+            notifyMediaScanner(item.path, null)
+        }
+        removeDeletedItemFromViewer(item.path)
+    }
+
+    private fun deleteContentUriWithFallback(uri: android.net.Uri): DeleteOperationResult {
+        return try {
+            val deleted = deleteContentUriDirect(uri)
+            if (deleted) {
+                DeleteOperationResult(success = true)
+            } else {
+                val intentSender = buildDeleteIntentSender(uri, null)
+                if (intentSender != null) {
+                    DeleteOperationResult(
+                        success = false,
+                        userActionIntentSender = intentSender,
+                        userActionUri = uri,
+                        userActionType = DeleteUserActionType.DELETE_URI
+                    )
+                } else {
+                    DeleteOperationResult(success = false)
+                }
+            }
+        } catch (securityException: SecurityException) {
+            val intentSender = buildDeleteIntentSender(uri, securityException)
+            if (intentSender != null) {
+                DeleteOperationResult(
+                    success = false,
+                    userActionIntentSender = intentSender,
+                    userActionUri = uri,
+                    userActionType = DeleteUserActionType.DELETE_URI
+                )
+            } else {
+                DeleteOperationResult(success = false, error = Exception(securityException))
+            }
+        } catch (e: Exception) {
+            DeleteOperationResult(success = false, error = e)
+        }
+    }
+
+    private fun trashContentUriWithFallback(uri: android.net.Uri): DeleteOperationResult {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            return DeleteOperationResult(success = false)
+        }
+        return try {
+            val trashed = trashContentUriDirect(uri)
+            if (trashed) {
+                DeleteOperationResult(success = true)
+            } else {
+                val intentSender = buildTrashIntentSender(uri)
+                if (intentSender != null) {
+                    DeleteOperationResult(
+                        success = false,
+                        userActionIntentSender = intentSender,
+                        userActionUri = uri,
+                        userActionType = DeleteUserActionType.TRASH_URI
+                    )
+                } else {
+                    DeleteOperationResult(success = false)
+                }
+            }
+        } catch (securityException: SecurityException) {
+            val intentSender = buildTrashIntentSender(uri)
+            if (intentSender != null) {
+                DeleteOperationResult(
+                    success = false,
+                    userActionIntentSender = intentSender,
+                    userActionUri = uri,
+                    userActionType = DeleteUserActionType.TRASH_URI
+                )
+            } else {
+                DeleteOperationResult(success = false, error = Exception(securityException))
+            }
+        } catch (e: Exception) {
+            DeleteOperationResult(success = false, error = e)
+        }
+    }
+
+    private fun buildDeleteIntentSender(
+        uri: android.net.Uri,
+        securityException: SecurityException?
+    ): android.content.IntentSender? {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            return try {
+                android.provider.MediaStore.createDeleteRequest(contentResolver, listOf(uri)).intentSender
+            } catch (_: Exception) {
+                null
+            }
+        }
+        return if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.Q &&
+            securityException is android.app.RecoverableSecurityException
+        ) {
+            securityException.userAction.actionIntent.intentSender
+        } else {
+            null
+        }
+    }
+
+    private fun buildTrashIntentSender(uri: android.net.Uri): android.content.IntentSender? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return null
+        return try {
+            android.provider.MediaStore.createTrashRequest(contentResolver, listOf(uri), true).intentSender
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun deleteContentUriDirect(uri: android.net.Uri): Boolean {
+        if (android.provider.DocumentsContract.isDocumentUri(this, uri) &&
+            android.provider.DocumentsContract.deleteDocument(contentResolver, uri)
+        ) {
+            return true
+        }
+        return contentResolver.delete(uri, null, null) > 0
+    }
+
+    private fun trashContentUriDirect(uri: android.net.Uri): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.IS_TRASHED, 1)
+        }
+        return contentResolver.update(uri, values, null, null) > 0
+    }
+
+    private fun resolveMediaStoreUriForPath(path: String, mimeType: String): android.net.Uri? {
+        val collections = when {
+            mimeType.startsWith("video/") -> listOf(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+            mimeType.startsWith("image/") -> listOf(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            else -> listOf(
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            )
+        }
+        for (collection in collections) {
+            queryMediaStoreUriByPath(collection, path)?.let { return it }
+        }
+        return null
+    }
+
+    private fun queryMediaStoreUriByPath(
+        collectionUri: android.net.Uri,
+        absolutePath: String
+    ): android.net.Uri? {
+        val file = java.io.File(absolutePath)
+        val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+        val selectionParts = mutableListOf<String>()
+        val selectionArgs = mutableListOf<String>()
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val relativePath = resolveRelativePathForMediaStore(absolutePath)
+            if (!relativePath.isNullOrBlank()) {
+                selectionParts += "(${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ?)"
+                selectionArgs += relativePath
+                selectionArgs += file.name
+            }
+        }
+
+        selectionParts += "${android.provider.MediaStore.MediaColumns.DATA} = ?"
+        selectionArgs += absolutePath
+
+        val cursor = try {
+            contentResolver.query(
+                collectionUri,
+                projection,
+                selectionParts.joinToString(" OR "),
+                selectionArgs.toTypedArray(),
+                null
+            )
+        } catch (_: Exception) {
+            null
+        }
+
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val idColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns._ID)
+                if (idColumn >= 0) {
+                    val id = it.getLong(idColumn)
+                    if (id > 0L) {
+                        return android.content.ContentUris.withAppendedId(collectionUri, id)
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun resolveRelativePathForMediaStore(absolutePath: String): String? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return null
+        val file = java.io.File(absolutePath)
+        val parentPath = file.parent ?: return null
+        val rootPath = android.os.Environment.getExternalStorageDirectory()?.absolutePath ?: return null
+
+        val normalizedRoot = rootPath.trimEnd(java.io.File.separatorChar) + java.io.File.separator
+        if (!parentPath.startsWith(normalizedRoot)) return null
+
+        val relative = parentPath.removePrefix(normalizedRoot).trimEnd(java.io.File.separatorChar)
+        return if (relative.isBlank()) null else "$relative${java.io.File.separator}"
+    }
+
+    private fun removeDeletedItemFromViewer(deletedPath: String) {
         val newList = mediaItems.toMutableList()
-        val deletedIndex = currentPosition
+        val deletedIndex = newList.indexOfFirst { it.path == deletedPath }.takeIf { it >= 0 } ?: currentPosition
         if (deletedIndex in newList.indices) newList.removeAt(deletedIndex)
         mediaItems = newList
 
@@ -1803,8 +2108,22 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private data class DeleteOperationResult(
         val success: Boolean,
-        val error: Exception? = null
+        val error: Exception? = null,
+        val userActionIntentSender: android.content.IntentSender? = null,
+        val userActionUri: android.net.Uri? = null,
+        val userActionType: DeleteUserActionType? = null
     )
+
+    private data class PendingDeleteUserAction(
+        val item: MediaItem,
+        val uri: android.net.Uri,
+        val actionType: DeleteUserActionType
+    )
+
+    private enum class DeleteUserActionType {
+        DELETE_URI,
+        TRASH_URI
+    }
 
     private enum class RenameOperationResult {
         SUCCESS,
