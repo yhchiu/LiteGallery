@@ -174,6 +174,9 @@ class SettingsActivity : AppCompatActivity() {
             // Handle trash settings preference changes
             setupTrashSettingsListeners()
 
+            // Handle optional advanced full storage access mode
+            setupAdvancedStorageAccessListener()
+
             // Set initial summaries
             updateLanguageSummary()
             updateThemeSummary()
@@ -181,6 +184,12 @@ class SettingsActivity : AppCompatActivity() {
             updateDisplaySummary()
             updateVideoGestureSummary()
             updateTrashSettingsSummary()
+            updateAdvancedStorageAccessSummary()
+        }
+
+        override fun onResume() {
+            super.onResume()
+            updateAdvancedStorageAccessSummary()
         }
         
         private fun updateThemeSummary() {
@@ -392,6 +401,22 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        private fun setupAdvancedStorageAccessListener() {
+            findPreference<androidx.preference.SwitchPreferenceCompat>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
+                ?.setOnPreferenceChangeListener { _, newValue ->
+                    val enabled = newValue as? Boolean ?: false
+                    if (!enabled) return@setOnPreferenceChangeListener true
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return@setOnPreferenceChangeListener true
+
+                    if (openAdvancedAllFilesSettings()) {
+                        true
+                    } else {
+                        showToast(getString(R.string.advanced_full_storage_open_failed))
+                        false
+                    }
+                }
+        }
+
         private fun updateTrashSettingsSummary() {
             val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
             val retentionDays = prefs.getString(
@@ -401,6 +426,42 @@ class SettingsActivity : AppCompatActivity() {
 
             val preference = findPreference<androidx.preference.ListPreference>(TrashBinStore.TRASH_RETENTION_DAYS_KEY)
             preference?.summary = getTrashRetentionSummary(retentionDays)
+        }
+
+        private fun updateAdvancedStorageAccessSummary() {
+            val preference =
+                findPreference<androidx.preference.SwitchPreferenceCompat>(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE)
+                    ?: return
+
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+                preference.isVisible = false
+                return
+            }
+
+            val requested = preference.isChecked
+            val granted = android.os.Environment.isExternalStorageManager()
+            preference.summary = when {
+                requested && granted -> getString(R.string.advanced_full_storage_mode_summary_enabled)
+                requested -> getString(R.string.advanced_full_storage_mode_summary_permission_missing)
+                else -> getString(R.string.advanced_full_storage_mode_summary)
+            }
+        }
+
+        private fun openAdvancedAllFilesSettings(): Boolean {
+            return try {
+                val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = android.net.Uri.parse("package:${requireContext().packageName}")
+                }
+                startActivity(intent)
+                true
+            } catch (_: Exception) {
+                try {
+                    startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+            }
         }
 
         private fun getTrashRetentionSummary(retentionDays: Int): String {

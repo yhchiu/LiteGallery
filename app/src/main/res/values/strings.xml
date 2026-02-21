@@ -121,6 +121,16 @@
     <string name="restore_volume_summary">Restore original volume when exiting app</string>
     <string name="playback_diagnostics_setting_title">Enable Playback Diagnostics</string>
     <string name="playback_diagnostics_setting_summary">Collect playback events for troubleshooting</string>
+    <string name="advanced_full_storage_mode_title">Advanced Full Storage Access</string>
+    <string name="advanced_full_storage_mode_summary">Optional fallback for hard-to-index folders. Opens system permission page when enabled.</string>
+    <string name="advanced_full_storage_mode_summary_enabled">Enabled and granted</string>
+    <string name="advanced_full_storage_mode_summary_permission_missing">Enabled, but all-files permission is not granted</string>
+    <string name="advanced_full_storage_open_failed">Unable to open full storage access settings</string>
+    <string name="external_folder_access_title">Grant Folder Access</string>
+    <string name="external_folder_access_message">To keep same-folder browsing for this external file, grant access to its folder.</string>
+    <string name="grant_folder_access">Grant Folder Access</string>
+    <string name="external_folder_access_cancelled">Folder access not granted. Showing current file only.</string>
+    <string name="external_folder_access_failed">Failed to load folder from granted access</string>
     <string name="trash_retention_days_title">Trash Retention</string>
     <string name="trash_retention_days_summary_default">Auto-delete files older than 30 days</string>
     <string name="trash_retention_days_summary_disabled">Disabled (manual cleanup only)</string>
