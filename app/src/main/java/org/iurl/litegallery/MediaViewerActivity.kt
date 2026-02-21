@@ -629,10 +629,11 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun shareCurrent() {
         val item = getCurrentMediaItem() ?: return
         try {
-            val uri = if (item.path.startsWith("content://")) android.net.Uri.parse(item.path) else android.net.Uri.fromFile(java.io.File(item.path))
+            val uri = buildSecureUriForItem(item) ?: return
             val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                 type = item.mimeType
                 putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                clipData = android.content.ClipData.newUri(contentResolver, "media", uri)
                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(android.content.Intent.createChooser(shareIntent, getString(R.string.share)))
@@ -644,14 +645,36 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun editCurrent() {
         val item = getCurrentMediaItem() ?: return
         try {
-            val uri = if (item.path.startsWith("content://")) android.net.Uri.parse(item.path) else android.net.Uri.fromFile(java.io.File(item.path))
+            val uri = buildSecureUriForItem(item) ?: return
             val editIntent = android.content.Intent(android.content.Intent.ACTION_EDIT).apply {
                 setDataAndType(uri, item.mimeType)
+                clipData = android.content.ClipData.newUri(contentResolver, "media", uri)
                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
             startActivity(editIntent)
         } catch (e: Exception) {
             android.util.Log.e("MediaViewerActivity", "Edit failed: ${e.message}")
+        }
+    }
+
+    private fun buildSecureUriForItem(item: MediaItem): android.net.Uri? {
+        if (item.path.startsWith("content://")) {
+            return android.net.Uri.parse(item.path)
+        }
+
+        val file = java.io.File(item.path)
+        if (!file.exists()) return null
+
+        return try {
+            androidx.core.content.FileProvider.getUriForFile(
+                this,
+                "${applicationContext.packageName}.fileprovider",
+                file
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("MediaViewerActivity", "Failed to build FileProvider URI: ${e.message}")
+            null
         }
     }
 
