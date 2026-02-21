@@ -1,17 +1,22 @@
 package org.iurl.litegallery
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.documentfile.provider.DocumentFile
+import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MediaViewerActivity : AppCompatActivity() {
     
@@ -34,6 +39,9 @@ class MediaViewerActivity : AppCompatActivity() {
         // Video brightness memory preference keys
         private const val REMEMBER_VIDEO_BRIGHTNESS_KEY = "remember_video_brightness"
         private const val SAVED_VIDEO_BRIGHTNESS_KEY = "saved_video_brightness"
+
+        // External intent folder-access prompt behavior
+        private const val EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED_KEY = "external_folder_access_prompt_enabled"
     }
     
     private lateinit var binding: ActivityMediaViewerBinding
@@ -1251,15 +1259,20 @@ class MediaViewerActivity : AppCompatActivity() {
         val uri = intent.data
         if (uri != null) {
             val path = getRealPathFromURI(uri)
-            if (path != null) {
-                // Don't initialize single file immediately - wait for parent folder scan
-                // This prevents double initialization
+            if (path != null && shouldScanParentFolderForExternalIntent(path)) {
+                // Parent-folder scan uses path-based items. Only use it when direct
+                // file-path access is actually available to avoid EACCES playback loops.
                 scanParentFolder(path)
             } else {
-                // Handle content:// URI directly (no parent folder to scan)
+                // Handle URI directly (single-item fallback)
                 handleContentUri(uri)
             }
         }
+    }
+
+    private fun shouldScanParentFolderForExternalIntent(path: String): Boolean {
+        if (!canScanParentFolderForExternalIntent()) return false
+        return canAccessPathDirectly(path)
     }
     
     private fun handleSingleMediaFile(path: String) {
@@ -1295,10 +1308,16 @@ class MediaViewerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val mediaProbe = withContext(Dispatchers.IO) {
-                    val name = getFileNameFromUri(uri) ?: "Unknown"
-                    val mimeType = contentResolver.getType(uri) ?: "image/*"
-                    val dimensions = getMediaDimensionsFromUri(uri)
-                    Triple(name, mimeType, dimensions)
+                    withTimeoutOrNull(2_000L) {
+                        val name = getFileNameFromUri(uri) ?: "Unknown"
+                        val mimeType = contentResolver.getType(uri) ?: "image/*"
+                        val dimensions = getMediaDimensionsFromUri(uri)
+                        Triple(name, mimeType, dimensions)
+                    } ?: Triple(
+                        "Unknown",
+                        runCatching { contentResolver.getType(uri) }.getOrNull() ?: "image/*",
+                        Pair(0, 0)
+                    )
                 }
                 val fileName = mediaProbe.first
                 val mimeType = mediaProbe.second
@@ -1315,14 +1334,17 @@ class MediaViewerActivity : AppCompatActivity() {
                     height = dimensions.second
                 )
                 mediaItems = listOf(mediaItem)
-                mediaViewerAdapter.submitList(mediaItems) {
-                    currentPosition = 0
-                    mediaViewerAdapter.setActivePosition(currentPosition)
-                    applyRememberedBrightnessIfEnabledForVideo(currentPosition)
-                    // Hide loading after content is ready
-                    hideLoadingIndicator()
-                    maybeTryContinueExternalFolderBrowsing(uri, fileName)
+                mediaViewerAdapter.submitList(mediaItems)
+                currentPosition = 0
+                mediaViewerAdapter.setActivePosition(currentPosition)
+                binding.viewPager.post {
+                    if (mediaItems.isNotEmpty()) {
+                        binding.viewPager.setCurrentItem(0, false)
+                    }
                 }
+                applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+                hideLoadingIndicator()
+                maybeTryContinueExternalFolderBrowsing(uri, fileName)
             } catch (e: Exception) {
                 // Hide loading on error
                 hideLoadingIndicator()
@@ -1340,21 +1362,42 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         if (hasPromptedExternalFolderAccessForCurrentIntent) return
+        if (!shouldShowExternalFolderAccessPrompt()) return
         hasPromptedExternalFolderAccessForCurrentIntent = true
         promptExternalFolderAccess(uri, targetName)
     }
 
     private fun promptExternalFolderAccess(uri: android.net.Uri, targetName: String?) {
-        android.app.AlertDialog.Builder(this)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_external_folder_access, null)
+        val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessMessageTextView)
+        val dontShowAgainCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.externalFolderAccessDontShowAgainCheckBox)
+        messageTextView.text = getString(R.string.external_folder_access_message)
+
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.external_folder_access_title)
-            .setMessage(R.string.external_folder_access_message)
+            .setView(dialogView)
             .setPositiveButton(R.string.grant_folder_access) { _, _ ->
+                saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
                 pendingExternalFolderTargetUri = uri
                 pendingExternalFolderTargetName = targetName
                 openExternalFolderTreeLauncher.launch(null)
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
+            }
+            .create()
+
+        dialog.show()
+    }
+
+    private fun shouldShowExternalFolderAccessPrompt(): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        return prefs.getBoolean(EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED_KEY, true)
+    }
+
+    private fun saveShouldShowExternalFolderAccessPrompt(shouldShow: Boolean) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        prefs.edit().putBoolean(EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED_KEY, shouldShow).apply()
     }
 
     private fun applyTreeFolderContinuation(
@@ -1546,6 +1589,50 @@ class MediaViewerActivity : AppCompatActivity() {
         return MediaUriPathResolver.resolveRealPath(uri) {
             val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
             contentResolver.query(uri, projection, null, null, null)
+        }
+    }
+
+    private fun canScanParentFolderForExternalIntent(): Boolean {
+        val sdkInt = android.os.Build.VERSION.SDK_INT
+        return if (sdkInt >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val hasImagePermission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_MEDIA_IMAGES
+            ) == PackageManager.PERMISSION_GRANTED
+            val hasVideoPermission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_MEDIA_VIDEO
+            ) == PackageManager.PERMISSION_GRANTED
+            (hasImagePermission && hasVideoPermission) || canUseAdvancedAllFilesAccess()
+        } else if (sdkInt >= android.os.Build.VERSION_CODES.R) {
+            val hasReadStoragePermission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            hasReadStoragePermission || canUseAdvancedAllFilesAccess()
+        } else {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun canUseAdvancedAllFilesAccess(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val advancedModeEnabled = prefs.getBoolean(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE, false)
+        if (!advancedModeEnabled) return false
+        return android.os.Environment.isExternalStorageManager()
+    }
+
+    private fun canAccessPathDirectly(path: String): Boolean {
+        if (path.isBlank()) return false
+        return try {
+            val file = java.io.File(path)
+            file.exists() && file.canRead()
+        } catch (_: Exception) {
+            false
         }
     }
     

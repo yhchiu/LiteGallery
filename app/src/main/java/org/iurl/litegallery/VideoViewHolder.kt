@@ -246,6 +246,11 @@ class VideoViewHolder(
 
     private fun onSharedPlaybackStateChanged(playbackState: Int) {
         if (activeOwner !== this) return
+        if (isInvalidVideo) {
+            cancelLoadingTimeout()
+            showInvalidUi()
+            return
+        }
 
         when (playbackState) {
             Player.STATE_READY -> {
@@ -304,6 +309,14 @@ class VideoViewHolder(
             "VideoViewHolder",
             "Playback error: ${error.errorCodeName}, ${error.message}"
         )
+
+        if (error.errorCode == PlaybackException.ERROR_CODE_IO_NO_PERMISSION) {
+            cancelLoadingTimeout()
+            isInvalidVideo = true
+            showInvalidUi()
+            android.util.Log.e("VideoViewHolder", "Marking video invalid immediately: permission denied")
+            return
+        }
 
         retryPrepare("player_error")
     }
