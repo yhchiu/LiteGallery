@@ -326,10 +326,20 @@ class FolderViewActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
+                val includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
                 mediaItems = mediaScanner.scanMediaInFolder(
                     folderPath = folderPath,
-                    includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
+                    includeDeferredMetadata = includeDeferredMetadata,
+                    mergeFileSystemFallback = false
                 )
+
+                if (mediaItems.isEmpty()) {
+                    mediaItems = mediaScanner.scanMediaInFolder(
+                        folderPath = folderPath,
+                        includeDeferredMetadata = includeDeferredMetadata,
+                        mergeFileSystemFallback = true
+                    )
+                }
 
                 if (mediaItems.isEmpty()) {
                     binding.progressBar.visibility = View.GONE
