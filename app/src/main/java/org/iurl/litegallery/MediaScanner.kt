@@ -1,10 +1,13 @@
 package org.iurl.litegallery
 
 import android.content.Context
+import android.content.ContentUris
 import android.database.Cursor
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,11 +16,18 @@ import java.io.File
 class MediaScanner(private val context: Context) {
     
     private val fileSystemScanner = FileSystemScanner(context)
+    private val primaryExternalRootPath: String? =
+        Environment.getExternalStorageDirectory()?.absolutePath
 
     private data class FolderAggregate(
         var itemCount: Int = 0,
         var thumbnailPath: String? = null,
         var latestDateModifiedMs: Long = Long.MIN_VALUE
+    )
+
+    private data class FolderQuery(
+        val selection: String,
+        val selectionArgs: Array<String>
     )
     
     suspend fun scanMediaFolders(): List<MediaFolder> = withContext(Dispatchers.IO) {
@@ -138,6 +148,9 @@ class MediaScanner(private val context: Context) {
     
     private fun scanImagesForFolderList(folders: MutableMap<String, FolderAggregate>) {
         val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED
         )
@@ -151,17 +164,27 @@ class MediaScanner(private val context: Context) {
         )
         
         cursor?.use {
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            val dateColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val idColumn = it.getColumnIndex(MediaStore.Images.Media._ID)
+            val nameColumn = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            val relativePathColumn = it.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val dataColumn = it.getColumnIndex(MediaStore.Images.Media.DATA)
+            val dateColumn = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
             
             while (it.moveToNext()) {
-                val path = it.getString(dataColumn)
-                val file = File(path)
-                val folderPath = file.parent ?: continue
-                
-                if (!file.exists() || isTrashedFile(file)) continue
+                val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
+                if (isTrashedName(fileName)) continue
 
-                val dateModifiedMs = it.getLong(dateColumn) * 1000
+                val path = resolveCursorMediaPath(
+                    cursor = it,
+                    dataColumn = dataColumn,
+                    relativePathColumn = relativePathColumn,
+                    nameColumn = nameColumn,
+                    idColumn = idColumn,
+                    fallbackContentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                ) ?: continue
+                val folderPath = deriveFolderPathFromCursor(it, path, relativePathColumn) ?: continue
+
+                val dateModifiedMs = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L
                 updateFolderAggregate(folders, folderPath, path, dateModifiedMs)
             }
         }
@@ -169,6 +192,9 @@ class MediaScanner(private val context: Context) {
     
     private fun scanVideosForFolderList(folders: MutableMap<String, FolderAggregate>) {
         val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.RELATIVE_PATH,
             MediaStore.Video.Media.DATA,
             MediaStore.Video.Media.DATE_MODIFIED
         )
@@ -182,17 +208,27 @@ class MediaScanner(private val context: Context) {
         )
         
         cursor?.use {
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val dateColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+            val idColumn = it.getColumnIndex(MediaStore.Video.Media._ID)
+            val nameColumn = it.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+            val relativePathColumn = it.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+            val dataColumn = it.getColumnIndex(MediaStore.Video.Media.DATA)
+            val dateColumn = it.getColumnIndex(MediaStore.Video.Media.DATE_MODIFIED)
             
             while (it.moveToNext()) {
-                val path = it.getString(dataColumn)
-                val file = File(path)
-                val folderPath = file.parent ?: continue
-                
-                if (!file.exists() || isTrashedFile(file)) continue
+                val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
+                if (isTrashedName(fileName)) continue
 
-                val dateModifiedMs = it.getLong(dateColumn) * 1000
+                val path = resolveCursorMediaPath(
+                    cursor = it,
+                    dataColumn = dataColumn,
+                    relativePathColumn = relativePathColumn,
+                    nameColumn = nameColumn,
+                    idColumn = idColumn,
+                    fallbackContentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                ) ?: continue
+                val folderPath = deriveFolderPathFromCursor(it, path, relativePathColumn) ?: continue
+
+                val dateModifiedMs = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L
                 updateFolderAggregate(folders, folderPath, path, dateModifiedMs)
             }
         }
@@ -211,82 +247,178 @@ class MediaScanner(private val context: Context) {
             aggregate.latestDateModifiedMs = dateModifiedMs
         }
     }
+
+    private fun buildFolderQuery(
+        folderPath: String,
+        dataColumn: String,
+        relativePathColumn: String
+    ): FolderQuery {
+        val relativePath = resolveRelativePathFromFolder(folderPath)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !relativePath.isNullOrBlank()) {
+            FolderQuery(
+                selection = "$relativePathColumn = ?",
+                selectionArgs = arrayOf(relativePath)
+            )
+        } else {
+            FolderQuery(
+                selection = "$dataColumn LIKE ?",
+                selectionArgs = arrayOf("$folderPath%")
+            )
+        }
+    }
+
+    private fun resolveRelativePathFromFolder(folderPath: String): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val root = primaryExternalRootPath ?: return null
+
+        val normalizedRoot = root.trimEnd(File.separatorChar) + File.separator
+        val normalizedFolder = folderPath.trimEnd(File.separatorChar) + File.separator
+        if (!normalizedFolder.startsWith(normalizedRoot)) return null
+
+        val relative = normalizedFolder.removePrefix(normalizedRoot)
+        return relative.ifBlank { null }
+    }
+
+    private fun resolveAbsolutePathFromRelative(relativePath: String?, displayName: String?): String? {
+        if (relativePath.isNullOrBlank() || displayName.isNullOrBlank()) return null
+        val root = primaryExternalRootPath ?: return null
+        return File(File(root, relativePath), displayName).absolutePath
+    }
+
+    private fun resolveCursorMediaPath(
+        cursor: Cursor,
+        dataColumn: Int,
+        relativePathColumn: Int,
+        nameColumn: Int,
+        idColumn: Int,
+        fallbackContentUri: Uri
+    ): String? {
+        if (dataColumn >= 0) {
+            val dataPath = cursor.getString(dataColumn)
+            if (!dataPath.isNullOrBlank()) return dataPath
+        }
+
+        val relativePath = if (relativePathColumn >= 0) cursor.getString(relativePathColumn) else null
+        val displayName = if (nameColumn >= 0) cursor.getString(nameColumn) else null
+        resolveAbsolutePathFromRelative(relativePath, displayName)?.let { return it }
+
+        if (idColumn >= 0) {
+            val id = cursor.getLong(idColumn)
+            if (id > 0L) {
+                return ContentUris.withAppendedId(fallbackContentUri, id).toString()
+            }
+        }
+
+        return null
+    }
+
+    private fun deriveFolderPathFromCursor(
+        cursor: Cursor,
+        mediaPath: String,
+        relativePathColumn: Int
+    ): String? {
+        if (!mediaPath.startsWith("content://")) {
+            return File(mediaPath).parent
+        }
+
+        if (relativePathColumn < 0) return null
+        val relativePath = cursor.getString(relativePathColumn) ?: return null
+        val root = primaryExternalRootPath ?: return null
+        return File(root, relativePath).absolutePath.trimEnd(File.separatorChar)
+    }
+
+    private fun isTrashedName(fileName: String?): Boolean {
+        return fileName?.startsWith(TrashBinStore.TRASH_FILE_PREFIX) == true
+    }
     
     private fun scanImagesInFolder(
         folderPath: String,
         items: MutableList<MediaItem>,
         includeDeferredMetadata: Boolean
     ) {
-        val projection = if (includeDeferredMetadata) {
-            arrayOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATA,
-                MediaStore.Images.Media.DATE_MODIFIED,
-                MediaStore.Images.Media.MIME_TYPE,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.WIDTH,
-                MediaStore.Images.Media.HEIGHT
-            )
-        } else {
-            arrayOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATA,
-                MediaStore.Images.Media.DATE_MODIFIED,
-                MediaStore.Images.Media.MIME_TYPE
-            )
+        val projectionList = mutableListOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.MIME_TYPE
+        )
+        if (includeDeferredMetadata) {
+            projectionList.add(MediaStore.Images.Media.SIZE)
+            projectionList.add(MediaStore.Images.Media.WIDTH)
+            projectionList.add(MediaStore.Images.Media.HEIGHT)
         }
-        
-        val selection = "${MediaStore.Images.Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("$folderPath%")
+        val projection = projectionList.toTypedArray()
+
+        val folderQuery = buildFolderQuery(
+            folderPath = folderPath,
+            dataColumn = MediaStore.Images.Media.DATA,
+            relativePathColumn = MediaStore.Images.Media.RELATIVE_PATH
+        )
         
         val cursor: Cursor? = context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            selectionArgs,
+            folderQuery.selection,
+            folderQuery.selectionArgs,
             MediaStore.Images.Media.DATE_MODIFIED + " DESC"
         )
         
         cursor?.use {
-            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            val dateColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
-            val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+            val idColumn = it.getColumnIndex(MediaStore.Images.Media._ID)
+            val nameColumn = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            val relativePathColumn = it.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val dataColumn = it.getColumnIndex(MediaStore.Images.Media.DATA)
+            val dateColumn = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
+            val mimeColumn = it.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
             val sizeColumn = if (includeDeferredMetadata) {
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+                it.getColumnIndex(MediaStore.Images.Media.SIZE)
             } else {
                 -1
             }
             val widthColumn = if (includeDeferredMetadata) {
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+                it.getColumnIndex(MediaStore.Images.Media.WIDTH)
             } else {
                 -1
             }
             val heightColumn = if (includeDeferredMetadata) {
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+                it.getColumnIndex(MediaStore.Images.Media.HEIGHT)
             } else {
                 -1
             }
             
             while (it.moveToNext()) {
-                val path = it.getString(dataColumn)
-                val file = File(path)
-                
-                if (!file.exists() || file.parent != folderPath || isTrashedFile(file)) continue
+                val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
+                if (isTrashedName(fileName)) continue
+
+                val path = resolveCursorMediaPath(
+                    cursor = it,
+                    dataColumn = dataColumn,
+                    relativePathColumn = relativePathColumn,
+                    nameColumn = nameColumn,
+                    idColumn = idColumn,
+                    fallbackContentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                ) ?: continue
+
+                if (!path.startsWith("content://")) {
+                    val file = File(path)
+                    if (file.parent != folderPath || isTrashedFile(file)) continue
+                }
                 
                 val mediaItem = MediaItem(
-                    name = it.getString(nameColumn),
+                    name = fileName ?: File(path).name,
                     path = path,
-                    dateModified = it.getLong(dateColumn) * 1000,
+                    dateModified = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L,
                     size = if (includeDeferredMetadata) {
-                        it.getLong(sizeColumn).coerceAtLeast(0L)
+                        if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
                     } else {
                         // Keep folder scan lightweight; load size/resolution only when needed.
                         0
                     },
-                    mimeType = it.getString(mimeColumn) ?: "image/*",
-                    width = if (includeDeferredMetadata) it.getInt(widthColumn).coerceAtLeast(0) else 0,
-                    height = if (includeDeferredMetadata) it.getInt(heightColumn).coerceAtLeast(0) else 0
+                    mimeType = if (mimeColumn >= 0) it.getString(mimeColumn) ?: "image/*" else "image/*",
+                    width = if (includeDeferredMetadata && widthColumn >= 0) it.getInt(widthColumn).coerceAtLeast(0) else 0,
+                    height = if (includeDeferredMetadata && heightColumn >= 0) it.getInt(heightColumn).coerceAtLeast(0) else 0
                 )
                 
                 items.add(mediaItem)
@@ -301,7 +433,9 @@ class MediaScanner(private val context: Context) {
         includeVideoDuration: Boolean
     ) {
         val projectionList = mutableListOf(
+            MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.RELATIVE_PATH,
             MediaStore.Video.Media.DATA,
             MediaStore.Video.Media.DATE_MODIFIED,
             MediaStore.Video.Media.MIME_TYPE
@@ -316,63 +450,80 @@ class MediaScanner(private val context: Context) {
         }
         val projection = projectionList.toTypedArray()
         
-        val selection = "${MediaStore.Video.Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("$folderPath%")
+        val folderQuery = buildFolderQuery(
+            folderPath = folderPath,
+            dataColumn = MediaStore.Video.Media.DATA,
+            relativePathColumn = MediaStore.Video.Media.RELATIVE_PATH
+        )
         
         val cursor: Cursor? = context.contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            selectionArgs,
+            folderQuery.selection,
+            folderQuery.selectionArgs,
             MediaStore.Video.Media.DATE_MODIFIED + " DESC"
         )
         
         cursor?.use {
-            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val dateColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
-            val mimeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
+            val idColumn = it.getColumnIndex(MediaStore.Video.Media._ID)
+            val nameColumn = it.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+            val relativePathColumn = it.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+            val dataColumn = it.getColumnIndex(MediaStore.Video.Media.DATA)
+            val dateColumn = it.getColumnIndex(MediaStore.Video.Media.DATE_MODIFIED)
+            val mimeColumn = it.getColumnIndex(MediaStore.Video.Media.MIME_TYPE)
             val durationColumn = if (includeVideoDuration) {
-                it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                it.getColumnIndex(MediaStore.Video.Media.DURATION)
             } else {
                 -1
             }
             val sizeColumn = if (includeDeferredMetadata) {
-                it.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                it.getColumnIndex(MediaStore.Video.Media.SIZE)
             } else {
                 -1
             }
             val widthColumn = if (includeDeferredMetadata) {
-                it.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+                it.getColumnIndex(MediaStore.Video.Media.WIDTH)
             } else {
                 -1
             }
             val heightColumn = if (includeDeferredMetadata) {
-                it.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+                it.getColumnIndex(MediaStore.Video.Media.HEIGHT)
             } else {
                 -1
             }
             
             while (it.moveToNext()) {
-                val path = it.getString(dataColumn)
-                val file = File(path)
-                
-                if (!file.exists() || file.parent != folderPath || isTrashedFile(file)) continue
+                val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
+                if (isTrashedName(fileName)) continue
+
+                val path = resolveCursorMediaPath(
+                    cursor = it,
+                    dataColumn = dataColumn,
+                    relativePathColumn = relativePathColumn,
+                    nameColumn = nameColumn,
+                    idColumn = idColumn,
+                    fallbackContentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                ) ?: continue
+
+                if (!path.startsWith("content://")) {
+                    val file = File(path)
+                    if (file.parent != folderPath || isTrashedFile(file)) continue
+                }
                 
                 val mediaItem = MediaItem(
-                    name = it.getString(nameColumn),
+                    name = fileName ?: File(path).name,
                     path = path,
-                    dateModified = it.getLong(dateColumn) * 1000,
+                    dateModified = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L,
                     size = if (includeDeferredMetadata) {
-                        it.getLong(sizeColumn).coerceAtLeast(0L)
+                        if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
                     } else {
                         // Keep folder scan lightweight; load size/resolution only when needed.
                         0
                     },
-                    mimeType = it.getString(mimeColumn) ?: "video/*",
-                    duration = if (includeVideoDuration) it.getLong(durationColumn).coerceAtLeast(0L) else 0L,
-                    width = if (includeDeferredMetadata) it.getInt(widthColumn).coerceAtLeast(0) else 0,
-                    height = if (includeDeferredMetadata) it.getInt(heightColumn).coerceAtLeast(0) else 0
+                    mimeType = if (mimeColumn >= 0) it.getString(mimeColumn) ?: "video/*" else "video/*",
+                    duration = if (includeVideoDuration && durationColumn >= 0) it.getLong(durationColumn).coerceAtLeast(0L) else 0L,
+                    width = if (includeDeferredMetadata && widthColumn >= 0) it.getInt(widthColumn).coerceAtLeast(0) else 0,
+                    height = if (includeDeferredMetadata && heightColumn >= 0) it.getInt(heightColumn).coerceAtLeast(0) else 0
                 )
                 
                 items.add(mediaItem)
@@ -390,31 +541,52 @@ class MediaScanner(private val context: Context) {
         items: MutableList<MediaItem>
     ): Boolean {
         val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
             MediaStore.Images.Media.HEIGHT
         )
-        val selection = "${MediaStore.Images.Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("$folderPath%")
+        val folderQuery = buildFolderQuery(
+            folderPath = folderPath,
+            dataColumn = MediaStore.Images.Media.DATA,
+            relativePathColumn = MediaStore.Images.Media.RELATIVE_PATH
+        )
 
         var changed = false
         val cursor: Cursor? = context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            selectionArgs,
+            folderQuery.selection,
+            folderQuery.selectionArgs,
             null
         )
 
         cursor?.use {
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
-            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val idColumn = it.getColumnIndex(MediaStore.Images.Media._ID)
+            val nameColumn = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            val relativePathColumn = it.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val dataColumn = it.getColumnIndex(MediaStore.Images.Media.DATA)
+            val sizeColumn = it.getColumnIndex(MediaStore.Images.Media.SIZE)
+            val widthColumn = it.getColumnIndex(MediaStore.Images.Media.WIDTH)
+            val heightColumn = it.getColumnIndex(MediaStore.Images.Media.HEIGHT)
 
             while (it.moveToNext()) {
-                val path = it.getString(dataColumn)
+                val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
+                if (isTrashedName(fileName)) continue
+
+                val path = resolveCursorMediaPath(
+                    cursor = it,
+                    dataColumn = dataColumn,
+                    relativePathColumn = relativePathColumn,
+                    nameColumn = nameColumn,
+                    idColumn = idColumn,
+                    fallbackContentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                ) ?: continue
+                if (path.startsWith("content://")) continue
+
                 val file = File(path)
                 if (file.parent != folderPath || isTrashedFile(file)) continue
 
@@ -423,9 +595,9 @@ class MediaScanner(private val context: Context) {
                 if (current.isVideo || !needsDeferredMetadata(current)) continue
 
                 val updated = current.copy(
-                    size = if (current.size > 0L) current.size else it.getLong(sizeColumn).coerceAtLeast(0L),
-                    width = if (current.width > 0) current.width else it.getInt(widthColumn).coerceAtLeast(0),
-                    height = if (current.height > 0) current.height else it.getInt(heightColumn).coerceAtLeast(0)
+                    size = if (current.size > 0L || sizeColumn < 0) current.size else it.getLong(sizeColumn).coerceAtLeast(0L),
+                    width = if (current.width > 0 || widthColumn < 0) current.width else it.getInt(widthColumn).coerceAtLeast(0),
+                    height = if (current.height > 0 || heightColumn < 0) current.height else it.getInt(heightColumn).coerceAtLeast(0)
                 )
 
                 if (updated != current) {
@@ -444,33 +616,54 @@ class MediaScanner(private val context: Context) {
         items: MutableList<MediaItem>
     ): Boolean {
         val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.RELATIVE_PATH,
             MediaStore.Video.Media.DATA,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.WIDTH,
             MediaStore.Video.Media.HEIGHT,
             MediaStore.Video.Media.DURATION
         )
-        val selection = "${MediaStore.Video.Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("$folderPath%")
+        val folderQuery = buildFolderQuery(
+            folderPath = folderPath,
+            dataColumn = MediaStore.Video.Media.DATA,
+            relativePathColumn = MediaStore.Video.Media.RELATIVE_PATH
+        )
 
         var changed = false
         val cursor: Cursor? = context.contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            selectionArgs,
+            folderQuery.selection,
+            folderQuery.selectionArgs,
             null
         )
 
         cursor?.use {
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val sizeColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-            val widthColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
-            val heightColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
-            val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+            val idColumn = it.getColumnIndex(MediaStore.Video.Media._ID)
+            val nameColumn = it.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+            val relativePathColumn = it.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+            val dataColumn = it.getColumnIndex(MediaStore.Video.Media.DATA)
+            val sizeColumn = it.getColumnIndex(MediaStore.Video.Media.SIZE)
+            val widthColumn = it.getColumnIndex(MediaStore.Video.Media.WIDTH)
+            val heightColumn = it.getColumnIndex(MediaStore.Video.Media.HEIGHT)
+            val durationColumn = it.getColumnIndex(MediaStore.Video.Media.DURATION)
 
             while (it.moveToNext()) {
-                val path = it.getString(dataColumn)
+                val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
+                if (isTrashedName(fileName)) continue
+
+                val path = resolveCursorMediaPath(
+                    cursor = it,
+                    dataColumn = dataColumn,
+                    relativePathColumn = relativePathColumn,
+                    nameColumn = nameColumn,
+                    idColumn = idColumn,
+                    fallbackContentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                ) ?: continue
+                if (path.startsWith("content://")) continue
+
                 val file = File(path)
                 if (file.parent != folderPath || isTrashedFile(file)) continue
 
@@ -479,10 +672,10 @@ class MediaScanner(private val context: Context) {
                 if (!current.isVideo || !needsDeferredMetadata(current)) continue
 
                 val updated = current.copy(
-                    size = if (current.size > 0L) current.size else it.getLong(sizeColumn).coerceAtLeast(0L),
-                    width = if (current.width > 0) current.width else it.getInt(widthColumn).coerceAtLeast(0),
-                    height = if (current.height > 0) current.height else it.getInt(heightColumn).coerceAtLeast(0),
-                    duration = if (current.duration > 0L) current.duration else it.getLong(durationColumn).coerceAtLeast(0L)
+                    size = if (current.size > 0L || sizeColumn < 0) current.size else it.getLong(sizeColumn).coerceAtLeast(0L),
+                    width = if (current.width > 0 || widthColumn < 0) current.width else it.getInt(widthColumn).coerceAtLeast(0),
+                    height = if (current.height > 0 || heightColumn < 0) current.height else it.getInt(heightColumn).coerceAtLeast(0),
+                    duration = if (current.duration > 0L || durationColumn < 0) current.duration else it.getLong(durationColumn).coerceAtLeast(0L)
                 )
 
                 if (updated != current) {
@@ -498,6 +691,10 @@ class MediaScanner(private val context: Context) {
     private fun enrichItemFromMediaStore(item: MediaItem): MediaItem {
         if (item.path.startsWith("content://")) return item
 
+        val itemFile = File(item.path)
+        val itemFolderPath = itemFile.parent
+        val itemName = itemFile.name
+
         return if (item.isVideo) {
             val projection = arrayOf(
                 MediaStore.Video.Media.SIZE,
@@ -505,8 +702,18 @@ class MediaScanner(private val context: Context) {
                 MediaStore.Video.Media.HEIGHT,
                 MediaStore.Video.Media.DURATION
             )
-            val selection = "${MediaStore.Video.Media.DATA} = ?"
-            val selectionArgs = arrayOf(item.path)
+            val relativeFolderPath = itemFolderPath?.let { resolveRelativePathFromFolder(it) }
+            val usesScopedSelection = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !relativeFolderPath.isNullOrBlank()
+            val selection = if (usesScopedSelection) {
+                "${MediaStore.Video.Media.RELATIVE_PATH} = ? AND ${MediaStore.Video.Media.DISPLAY_NAME} = ?"
+            } else {
+                "${MediaStore.Video.Media.DATA} = ?"
+            }
+            val selectionArgs = if (usesScopedSelection) {
+                arrayOf(relativeFolderPath!!, itemName)
+            } else {
+                arrayOf(item.path)
+            }
             val cursor: Cursor? = context.contentResolver.query(
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -535,8 +742,18 @@ class MediaScanner(private val context: Context) {
                 MediaStore.Images.Media.WIDTH,
                 MediaStore.Images.Media.HEIGHT
             )
-            val selection = "${MediaStore.Images.Media.DATA} = ?"
-            val selectionArgs = arrayOf(item.path)
+            val relativeFolderPath = itemFolderPath?.let { resolveRelativePathFromFolder(it) }
+            val usesScopedSelection = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !relativeFolderPath.isNullOrBlank()
+            val selection = if (usesScopedSelection) {
+                "${MediaStore.Images.Media.RELATIVE_PATH} = ? AND ${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+            } else {
+                "${MediaStore.Images.Media.DATA} = ?"
+            }
+            val selectionArgs = if (usesScopedSelection) {
+                arrayOf(relativeFolderPath!!, itemName)
+            } else {
+                arrayOf(item.path)
+            }
             val cursor: Cursor? = context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
