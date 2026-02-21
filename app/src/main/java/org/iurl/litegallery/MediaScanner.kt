@@ -14,6 +14,48 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class MediaScanner(private val context: Context) {
+
+    companion object {
+        internal fun buildImageFolderProjection(includeDeferredMetadata: Boolean): Array<String> {
+            val projection = mutableListOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH,
+                MediaStore.Images.Media.DATA,
+                MediaStore.Images.Media.DATE_MODIFIED,
+                MediaStore.Images.Media.MIME_TYPE
+            )
+            if (includeDeferredMetadata) {
+                projection.add(MediaStore.Images.Media.SIZE)
+                projection.add(MediaStore.Images.Media.WIDTH)
+                projection.add(MediaStore.Images.Media.HEIGHT)
+            }
+            return projection.toTypedArray()
+        }
+
+        internal fun buildVideoFolderProjection(
+            includeDeferredMetadata: Boolean,
+            includeVideoDuration: Boolean
+        ): Array<String> {
+            val projection = mutableListOf(
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.RELATIVE_PATH,
+                MediaStore.Video.Media.DATA,
+                MediaStore.Video.Media.DATE_MODIFIED,
+                MediaStore.Video.Media.MIME_TYPE
+            )
+            if (includeVideoDuration) {
+                projection.add(MediaStore.Video.Media.DURATION)
+            }
+            if (includeDeferredMetadata) {
+                projection.add(MediaStore.Video.Media.SIZE)
+                projection.add(MediaStore.Video.Media.WIDTH)
+                projection.add(MediaStore.Video.Media.HEIGHT)
+            }
+            return projection.toTypedArray()
+        }
+    }
     
     private val fileSystemScanner = FileSystemScanner(context)
     private val primaryExternalRootPath: String? =
@@ -336,20 +378,7 @@ class MediaScanner(private val context: Context) {
         items: MutableList<MediaItem>,
         includeDeferredMetadata: Boolean
     ) {
-        val projectionList = mutableListOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.RELATIVE_PATH,
-            MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.MIME_TYPE
-        )
-        if (includeDeferredMetadata) {
-            projectionList.add(MediaStore.Images.Media.SIZE)
-            projectionList.add(MediaStore.Images.Media.WIDTH)
-            projectionList.add(MediaStore.Images.Media.HEIGHT)
-        }
-        val projection = projectionList.toTypedArray()
+        val projection = buildImageFolderProjection(includeDeferredMetadata)
 
         val folderQuery = buildFolderQuery(
             folderPath = folderPath,
@@ -432,23 +461,10 @@ class MediaScanner(private val context: Context) {
         includeDeferredMetadata: Boolean,
         includeVideoDuration: Boolean
     ) {
-        val projectionList = mutableListOf(
-            MediaStore.Video.Media._ID,
-            MediaStore.Video.Media.DISPLAY_NAME,
-            MediaStore.Video.Media.RELATIVE_PATH,
-            MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.DATE_MODIFIED,
-            MediaStore.Video.Media.MIME_TYPE
+        val projection = buildVideoFolderProjection(
+            includeDeferredMetadata = includeDeferredMetadata,
+            includeVideoDuration = includeVideoDuration
         )
-        if (includeVideoDuration) {
-            projectionList.add(MediaStore.Video.Media.DURATION)
-        }
-        if (includeDeferredMetadata) {
-            projectionList.add(MediaStore.Video.Media.SIZE)
-            projectionList.add(MediaStore.Video.Media.WIDTH)
-            projectionList.add(MediaStore.Video.Media.HEIGHT)
-        }
-        val projection = projectionList.toTypedArray()
         
         val folderQuery = buildFolderQuery(
             folderPath = folderPath,
