@@ -1,10 +1,12 @@
 package org.iurl.litegallery
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -24,9 +26,32 @@ class TrashBinActivity : AppCompatActivity() {
     private var previousSelectionPaths: Set<String> = emptySet()
     private var isSelectionMode = false
     private var hasMediaCollectionChanged = false
+    private var pendingSystemTrashAction: PendingSystemTrashAction? = null
 
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")
     private val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
+
+    private val systemTrashActionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val pending = pendingSystemTrashAction
+        pendingSystemTrashAction = null
+        if (pending == null) return@registerForActivityResult
+
+        if (result.resultCode == RESULT_OK) {
+            hasMediaCollectionChanged = true
+            if (pending.exitSelectionAfter) {
+                exitSelectionMode()
+            }
+            android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
+            loadTrashItems()
+        } else {
+            if (pending.exitSelectionAfter) {
+                exitSelectionMode()
+            }
+            android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -242,6 +267,15 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun scanTrashItems(): List<MediaItem> {
+        val appTrashItems = scanAppTrashItems()
+        val systemTrashItems = scanSystemTrashItems()
+        if (appTrashItems.isEmpty() && systemTrashItems.isEmpty()) return emptyList()
+        return (appTrashItems + systemTrashItems)
+            .distinctBy { it.path }
+            .sortedByDescending { it.dateModified }
+    }
+
+    private fun scanAppTrashItems(): List<MediaItem> {
         val persistedPaths = TrashBinStore.getTrashedPaths(this)
         if (persistedPaths.isEmpty()) return emptyList()
 
@@ -268,7 +302,94 @@ class TrashBinActivity : AppCompatActivity() {
             TrashBinStore.removeTrashedPaths(this, stalePaths)
         }
 
-        return items.sortedByDescending { it.dateModified }
+        return items
+    }
+
+    private fun scanSystemTrashItems(): List<MediaItem> {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return emptyList()
+        val items = mutableListOf<MediaItem>()
+        items += querySystemTrashForCollection(
+            baseCollectionUri = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            isVideoCollection = false
+        )
+        items += querySystemTrashForCollection(
+            baseCollectionUri = android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            isVideoCollection = true
+        )
+        return items
+    }
+
+    private fun querySystemTrashForCollection(
+        baseCollectionUri: Uri,
+        isVideoCollection: Boolean
+    ): List<MediaItem> {
+        val projection = mutableListOf(
+            android.provider.MediaStore.MediaColumns._ID,
+            android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
+            android.provider.MediaStore.MediaColumns.DATE_MODIFIED,
+            android.provider.MediaStore.MediaColumns.SIZE,
+            android.provider.MediaStore.MediaColumns.MIME_TYPE
+        ).apply {
+            if (isVideoCollection) {
+                add(android.provider.MediaStore.Video.Media.DURATION)
+            }
+        }.toTypedArray()
+
+        val selection = "${android.provider.MediaStore.MediaColumns.IS_TRASHED} = 1"
+        val cursor = try {
+            val queryArgs = android.os.Bundle().apply {
+                putInt(
+                    android.provider.MediaStore.QUERY_ARG_MATCH_TRASHED,
+                    android.provider.MediaStore.MATCH_INCLUDE
+                )
+                putString(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+            }
+            contentResolver.query(baseCollectionUri, projection, queryArgs, null)
+        } catch (_: Exception) {
+            try {
+                contentResolver.query(baseCollectionUri, projection, selection, null, null)
+            } catch (_: Exception) {
+                null
+            }
+        } ?: return emptyList()
+
+        val items = mutableListOf<MediaItem>()
+        cursor.use {
+            val idColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns._ID)
+            val nameColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)
+            val dateColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.DATE_MODIFIED)
+            val sizeColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.SIZE)
+            val mimeColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.MIME_TYPE)
+            val durationColumn = if (isVideoCollection) {
+                it.getColumnIndex(android.provider.MediaStore.Video.Media.DURATION)
+            } else {
+                -1
+            }
+
+            while (it.moveToNext()) {
+                val id = if (idColumn >= 0) it.getLong(idColumn) else -1L
+                if (id <= 0L) continue
+
+                val itemUri = android.content.ContentUris.withAppendedId(baseCollectionUri, id)
+                val name = if (nameColumn >= 0) it.getString(nameColumn) else null
+                val dateModifiedMs = if (dateColumn >= 0) it.getLong(dateColumn) * 1000L else 0L
+                val size = if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
+                val mimeType = if (mimeColumn >= 0) it.getString(mimeColumn) else null
+                val duration = if (durationColumn >= 0) it.getLong(durationColumn).coerceAtLeast(0L) else 0L
+
+                items.add(
+                    MediaItem(
+                        name = name ?: itemUri.lastPathSegment ?: getString(R.string.unknown_value),
+                        path = itemUri.toString(),
+                        dateModified = dateModifiedMs,
+                        size = size,
+                        mimeType = mimeType ?: if (isVideoCollection) "video/*" else "image/*",
+                        duration = duration
+                    )
+                )
+            }
+        }
+        return items
     }
 
     private fun createMediaItemFromFile(file: File): MediaItem? {
@@ -335,6 +456,20 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun confirmRestoreItem(mediaItem: MediaItem) {
+        if (isSystemTrashItem(mediaItem)) {
+            val uri = runCatching { Uri.parse(mediaItem.path) }.getOrNull()
+            if (uri == null) {
+                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            performSystemTrashAction(
+                uris = listOf(uri),
+                actionType = SystemTrashActionType.RESTORE,
+                exitSelectionAfter = false
+            )
+            return
+        }
+
         val trashedFile = File(mediaItem.path)
         val parent = trashedFile.parentFile
         if (!trashedFile.exists() || parent == null) {
@@ -392,7 +527,20 @@ class TrashBinActivity : AppCompatActivity() {
             .setTitle(R.string.delete_permanently)
             .setMessage(R.string.delete_confirmation)
             .setPositiveButton(R.string.delete) { _, _ ->
-                deleteSingleTrashedItem(mediaItem)
+                if (isSystemTrashItem(mediaItem)) {
+                    val uri = runCatching { Uri.parse(mediaItem.path) }.getOrNull()
+                    if (uri == null) {
+                        android.widget.Toast.makeText(this@TrashBinActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        performSystemTrashAction(
+                            uris = listOf(uri),
+                            actionType = SystemTrashActionType.DELETE,
+                            exitSelectionAfter = false
+                        )
+                    }
+                } else {
+                    deleteSingleTrashedItem(mediaItem)
+                }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -409,6 +557,7 @@ class TrashBinActivity : AppCompatActivity() {
             if (deleted) {
                 TrashBinStore.removeTrashedPath(this@TrashBinActivity, path)
                 notifyMediaScanner(path, null)
+                hasMediaCollectionChanged = true
                 android.widget.Toast.makeText(this@TrashBinActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                 loadTrashItems()
             } else {
@@ -419,53 +568,13 @@ class TrashBinActivity : AppCompatActivity() {
 
     private fun restoreAllItems() {
         if (trashItems.isEmpty()) return
-
-        lifecycleScope.launch {
-            val snapshot = trashItems.map { it.path }
-            val result = withContext(Dispatchers.IO) {
-                restoreAllItemsInternal(snapshot)
-            }
-
-            if (result.removedPaths.isNotEmpty()) {
-                TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
-            }
-            result.scannerUpdates.forEach { update ->
-                notifyMediaScanner(update.oldPath, update.newPath)
-            }
-            if (result.scannerUpdates.isNotEmpty()) {
-                hasMediaCollectionChanged = true
-            }
-
-            val message = if (result.failedCount == 0) R.string.success else R.string.error
-            android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
-            loadTrashItems()
-        }
+        performRestoreForItems(trashItems, exitSelectionAfter = false)
     }
 
     private fun restoreSelectedItems() {
-        val targetPaths = selectedPaths.toList()
-        if (targetPaths.isEmpty()) return
-
-        lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                restoreAllItemsInternal(targetPaths)
-            }
-
-            if (result.removedPaths.isNotEmpty()) {
-                TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
-            }
-            result.scannerUpdates.forEach { update ->
-                notifyMediaScanner(update.oldPath, update.newPath)
-            }
-            if (result.scannerUpdates.isNotEmpty()) {
-                hasMediaCollectionChanged = true
-            }
-
-            val message = if (result.failedCount == 0) R.string.success else R.string.error
-            android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
-            exitSelectionMode()
-            loadTrashItems()
-        }
+        val targetItems = resolveSelectedItems()
+        if (targetItems.isEmpty()) return
+        performRestoreForItems(targetItems, exitSelectionAfter = true)
     }
 
     private fun confirmAndEmptyTrash() {
@@ -482,23 +591,7 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun emptyTrash() {
-        lifecycleScope.launch {
-            val snapshot = trashItems.map { it.path }
-            val result = withContext(Dispatchers.IO) {
-                emptyTrashInternal(snapshot)
-            }
-
-            if (result.removedPaths.isNotEmpty()) {
-                TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
-                result.removedPaths.forEach { oldPath ->
-                    notifyMediaScanner(oldPath, null)
-                }
-            }
-
-            val message = if (result.failedCount == 0) R.string.success else R.string.error
-            android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
-            loadTrashItems()
-        }
+        performDeleteForItems(trashItems, exitSelectionAfter = false)
     }
 
     private fun confirmAndDeleteSelected() {
@@ -515,25 +608,270 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun deleteSelectedItems() {
-        val targetPaths = selectedPaths.toList()
-        if (targetPaths.isEmpty()) return
+        val targetItems = resolveSelectedItems()
+        if (targetItems.isEmpty()) return
+        performDeleteForItems(targetItems, exitSelectionAfter = true)
+    }
 
+    private fun resolveSelectedItems(): List<MediaItem> {
+        if (selectedPaths.isEmpty()) return emptyList()
+        return trashItems.filter { selectedPaths.contains(it.path) }
+    }
+
+    private fun isSystemTrashItem(item: MediaItem): Boolean {
+        return item.path.startsWith("content://")
+    }
+
+    private fun performRestoreForItems(targetItems: List<MediaItem>, exitSelectionAfter: Boolean) {
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                emptyTrashInternal(targetPaths)
+            val mixedResult = withContext(Dispatchers.IO) {
+                restoreMixedItemsInternal(targetItems)
             }
 
-            if (result.removedPaths.isNotEmpty()) {
-                TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
-                result.removedPaths.forEach { oldPath ->
-                    notifyMediaScanner(oldPath, null)
+            applyAppRestoreResult(mixedResult.appResult)
+            val launchedUserAction = launchSystemUserActionIfNeeded(mixedResult.systemResult, exitSelectionAfter)
+
+            val appSuccess = mixedResult.appResult.removedPaths.size
+            val appFailed = mixedResult.appResult.failedCount
+            val systemSuccess = mixedResult.systemResult.successCount
+            val systemActionLaunchFailed =
+                !launchedUserAction && mixedResult.systemResult.userActionIntentSender != null
+            val systemFailed = mixedResult.systemResult.failedCount +
+                if (systemActionLaunchFailed) mixedResult.systemResult.userActionUris.size else 0
+            val totalSuccess = appSuccess + systemSuccess
+            val totalFailed = appFailed + systemFailed
+
+            if (totalSuccess > 0) {
+                hasMediaCollectionChanged = true
+            }
+
+            if (!launchedUserAction) {
+                val message = if (totalSuccess > 0 && totalFailed == 0) R.string.success else R.string.error
+                android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
+                if (exitSelectionAfter) exitSelectionMode()
+                loadTrashItems()
+            } else {
+                if (appSuccess > 0 || appFailed > 0) {
+                    loadTrashItems()
                 }
             }
+        }
+    }
 
-            val message = if (result.failedCount == 0) R.string.success else R.string.error
-            android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
-            exitSelectionMode()
-            loadTrashItems()
+    private fun performDeleteForItems(targetItems: List<MediaItem>, exitSelectionAfter: Boolean) {
+        lifecycleScope.launch {
+            val mixedResult = withContext(Dispatchers.IO) {
+                deleteMixedItemsInternal(targetItems)
+            }
+
+            applyAppDeleteResult(mixedResult.appResult)
+            val launchedUserAction = launchSystemUserActionIfNeeded(mixedResult.systemResult, exitSelectionAfter)
+
+            val appSuccess = mixedResult.appResult.removedPaths.size
+            val appFailed = mixedResult.appResult.failedCount
+            val systemSuccess = mixedResult.systemResult.successCount
+            val systemActionLaunchFailed =
+                !launchedUserAction && mixedResult.systemResult.userActionIntentSender != null
+            val systemFailed = mixedResult.systemResult.failedCount +
+                if (systemActionLaunchFailed) mixedResult.systemResult.userActionUris.size else 0
+            val totalSuccess = appSuccess + systemSuccess
+            val totalFailed = appFailed + systemFailed
+
+            if (totalSuccess > 0) {
+                hasMediaCollectionChanged = true
+            }
+
+            if (!launchedUserAction) {
+                val message = if (totalSuccess > 0 && totalFailed == 0) R.string.success else R.string.error
+                android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
+                if (exitSelectionAfter) exitSelectionMode()
+                loadTrashItems()
+            } else {
+                if (appSuccess > 0 || appFailed > 0) {
+                    loadTrashItems()
+                }
+            }
+        }
+    }
+
+    private fun restoreMixedItemsInternal(targetItems: List<MediaItem>): MixedRestoreResult {
+        val appPaths = targetItems
+            .filterNot(::isSystemTrashItem)
+            .map { it.path }
+        val systemUris = targetItems
+            .filter(::isSystemTrashItem)
+            .mapNotNull { runCatching { Uri.parse(it.path) }.getOrNull() }
+
+        val appResult = restoreAllItemsInternal(appPaths)
+        val systemResult = executeSystemTrashAction(systemUris, SystemTrashActionType.RESTORE)
+        return MixedRestoreResult(appResult, systemResult)
+    }
+
+    private fun deleteMixedItemsInternal(targetItems: List<MediaItem>): MixedDeleteResult {
+        val appPaths = targetItems
+            .filterNot(::isSystemTrashItem)
+            .map { it.path }
+        val systemUris = targetItems
+            .filter(::isSystemTrashItem)
+            .mapNotNull { runCatching { Uri.parse(it.path) }.getOrNull() }
+
+        val appResult = emptyTrashInternal(appPaths)
+        val systemResult = executeSystemTrashAction(systemUris, SystemTrashActionType.DELETE)
+        return MixedDeleteResult(appResult, systemResult)
+    }
+
+    private fun applyAppRestoreResult(result: BulkResult) {
+        if (result.removedPaths.isNotEmpty()) {
+            TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
+        }
+        result.scannerUpdates.forEach { update ->
+            notifyMediaScanner(update.oldPath, update.newPath)
+        }
+    }
+
+    private fun applyAppDeleteResult(result: DeleteResult) {
+        if (result.removedPaths.isNotEmpty()) {
+            TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
+            result.removedPaths.forEach { oldPath ->
+                notifyMediaScanner(oldPath, null)
+            }
+        }
+    }
+
+    private fun performSystemTrashAction(
+        uris: List<Uri>,
+        actionType: SystemTrashActionType,
+        exitSelectionAfter: Boolean
+    ) {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                executeSystemTrashAction(uris, actionType)
+            }
+
+            val launched = launchSystemUserActionIfNeeded(result, exitSelectionAfter)
+            val effectiveFailed = result.failedCount + if (!launched && result.userActionIntentSender != null) {
+                result.userActionUris.size
+            } else {
+                0
+            }
+            if (result.successCount > 0) {
+                hasMediaCollectionChanged = true
+            }
+
+            if (!launched) {
+                val message = if (result.successCount > 0 && effectiveFailed == 0) {
+                    R.string.success
+                } else {
+                    R.string.error
+                }
+                android.widget.Toast.makeText(this@TrashBinActivity, message, android.widget.Toast.LENGTH_SHORT).show()
+                if (exitSelectionAfter) exitSelectionMode()
+                loadTrashItems()
+            }
+        }
+    }
+
+    private fun executeSystemTrashAction(
+        uris: List<Uri>,
+        actionType: SystemTrashActionType
+    ): SystemTrashOperationResult {
+        if (uris.isEmpty()) return SystemTrashOperationResult(successCount = 0, failedCount = 0)
+
+        val uniqueUris = uris.distinct()
+        var successCount = 0
+        var failedCount = 0
+        val userActionRequiredUris = mutableListOf<Uri>()
+
+        uniqueUris.forEach { uri ->
+            try {
+                val success = when (actionType) {
+                    SystemTrashActionType.RESTORE -> restoreSystemTrashDirect(uri)
+                    SystemTrashActionType.DELETE -> deleteSystemItemDirect(uri)
+                }
+                if (success) {
+                    successCount++
+                } else {
+                    failedCount++
+                }
+            } catch (_: SecurityException) {
+                userActionRequiredUris.add(uri)
+            } catch (_: Exception) {
+                failedCount++
+            }
+        }
+
+        if (userActionRequiredUris.isNotEmpty()) {
+            val intentSender = buildSystemActionIntentSender(actionType, userActionRequiredUris)
+            if (intentSender != null) {
+                return SystemTrashOperationResult(
+                    successCount = successCount,
+                    failedCount = failedCount,
+                    userActionIntentSender = intentSender,
+                    userActionUris = userActionRequiredUris,
+                    actionType = actionType
+                )
+            }
+            failedCount += userActionRequiredUris.size
+        }
+
+        return SystemTrashOperationResult(
+            successCount = successCount,
+            failedCount = failedCount
+        )
+    }
+
+    private fun restoreSystemTrashDirect(uri: Uri): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.IS_TRASHED, 0)
+        }
+        return contentResolver.update(uri, values, null, null) > 0
+    }
+
+    private fun deleteSystemItemDirect(uri: Uri): Boolean {
+        return contentResolver.delete(uri, null, null) > 0
+    }
+
+    private fun buildSystemActionIntentSender(
+        actionType: SystemTrashActionType,
+        uris: List<Uri>
+    ): android.content.IntentSender? {
+        if (uris.isEmpty()) return null
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return null
+        return try {
+            when (actionType) {
+                SystemTrashActionType.RESTORE ->
+                    android.provider.MediaStore.createTrashRequest(contentResolver, uris, false).intentSender
+                SystemTrashActionType.DELETE ->
+                    android.provider.MediaStore.createDeleteRequest(contentResolver, uris).intentSender
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun launchSystemUserActionIfNeeded(
+        result: SystemTrashOperationResult,
+        exitSelectionAfter: Boolean
+    ): Boolean {
+        val intentSender = result.userActionIntentSender ?: return false
+        val actionType = result.actionType ?: return false
+        val uris = result.userActionUris
+        if (uris.isEmpty()) return false
+
+        pendingSystemTrashAction = PendingSystemTrashAction(
+            actionType = actionType,
+            uris = uris,
+            exitSelectionAfter = exitSelectionAfter
+        )
+
+        return try {
+            val request = androidx.activity.result.IntentSenderRequest.Builder(intentSender).build()
+            systemTrashActionLauncher.launch(request)
+            true
+        } catch (_: Exception) {
+            pendingSystemTrashAction = null
+            false
         }
     }
 
@@ -726,4 +1064,33 @@ class TrashBinActivity : AppCompatActivity() {
         val removedPaths: List<String>,
         val failedCount: Int
     )
+
+    private data class MixedRestoreResult(
+        val appResult: BulkResult,
+        val systemResult: SystemTrashOperationResult
+    )
+
+    private data class MixedDeleteResult(
+        val appResult: DeleteResult,
+        val systemResult: SystemTrashOperationResult
+    )
+
+    private data class SystemTrashOperationResult(
+        val successCount: Int,
+        val failedCount: Int,
+        val userActionIntentSender: android.content.IntentSender? = null,
+        val userActionUris: List<Uri> = emptyList(),
+        val actionType: SystemTrashActionType? = null
+    )
+
+    private data class PendingSystemTrashAction(
+        val actionType: SystemTrashActionType,
+        val uris: List<Uri>,
+        val exitSelectionAfter: Boolean
+    )
+
+    private enum class SystemTrashActionType {
+        RESTORE,
+        DELETE
+    }
 }
