@@ -128,6 +128,7 @@
     <string name="advanced_full_storage_open_failed">無法開啟完整儲存空間存取設定</string>
     <string name="external_folder_access_title">授予資料夾存取</string>
     <string name="external_folder_access_message">若要維持此外部檔案的同資料夾瀏覽，請授予其資料夾存取權。</string>
+    <string name="external_folder_access_dont_show_again">不再提示</string>
     <string name="grant_folder_access">授予資料夾存取</string>
     <string name="external_folder_access_cancelled">未授予資料夾存取，僅顯示目前檔案。</string>
     <string name="external_folder_access_failed">無法從授權資料夾載入清單</string>
