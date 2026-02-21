@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -72,7 +73,9 @@ class MediaScanner(private val context: Context) {
         val selectionArgs: Array<String>
     )
     
-    suspend fun scanMediaFolders(): List<MediaFolder> = withContext(Dispatchers.IO) {
+    suspend fun scanMediaFolders(
+        allowDeepFileSystemFallback: Boolean = false
+    ): List<MediaFolder> = withContext(Dispatchers.IO) {
         val folders = mutableMapOf<String, FolderAggregate>()
         
         // Lightweight scan for folder list: only count items and keep a representative thumbnail path.
@@ -92,8 +95,11 @@ class MediaScanner(private val context: Context) {
             }.sortedBy { it.name }
         }
 
-        // Fallback: only do expensive full file-system scan when MediaStore has no results.
-        fileSystemScanner.scanAllFoldersForMedia(ignoreNomedia = false)
+        // Deep file-system fallback is disabled by default and allowed only in advanced mode.
+        if (allowDeepFileSystemFallback && canUseDeepFileSystemFallback()) {
+            return@withContext fileSystemScanner.scanAllFoldersForMedia(ignoreNomedia = false)
+        }
+        emptyList()
     }
 
     private fun isTrashedFile(file: File): Boolean {
@@ -114,7 +120,7 @@ class MediaScanner(private val context: Context) {
         // Scan videos in folder
         scanVideosInFolder(folderPath, items, includeDeferredMetadata, includeVideoDuration)
         
-        if (mergeFileSystemFallback) {
+        if (mergeFileSystemFallback && canUseDeepFileSystemFallback()) {
             // If MediaStore didn't find anything, try file system scan (for non-media folders)
             if (items.isEmpty()) {
                 val fileSystemItems = fileSystemScanner.scanFolderForMedia(folderPath, ignoreNomedia = true)
@@ -319,6 +325,17 @@ class MediaScanner(private val context: Context) {
 
         val relative = normalizedFolder.removePrefix(normalizedRoot)
         return relative.ifBlank { null }
+    }
+
+    private fun canUseDeepFileSystemFallback(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
+        if (!isAdvancedFullStorageModeEnabled()) return false
+        return Environment.isExternalStorageManager()
+    }
+
+    private fun isAdvancedFullStorageModeEnabled(): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        return prefs.getBoolean(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE, false)
     }
 
     private fun resolveAbsolutePathFromRelative(relativePath: String?, displayName: String?): String? {
