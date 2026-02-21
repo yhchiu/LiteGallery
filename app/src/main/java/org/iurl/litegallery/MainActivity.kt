@@ -12,7 +12,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
@@ -348,14 +347,8 @@ class MainActivity : AppCompatActivity() {
         private const val REFRESH_THROTTLE_MS = 1_200L
     }
 
-    private fun isAdvancedFullStorageModeEnabled(): Boolean {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        return prefs.getBoolean(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE, false)
-    }
-
     private fun canUseAdvancedAllFilesAccess(): Boolean {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
-        if (!isAdvancedFullStorageModeEnabled()) return false
         return android.os.Environment.isExternalStorageManager()
     }
 }

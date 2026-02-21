@@ -124,9 +124,9 @@
     <string name="external_folder_access_prompt_setting_title">Show Folder Access Prompt</string>
     <string name="external_folder_access_prompt_setting_summary">Show a folder access prompt for external files. Turn this on to re-enable the prompt.</string>
     <string name="advanced_full_storage_mode_title">Full Storage Access</string>
-    <string name="advanced_full_storage_mode_summary">Grant full storage permission. More convenient because you usually do not need to grant each folder one by one, but this is high-risk permission.</string>
-    <string name="advanced_full_storage_mode_summary_enabled">Full storage permission is enabled and granted. Per-folder grants are usually not needed.</string>
-    <string name="advanced_full_storage_mode_summary_permission_missing">Full storage option is enabled, but the system permission is not granted yet.</string>
+    <string name="advanced_full_storage_mode_summary">Open system settings to manage full storage permission. This is convenient because you usually do not need to grant each folder one by one, but it is high-risk permission.</string>
+    <string name="advanced_full_storage_mode_summary_enabled">Full storage permission is granted. Per-folder grants are usually not needed. Tap to manage in system settings.</string>
+    <string name="advanced_full_storage_mode_summary_permission_missing">Full storage permission is not granted. Tap to open system settings.</string>
     <string name="advanced_full_storage_open_failed">Unable to open full storage access settings</string>
     <string name="external_folder_access_title">Grant Folder Access</string>
     <string name="external_folder_access_message">To keep same-folder browsing for this external file, grant access to its folder. You can also enable Full Storage Access in Settings to avoid granting folders one by one.</string>

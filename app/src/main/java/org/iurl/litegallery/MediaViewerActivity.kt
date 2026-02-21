@@ -1631,9 +1631,6 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun canUseAdvancedAllFilesAccess(): Boolean {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val advancedModeEnabled = prefs.getBoolean(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE, false)
-        if (!advancedModeEnabled) return false
         return android.os.Environment.isExternalStorageManager()
     }
 

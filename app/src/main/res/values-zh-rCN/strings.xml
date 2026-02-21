@@ -124,9 +124,9 @@
     <string name="external_folder_access_prompt_setting_title">显示文件夹授权提示</string>
     <string name="external_folder_access_prompt_setting_summary">打开外部文件时显示文件夹授权提示。如果之前选择了不再提示，可在这里重新开启。</string>
     <string name="advanced_full_storage_mode_title">完整存储访问</string>
-    <string name="advanced_full_storage_mode_summary">授予 App 完整存储权限。开启后更方便，通常不用逐个授权文件夹；但这是高风险权限，请仅在需要时开启。</string>
-    <string name="advanced_full_storage_mode_summary_enabled">已开启并授予完整存储权限，通常不需要逐个授权文件夹。</string>
-    <string name="advanced_full_storage_mode_summary_permission_missing">已开启此选项，但系统尚未授予完整存储权限。</string>
+    <string name="advanced_full_storage_mode_summary">点击前往系统设置管理完整存储权限。这样更方便，通常不用逐个授权文件夹；但这是高风险权限，请仅在需要时使用。</string>
+    <string name="advanced_full_storage_mode_summary_enabled">已授予完整存储权限，通常不需要逐个授权文件夹。点击可前往系统设置管理。</string>
+    <string name="advanced_full_storage_mode_summary_permission_missing">尚未授予完整存储权限。点击前往系统设置。</string>
     <string name="advanced_full_storage_open_failed">无法打开完整存储访问设置</string>
     <string name="external_folder_access_title">授予文件夹访问</string>
     <string name="external_folder_access_message">要保持此外部文件的同文件夹浏览，请授予其文件夹访问权限。你也可以在设置中开启“完整存储访问”，之后通常不需要逐个授权文件夹。</string>
