@@ -175,6 +175,12 @@
             android:summary="@string/playback_diagnostics_setting_summary"
             android:title="@string/playback_diagnostics_setting_title" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="advanced_full_storage_mode"
+            android:summary="@string/advanced_full_storage_mode_summary"
+            android:title="@string/advanced_full_storage_mode_title" />
+
         <ListPreference
             android:defaultValue="30"
             android:entries="@array/trash_retention_days_entries"

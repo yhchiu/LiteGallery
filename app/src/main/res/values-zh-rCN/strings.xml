@@ -121,6 +121,16 @@
     <string name="restore_volume_summary">退出应用时还原原始音量</string>
     <string name="playback_diagnostics_setting_title">启用播放诊断</string>
     <string name="playback_diagnostics_setting_summary">收集播放事件以便问题排查</string>
+    <string name="advanced_full_storage_mode_title">高级完整存储访问</string>
+    <string name="advanced_full_storage_mode_summary">用于难以索引文件夹的可选回退。启用时会打开系统权限页面。</string>
+    <string name="advanced_full_storage_mode_summary_enabled">已启用且已授权</string>
+    <string name="advanced_full_storage_mode_summary_permission_missing">已启用，但未授予完整文件权限</string>
+    <string name="advanced_full_storage_open_failed">无法打开完整存储访问设置</string>
+    <string name="external_folder_access_title">授予文件夹访问</string>
+    <string name="external_folder_access_message">要保持此外部文件的同文件夹浏览，请授予其文件夹访问权限。</string>
+    <string name="grant_folder_access">授予文件夹访问</string>
+    <string name="external_folder_access_cancelled">未授予文件夹访问，仅显示当前文件。</string>
+    <string name="external_folder_access_failed">无法从已授权文件夹加载列表</string>
     <string name="trash_retention_days_title">垃圾桶保留天数</string>
     <string name="trash_retention_days_summary_default">自动删除超过 30 天的垃圾桶文件</string>
     <string name="trash_retention_days_summary_disabled">停用（仅手动清理）</string>

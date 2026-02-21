@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
@@ -31,21 +32,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.all { it.value }) {
-            // Check if we need to request additional storage manager permission for non-media folders
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && 
-                !android.os.Environment.isExternalStorageManager()) {
-                android.util.Log.d("MainActivity", "Media permissions granted, now requesting storage manager access")
-                try {
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.data = android.net.Uri.parse("package:$packageName")
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    // Continue with media permissions only
-                    loadMediaFolders()
-                }
-            } else {
-                loadMediaFolders()
-            }
+            loadMediaFolders()
         } else {
             showPermissionRequired()
         }
@@ -226,15 +213,14 @@ class MainActivity : AppCompatActivity() {
         return if (sdkInt >= android.os.Build.VERSION_CODES.TIRAMISU) {
             val imagesPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
             val videosPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
-            val isStorageManager = android.os.Environment.isExternalStorageManager()
-            android.util.Log.d("MainActivity", "Android 13+: Images=$imagesPermission, Videos=$videosPermission, StorageManager=$isStorageManager")
-            // For gallery apps that need to access non-media folders, we need either media permissions OR storage manager access
-            (imagesPermission && videosPermission) || isStorageManager
+            val canUseAllFilesAccess = canUseAdvancedAllFilesAccess()
+            android.util.Log.d("MainActivity", "Android 13+: Images=$imagesPermission, Videos=$videosPermission, AdvancedAllFiles=$canUseAllFilesAccess")
+            (imagesPermission && videosPermission) || canUseAllFilesAccess
         } else if (sdkInt >= android.os.Build.VERSION_CODES.R) {
-            val isStorageManager = android.os.Environment.isExternalStorageManager()
             val hasReadStorage = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            android.util.Log.d("MainActivity", "Android 11+: StorageManager=$isStorageManager, ReadStorage=$hasReadStorage")
-            isStorageManager || hasReadStorage
+            val canUseAllFilesAccess = canUseAdvancedAllFilesAccess()
+            android.util.Log.d("MainActivity", "Android 11+: ReadStorage=$hasReadStorage, AdvancedAllFiles=$canUseAllFilesAccess")
+            hasReadStorage || canUseAllFilesAccess
         } else {
             val hasReadStorage = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             android.util.Log.d("MainActivity", "Android <11: ReadStorage=$hasReadStorage")
@@ -244,42 +230,20 @@ class MainActivity : AppCompatActivity() {
     
     private fun requestStoragePermissions() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            // For Android 13+, we need to handle both media permissions and full storage access
+            // Android 13+: request media-only permissions by default.
             val imagesPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
             val videosPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
-            val isStorageManager = android.os.Environment.isExternalStorageManager()
             
             if (!imagesPermission || !videosPermission) {
-                // First try to get media permissions
                 android.util.Log.d("MainActivity", "Requesting Android 13+ media permissions")
                 requestRegularPermissions()
-            } else if (!isStorageManager) {
-                // If media permissions are granted but we still can't access non-media folders,
-                // offer to request MANAGE_EXTERNAL_STORAGE for full access
-                android.util.Log.d("MainActivity", "Media permissions granted, requesting full storage access for non-media folders")
-                try {
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.data = android.net.Uri.parse("package:$packageName")
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    // Continue with media permissions only
-                    loadMediaFolders()
-                }
             } else {
                 loadMediaFolders()
             }
         } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            // For Android 11-12, request MANAGE_EXTERNAL_STORAGE for full access
-            if (!android.os.Environment.isExternalStorageManager()) {
-                try {
-                    android.util.Log.d("MainActivity", "Requesting MANAGE_EXTERNAL_STORAGE permission")
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.data = android.net.Uri.parse("package:$packageName")
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    // Fallback to regular permissions
-                    requestRegularPermissions()
-                }
+            val hasReadStorage = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            if (!hasReadStorage) {
+                requestRegularPermissions()
             } else {
                 loadMediaFolders()
             }
@@ -382,5 +346,16 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REFRESH_THROTTLE_MS = 1_200L
+    }
+
+    private fun isAdvancedFullStorageModeEnabled(): Boolean {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        return prefs.getBoolean(StorageAccessPreferences.KEY_ADVANCED_FULL_STORAGE_MODE, false)
+    }
+
+    private fun canUseAdvancedAllFilesAccess(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+        if (!isAdvancedFullStorageModeEnabled()) return false
+        return android.os.Environment.isExternalStorageManager()
     }
 }

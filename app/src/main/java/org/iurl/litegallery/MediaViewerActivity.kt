@@ -4,8 +4,10 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.documentfile.provider.DocumentFile
 import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,6 +56,35 @@ class MediaViewerActivity : AppCompatActivity() {
     // Track last swipe direction for rename auto-navigation
     private var lastSwipeDirection = 0 // -1 for left (previous), 1 for right (next), 0 for none
     private var previousPosition = 0
+    private var pendingExternalFolderTargetUri: android.net.Uri? = null
+    private var pendingExternalFolderTargetName: String? = null
+    private var hasPromptedExternalFolderAccessForCurrentIntent = false
+
+    private val openExternalFolderTreeLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri ->
+        val targetUri = pendingExternalFolderTargetUri
+        val targetName = pendingExternalFolderTargetName
+        pendingExternalFolderTargetUri = null
+        pendingExternalFolderTargetName = null
+
+        if (treeUri == null || targetUri == null) {
+            android.widget.Toast.makeText(this, R.string.external_folder_access_cancelled, android.widget.Toast.LENGTH_SHORT).show()
+            return@registerForActivityResult
+        }
+
+        try {
+            contentResolver.takePersistableUriPermission(
+                treeUri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: Exception) {
+            // Keep going; provider may already have a persisted grant.
+        }
+
+        ExternalFolderGrantStore.rememberTreeUriForContentUri(this, targetUri, treeUri)
+        applyTreeFolderContinuation(treeUri, targetUri, targetName)
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme and color theme before setting content view
@@ -985,12 +1016,137 @@ class MediaViewerActivity : AppCompatActivity() {
                     applyRememberedBrightnessIfEnabledForVideo(currentPosition)
                     // Hide loading after content is ready
                     hideLoadingIndicator()
+                    maybeTryContinueExternalFolderBrowsing(uri, fileName)
                 }
             } catch (e: Exception) {
                 // Hide loading on error
                 hideLoadingIndicator()
             }
         }
+    }
+
+    private fun maybeTryContinueExternalFolderBrowsing(uri: android.net.Uri, targetName: String?) {
+        if (intent.action != android.content.Intent.ACTION_VIEW) return
+
+        val persistedTreeUri = ExternalFolderGrantStore.findTreeUriForContentUri(this, uri)
+        if (persistedTreeUri != null) {
+            applyTreeFolderContinuation(persistedTreeUri, uri, targetName)
+            return
+        }
+
+        if (hasPromptedExternalFolderAccessForCurrentIntent) return
+        hasPromptedExternalFolderAccessForCurrentIntent = true
+        promptExternalFolderAccess(uri, targetName)
+    }
+
+    private fun promptExternalFolderAccess(uri: android.net.Uri, targetName: String?) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.external_folder_access_title)
+            .setMessage(R.string.external_folder_access_message)
+            .setPositiveButton(R.string.grant_folder_access) { _, _ ->
+                pendingExternalFolderTargetUri = uri
+                pendingExternalFolderTargetName = targetName
+                openExternalFolderTreeLauncher.launch(null)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun applyTreeFolderContinuation(
+        treeUri: android.net.Uri,
+        targetUri: android.net.Uri,
+        targetName: String?
+    ) {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                scanMediaItemsFromTree(treeUri, targetUri, targetName)
+            }
+
+            if (result.items.size <= 1 || result.targetIndex !in result.items.indices) return@launch
+
+            mediaItems = result.items
+            mediaViewerAdapter.submitList(mediaItems) {
+                binding.viewPager.setCurrentItem(result.targetIndex, false)
+                currentPosition = result.targetIndex
+                previousPosition = currentPosition
+                mediaViewerAdapter.setActivePosition(currentPosition)
+                updateFileName(currentPosition)
+                applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+            }
+        }
+    }
+
+    private data class TreeScanResult(
+        val items: List<MediaItem>,
+        val targetIndex: Int
+    )
+
+    private fun scanMediaItemsFromTree(
+        treeUri: android.net.Uri,
+        targetUri: android.net.Uri,
+        targetName: String?
+    ): TreeScanResult {
+        val root = DocumentFile.fromTreeUri(this, treeUri) ?: return TreeScanResult(emptyList(), -1)
+        val children = try {
+            root.listFiles()
+        } catch (_: Exception) {
+            return TreeScanResult(emptyList(), -1)
+        }
+
+        val items = children.asSequence()
+            .filter { it.isFile && isLikelyMediaDocument(it) }
+            .map { file ->
+                MediaItem(
+                    name = file.name ?: getString(R.string.unknown_value),
+                    path = file.uri.toString(),
+                    dateModified = file.lastModified().coerceAtLeast(0L),
+                    size = 0L,
+                    mimeType = resolveMimeTypeForDocument(file),
+                    width = 0,
+                    height = 0
+                )
+            }
+            .sortedByDescending { it.dateModified }
+            .toList()
+
+        if (items.isEmpty()) return TreeScanResult(emptyList(), -1)
+
+        val targetPath = targetUri.toString()
+        val targetIndexByUri = items.indexOfFirst { it.path == targetPath }
+        if (targetIndexByUri >= 0) {
+            return TreeScanResult(items, targetIndexByUri)
+        }
+
+        val normalizedTargetName = targetName?.trim()?.lowercase()
+        if (!normalizedTargetName.isNullOrBlank()) {
+            val targetIndexByName = items.indexOfFirst { it.name.trim().lowercase() == normalizedTargetName }
+            if (targetIndexByName >= 0) {
+                return TreeScanResult(items, targetIndexByName)
+            }
+        }
+
+        return TreeScanResult(items, -1)
+    }
+
+    private fun isLikelyMediaDocument(file: DocumentFile): Boolean {
+        val mimeType = resolveMimeTypeForDocument(file)
+        if (mimeType.startsWith("image/") || mimeType.startsWith("video/")) return true
+
+        val extension = file.name?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()
+        return extension in setOf(
+            "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif",
+            "mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv"
+        )
+    }
+
+    private fun resolveMimeTypeForDocument(file: DocumentFile): String {
+        val fileUri = file.uri
+        val resolverType = try {
+            contentResolver.getType(fileUri)
+        } catch (_: Exception) {
+            null
+        }
+        return resolverType ?: file.type ?: getMimeTypeFromPath(file.name ?: "")
     }
     
     private fun scanParentFolder(filePath: String) {

@@ -46,6 +46,7 @@ class SettingsExportImportHelper(private val context: Context) {
             "saved_video_brightness",
             "restore_volume",
             "enable_playback_diagnostics",
+            "advanced_full_storage_mode",
             "trash_retention_days"
         )
     }
