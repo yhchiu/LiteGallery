@@ -1064,24 +1064,9 @@ class MediaViewerActivity : AppCompatActivity() {
     }
     
     private fun getRealPathFromURI(uri: android.net.Uri): String? {
-        if (uri.scheme == "file") {
-            return uri.path
-        }
-        if (uri.scheme != "content") return null
-
-        return try {
+        return MediaUriPathResolver.resolveRealPath(uri) {
             val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
-            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                val columnIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
-                if (columnIndex >= 0 && cursor.moveToFirst()) {
-                    cursor.getString(columnIndex)?.takeIf { it.isNotBlank() }
-                } else {
-                    null
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("MediaViewerActivity", "Failed to resolve real path from URI", e)
-            null
+            contentResolver.query(uri, projection, null, null, null)
         }
     }
     
