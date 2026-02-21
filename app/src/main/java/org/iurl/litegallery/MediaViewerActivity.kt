@@ -929,23 +929,26 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun handleSingleMediaFile(path: String) {
         val fileName = path.substringAfterLast("/")
         binding.fileNameTextView.text = fileName
-        
-        // Create single item list
-        val dimensions = getMediaDimensionsFromPath(path)
-        val mediaItem = MediaItem(
-            name = fileName,
-            path = path,
-            dateModified = System.currentTimeMillis(),
-            size = 0,
-            mimeType = getMimeTypeFromPath(path),
-            width = dimensions.first,
-            height = dimensions.second
-        )
-        mediaItems = listOf(mediaItem)
-        mediaViewerAdapter.submitList(mediaItems) {
-            currentPosition = 0
-            mediaViewerAdapter.setActivePosition(currentPosition)
-            applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+
+        lifecycleScope.launch {
+            val dimensions = withContext(Dispatchers.IO) {
+                getMediaDimensionsFromPath(path)
+            }
+            val mediaItem = MediaItem(
+                name = fileName,
+                path = path,
+                dateModified = System.currentTimeMillis(),
+                size = 0,
+                mimeType = getMimeTypeFromPath(path),
+                width = dimensions.first,
+                height = dimensions.second
+            )
+            mediaItems = listOf(mediaItem)
+            mediaViewerAdapter.submitList(mediaItems) {
+                currentPosition = 0
+                mediaViewerAdapter.setActivePosition(currentPosition)
+                applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+            }
         }
     }
     
@@ -955,16 +958,23 @@ class MediaViewerActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val fileName = getFileNameFromUri(uri) ?: "Unknown"
+                val mediaProbe = withContext(Dispatchers.IO) {
+                    val name = getFileNameFromUri(uri) ?: "Unknown"
+                    val mimeType = contentResolver.getType(uri) ?: "image/*"
+                    val dimensions = getMediaDimensionsFromUri(uri)
+                    Triple(name, mimeType, dimensions)
+                }
+                val fileName = mediaProbe.first
+                val mimeType = mediaProbe.second
+                val dimensions = mediaProbe.third
+
                 binding.fileNameTextView.text = fileName
-                
-                val dimensions = getMediaDimensionsFromUri(uri)
                 val mediaItem = MediaItem(
                     name = fileName,
                     path = uri.toString(),
                     dateModified = System.currentTimeMillis(),
                     size = 0,
-                    mimeType = contentResolver.getType(uri) ?: "image/*",
+                    mimeType = mimeType,
                     width = dimensions.first,
                     height = dimensions.second
                 )
