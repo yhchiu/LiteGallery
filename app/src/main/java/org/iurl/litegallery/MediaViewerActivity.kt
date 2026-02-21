@@ -852,8 +852,35 @@ class MediaViewerActivity : AppCompatActivity() {
         folderPath?.let { path ->
             lifecycleScope.launch {
                 try {
-                    mediaItems = mediaScanner.scanMediaInFolder(path)
+                    val targetPath = mediaPath
+                    mediaItems = mediaScanner.scanMediaInFolder(
+                        folderPath = path,
+                        includeDeferredMetadata = false,
+                        includeVideoDuration = false,
+                        mergeFileSystemFallback = false
+                    )
+
+                    val shouldFallbackToFileSystem = mediaItems.isEmpty() || (
+                        !targetPath.isNullOrBlank() && findMediaItemIndexByPath(mediaItems, targetPath) < 0
+                    )
+
+                    if (shouldFallbackToFileSystem) {
+                        mediaItems = mediaScanner.scanMediaInFolder(
+                            folderPath = path,
+                            includeDeferredMetadata = false,
+                            includeVideoDuration = false,
+                            mergeFileSystemFallback = true
+                        )
+                    }
+
                     mediaViewerAdapter.submitList(mediaItems) {
+                        if (!targetPath.isNullOrBlank()) {
+                            val resolvedIndex = findMediaItemIndexByPath(mediaItems, targetPath)
+                            if (resolvedIndex >= 0) {
+                                currentPosition = resolvedIndex
+                            }
+                        }
+
                         // Set current position after adapter is updated
                         if (currentPosition < mediaItems.size) {
                             binding.viewPager.setCurrentItem(currentPosition, false)
