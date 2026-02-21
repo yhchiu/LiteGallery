@@ -7,7 +7,9 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MediaViewerActivity : AppCompatActivity() {
     
@@ -546,28 +548,34 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun performDelete(item: MediaItem, moveToTrash: Boolean) {
-        try {
-            val file = java.io.File(item.path)
-            if (!file.exists()) {
-                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
-                return
+        lifecycleScope.launch {
+            val deleteResult = withContext(Dispatchers.IO) {
+                try {
+                    val file = java.io.File(item.path)
+                    if (!file.exists()) {
+                        DeleteOperationResult(success = false)
+                    } else {
+                        val movedFile = if (moveToTrash) moveFileToTrash(file) else null
+                        val success = if (moveToTrash) movedFile != null else file.delete()
+                        DeleteOperationResult(success = success)
+                    }
+                } catch (e: Exception) {
+                    DeleteOperationResult(success = false, error = e)
+                }
             }
 
-            val movedFile = if (moveToTrash) moveFileToTrash(file) else null
-            val ok = if (moveToTrash) movedFile != null else file.delete()
-
-            if (ok) {
+            if (deleteResult.success) {
                 hasMediaCollectionChanged = true
-                android.widget.Toast.makeText(this, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this@MediaViewerActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                 // Keep trashed files out of the main media index by only removing old path.
                 notifyMediaScanner(item.path, null)
                 removeDeletedItemFromViewer()
             } else {
-                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                deleteResult.error?.let { e ->
+                    android.util.Log.e("MediaViewerActivity", "Delete failed: ${e.message}")
+                }
+                android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MediaViewerActivity", "Delete failed: ${e.message}")
-            android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -584,7 +592,7 @@ class MediaViewerActivity : AppCompatActivity() {
             val candidateFile = java.io.File(parent, candidateName)
             if (candidateFile.exists()) continue
             return if (file.renameTo(candidateFile)) {
-                TrashBinStore.rememberTrashedFile(this, candidateFile.absolutePath, originalName)
+                TrashBinStore.rememberTrashedFile(applicationContext, candidateFile.absolutePath, originalName)
                 candidateFile
             } else {
                 null
@@ -1538,17 +1546,28 @@ class MediaViewerActivity : AppCompatActivity() {
                 val fileExtension = originalFile.extension
                 val newFileName = if (fileExtension.isNotEmpty()) "$newName.$fileExtension" else newName
                 val newFile = java.io.File(originalFile.parent, newFileName)
-                
+
+                val renameResult = withContext(Dispatchers.IO) {
+                    if (newFile.exists()) {
+                        RenameOperationResult.ALREADY_EXISTS
+                    } else {
+                        if (originalFile.renameTo(newFile)) {
+                            RenameOperationResult.SUCCESS
+                        } else {
+                            RenameOperationResult.FAILED
+                        }
+                    }
+                }
+
                 // Check if file with new name already exists
-                if (newFile.exists()) {
+                if (renameResult == RenameOperationResult.ALREADY_EXISTS) {
                     android.widget.Toast.makeText(this@MediaViewerActivity, 
                         "File with name '$newFileName' already exists", 
                         android.widget.Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 
-                // Perform rename operation
-                val success = originalFile.renameTo(newFile)
+                val success = renameResult == RenameOperationResult.SUCCESS
                 
                 if (success) {
                     hasMediaCollectionChanged = true
@@ -1614,6 +1633,17 @@ class MediaViewerActivity : AppCompatActivity() {
                     android.widget.Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private data class DeleteOperationResult(
+        val success: Boolean,
+        val error: Exception? = null
+    )
+
+    private enum class RenameOperationResult {
+        SUCCESS,
+        ALREADY_EXISTS,
+        FAILED
     }
     
     private fun notifyMediaScanner(oldPath: String, newPath: String? = null) {
