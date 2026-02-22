@@ -165,9 +165,11 @@
     <string name="external_folder_access_cancelled_with_settings_hint">Folder access not granted. Showing current file only. In Settings, you can re-enable Show Folder Access Prompt or grant Full Storage Access.</string>
     <string name="external_folder_access_failed">Failed to load folder from granted access</string>
     <string name="trash_retention_days_title">Trash Retention</string>
-    <string name="trash_retention_days_summary_default">Auto-delete files older than 30 days</string>
-    <string name="trash_retention_days_summary_disabled">Disabled (manual cleanup only)</string>
-    <string name="trash_retention_days_summary_format">Auto-delete files older than %d days</string>
+    <string name="trash_retention_days_summary_default">Auto-delete App Trash files older than 30 days</string>
+    <string name="trash_retention_days_summary_disabled">Disabled (manual cleanup for App Trash only)</string>
+    <string name="trash_retention_days_summary_format">Auto-delete App Trash files older than %d days</string>
+    <string name="trash_retention_scope_note_with_system">Retention applies to App Trash only. System Trash is managed by Android and may be shared with other gallery apps.</string>
+    <string name="trash_retention_scope_note_app_only">Retention applies to App Trash only.</string>
     <string name="trash_retention_never">Never auto-delete</string>
     <string name="trash_retention_days_1">1 day</string>
     <string name="trash_retention_days_3">3 days</string>

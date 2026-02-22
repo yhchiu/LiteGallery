@@ -79,6 +79,7 @@ class TrashBinActivity : AppCompatActivity() {
         currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
         
         setupToolbar()
+        updateTrashScopeNote()
         setupRecyclerView()
         setupSelectionActionBar()
         setupBackHandler()
@@ -182,6 +183,15 @@ class TrashBinActivity : AppCompatActivity() {
             setDisplayShowHomeEnabled(true)
             title = getString(R.string.trash_bin_title)
         }
+    }
+
+    private fun updateTrashScopeNote() {
+        val messageResId = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            R.string.trash_retention_scope_note_with_system
+        } else {
+            R.string.trash_retention_scope_note_app_only
+        }
+        binding.trashScopeNoteTextView.text = getString(messageResId)
     }
     
     private fun setupRecyclerView() {
