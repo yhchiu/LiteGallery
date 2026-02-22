@@ -141,10 +141,15 @@
     <string name="manage_external_folder_grants_dialog_mappings_header">已儲存對應</string>
     <string name="manage_external_folder_grants_dialog_persisted_header">持久授權資料夾</string>
     <string name="manage_external_folder_grants_dialog_none">無</string>
+    <string name="manage_external_folder_grants_dialog_summary_format">已儲存對應 %1$d 項，持久授權資料夾 %2$d 項</string>
+    <string name="manage_external_folder_grants_item_parent">父層資料夾</string>
+    <string name="manage_external_folder_grants_item_tree">授權樹狀路徑</string>
+    <string name="manage_external_folder_grants_item_folder">資料夾</string>
     <string name="reset_external_folder_grants_title">重設資料夾授權</string>
     <string name="reset_external_folder_grants_summary">撤銷所有資料夾授權並清除已儲存對應</string>
     <string name="reset_external_folder_grants_confirm_title">要重設資料夾授權嗎？</string>
     <string name="reset_external_folder_grants_confirm_message">此動作會撤銷所有外部瀏覽資料夾授權，並清除已儲存對應。</string>
+    <string name="reset_external_folder_grants_warning_access_disabled">目前「顯示資料夾授權提示」已關閉，且「完整儲存空間存取」尚未授予。重設後，外部資料夾可能無法同資料夾瀏覽。您可在設定頁重新開啟提示或授予完整儲存空間存取。</string>
     <string name="reset_external_folder_grants_done">已清除 %1$d 筆對應並撤銷 %2$d 個持久授權資料夾</string>
     <string name="external_folder_access_title">授予資料夾存取</string>
     <string name="external_folder_access_message">若要維持此外部檔案的同資料夾瀏覽，請授予其資料夾存取權。您也可以在設定中開啟「完整儲存空間存取」，之後通常不需逐一授權資料夾。</string>

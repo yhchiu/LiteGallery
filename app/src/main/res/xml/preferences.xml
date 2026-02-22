@@ -182,11 +182,6 @@
             android:title="@string/external_folder_access_prompt_setting_title" />
 
         <Preference
-            android:key="advanced_full_storage_mode"
-            android:summary="@string/advanced_full_storage_mode_summary"
-            android:title="@string/advanced_full_storage_mode_title" />
-
-        <Preference
             android:key="manage_external_folder_grants"
             android:summary="@string/manage_external_folder_grants_summary_none"
             android:title="@string/manage_external_folder_grants_title" />
@@ -195,6 +190,11 @@
             android:key="reset_external_folder_grants"
             android:summary="@string/reset_external_folder_grants_summary"
             android:title="@string/reset_external_folder_grants_title" />
+
+        <Preference
+            android:key="advanced_full_storage_mode"
+            android:summary="@string/advanced_full_storage_mode_summary"
+            android:title="@string/advanced_full_storage_mode_title" />
 
         <ListPreference
             android:defaultValue="30"
