@@ -162,6 +162,7 @@
     <string name="external_folder_access_dont_show_again">Don\'t show again</string>
     <string name="grant_folder_access">Grant Folder Access</string>
     <string name="external_folder_access_cancelled">Folder access not granted. Showing current file only.</string>
+    <string name="external_folder_access_cancelled_with_settings_hint">Folder access not granted. Showing current file only. In Settings, you can re-enable Show Folder Access Prompt or grant Full Storage Access.</string>
     <string name="external_folder_access_failed">Failed to load folder from granted access</string>
     <string name="trash_retention_days_title">Trash Retention</string>
     <string name="trash_retention_days_summary_default">Auto-delete files older than 30 days</string>
