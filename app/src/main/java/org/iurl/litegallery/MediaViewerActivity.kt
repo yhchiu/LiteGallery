@@ -1758,11 +1758,27 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun showExternalFolderAccessCancelledToast() {
+        val shouldShowSettingsHint = !shouldShowExternalFolderAccessPrompt() && isFullStorageAccessUnavailableForExternalHint()
+        val messageResId = if (shouldShowSettingsHint) {
+            R.string.external_folder_access_cancelled_with_settings_hint
+        } else {
+            R.string.external_folder_access_cancelled
+        }
+        val duration = if (shouldShowSettingsHint) {
+            android.widget.Toast.LENGTH_LONG
+        } else {
+            android.widget.Toast.LENGTH_SHORT
+        }
         android.widget.Toast.makeText(
             this,
-            R.string.external_folder_access_cancelled,
-            android.widget.Toast.LENGTH_SHORT
+            messageResId,
+            duration
         ).show()
+    }
+
+    private fun isFullStorageAccessUnavailableForExternalHint(): Boolean {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+            !canUseAdvancedAllFilesAccess()
     }
 
     private fun shouldShowExternalFolderAccessPrompt(): Boolean {

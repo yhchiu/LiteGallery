@@ -162,6 +162,7 @@
     <string name="external_folder_access_dont_show_again">不再提示</string>
     <string name="grant_folder_access">授予文件夹访问</string>
     <string name="external_folder_access_cancelled">未授予文件夹访问，仅显示当前文件。</string>
+    <string name="external_folder_access_cancelled_with_settings_hint">未授予文件夹访问，仅显示当前文件。你可以在设置页重新开启“显示文件夹授权提示”或授予“完整存储访问”。</string>
     <string name="external_folder_access_failed">无法从已授权文件夹加载列表</string>
     <string name="trash_retention_days_title">垃圾桶保留天数</string>
     <string name="trash_retention_days_summary_default">自动删除超过 30 天的垃圾桶文件</string>
