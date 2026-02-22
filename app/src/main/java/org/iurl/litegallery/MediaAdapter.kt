@@ -15,7 +15,9 @@ import java.util.*
 class MediaAdapter(
     private val onMediaClick: (MediaItem, Int) -> Unit,
     private val onMediaLongClick: ((MediaItem, Int) -> Unit)? = null,
-    private val isItemSelected: ((MediaItem) -> Boolean)? = null
+    private val isItemSelected: ((MediaItem) -> Boolean)? = null,
+    private val sourceBadgeLabelProvider: ((MediaItem) -> String?)? = null,
+    private val sourceBadgeContentDescriptionProvider: ((MediaItem) -> String?)? = null
 ) :
     ListAdapter<MediaItem, RecyclerView.ViewHolder>(MediaDiffCallback()) {
 
@@ -119,6 +121,17 @@ class MediaAdapter(
             } else {
                 binding.playIcon.visibility = android.view.View.GONE
                 binding.durationTextView.visibility = android.view.View.GONE
+            }
+
+            val sourceBadgeLabel = sourceBadgeLabelProvider?.invoke(mediaItem)
+            if (sourceBadgeLabel.isNullOrBlank()) {
+                binding.sourceBadgeTextView.visibility = android.view.View.GONE
+                binding.sourceBadgeTextView.contentDescription = null
+            } else {
+                binding.sourceBadgeTextView.visibility = android.view.View.VISIBLE
+                binding.sourceBadgeTextView.text = sourceBadgeLabel
+                binding.sourceBadgeTextView.contentDescription =
+                    sourceBadgeContentDescriptionProvider?.invoke(mediaItem)
             }
 
             binding.root.setOnClickListener {

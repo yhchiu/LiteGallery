@@ -195,6 +195,8 @@ class TrashBinActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
+        val appBadge = getString(R.string.trash_source_badge_app)
+        val systemBadge = getString(R.string.trash_source_badge_system)
         mediaAdapter = MediaAdapter(
             onMediaClick = { mediaItem, _ ->
                 if (isSelectionMode) {
@@ -211,6 +213,17 @@ class TrashBinActivity : AppCompatActivity() {
             },
             isItemSelected = { mediaItem ->
                 selectedPaths.contains(mediaItem.path)
+            },
+            sourceBadgeLabelProvider = { mediaItem ->
+                if (isSystemTrashItem(mediaItem)) systemBadge else appBadge
+            },
+            sourceBadgeContentDescriptionProvider = { mediaItem ->
+                val sourceLabel = if (isSystemTrashItem(mediaItem)) {
+                    getString(R.string.trash_source_system)
+                } else {
+                    getString(R.string.trash_source_app)
+                }
+                getString(R.string.trash_source_badge_content_description, sourceLabel)
             }
         )
         mediaAdapter.viewMode = MediaAdapter.ViewMode.GRID
