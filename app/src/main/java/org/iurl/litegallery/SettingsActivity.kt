@@ -176,6 +176,7 @@ class SettingsActivity : AppCompatActivity() {
 
             // Handle optional advanced full storage access mode
             setupAdvancedStorageAccessListener()
+            setupExternalFolderGrantManagementListeners()
 
             // Set initial summaries
             updateLanguageSummary()
@@ -185,11 +186,13 @@ class SettingsActivity : AppCompatActivity() {
             updateVideoGestureSummary()
             updateTrashSettingsSummary()
             updateAdvancedStorageAccessSummary()
+            updateExternalFolderGrantSummary()
         }
 
         override fun onResume() {
             super.onResume()
             updateAdvancedStorageAccessSummary()
+            updateExternalFolderGrantSummary()
         }
         
         private fun updateThemeSummary() {
@@ -412,6 +415,20 @@ class SettingsActivity : AppCompatActivity() {
                 }
         }
 
+        private fun setupExternalFolderGrantManagementListeners() {
+            findPreference<androidx.preference.Preference>(StorageAccessPreferences.KEY_MANAGE_EXTERNAL_FOLDER_GRANTS)
+                ?.setOnPreferenceClickListener {
+                    showExternalFolderGrantManagementDialog()
+                    true
+                }
+
+            findPreference<androidx.preference.Preference>(StorageAccessPreferences.KEY_RESET_EXTERNAL_FOLDER_GRANTS)
+                ?.setOnPreferenceClickListener {
+                    showResetExternalFolderGrantsConfirmation()
+                    true
+                }
+        }
+
         private fun updateTrashSettingsSummary() {
             val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
             val retentionDays = prefs.getString(
@@ -441,6 +458,23 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        private fun updateExternalFolderGrantSummary() {
+            val preference =
+                findPreference<androidx.preference.Preference>(StorageAccessPreferences.KEY_MANAGE_EXTERNAL_FOLDER_GRANTS)
+                    ?: return
+            val mappingCount = ExternalFolderGrantStore.getAllMappings(requireContext()).size
+            val persistedTreeGrantCount = getPersistedTreePermissions().size
+            preference.summary = if (mappingCount == 0 && persistedTreeGrantCount == 0) {
+                getString(R.string.manage_external_folder_grants_summary_none)
+            } else {
+                getString(
+                    R.string.manage_external_folder_grants_summary_format,
+                    mappingCount,
+                    persistedTreeGrantCount
+                )
+            }
+        }
+
         private fun openAdvancedAllFilesSettings(): Boolean {
             return try {
                 val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
@@ -456,6 +490,161 @@ class SettingsActivity : AppCompatActivity() {
                     false
                 }
             }
+        }
+
+        private fun showExternalFolderGrantManagementDialog() {
+            val context = requireContext()
+            val mappings = ExternalFolderGrantStore.getAllMappings(context)
+            val persistedTreePermissions = getPersistedTreePermissions()
+            val message = buildString {
+                append(getString(R.string.manage_external_folder_grants_dialog_mappings_header))
+                append(" (")
+                append(mappings.size)
+                append(")")
+                append('\n')
+                if (mappings.isEmpty()) {
+                    append(getString(R.string.manage_external_folder_grants_dialog_none))
+                } else {
+                    mappings.forEach { mapping ->
+                        append("- ")
+                        append(formatMappingForDisplay(mapping))
+                        append('\n')
+                    }
+                }
+                if (mappings.isNotEmpty()) {
+                    setLength(length - 1)
+                }
+                append("\n\n")
+                append(getString(R.string.manage_external_folder_grants_dialog_persisted_header))
+                append(" (")
+                append(persistedTreePermissions.size)
+                append(")")
+                append('\n')
+                if (persistedTreePermissions.isEmpty()) {
+                    append(getString(R.string.manage_external_folder_grants_dialog_none))
+                } else {
+                    persistedTreePermissions.forEachIndexed { index, permission ->
+                        append("- ")
+                        append(formatTreeUriForDisplay(permission.uri))
+                        if (index != persistedTreePermissions.lastIndex) {
+                            append('\n')
+                        }
+                    }
+                }
+            }
+
+            android.app.AlertDialog.Builder(context)
+                .setTitle(R.string.manage_external_folder_grants_dialog_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.close, null)
+                .show()
+        }
+
+        private fun showResetExternalFolderGrantsConfirmation() {
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.reset_external_folder_grants_confirm_title)
+                .setMessage(R.string.reset_external_folder_grants_confirm_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.ok) { _, _ ->
+                    resetExternalFolderGrants()
+                }
+                .show()
+        }
+
+        private fun resetExternalFolderGrants() {
+            val context = requireContext()
+            val contentResolver = context.contentResolver
+            val persistedTreePermissions = getPersistedTreePermissions()
+
+            var revokedCount = 0
+            persistedTreePermissions.forEach { permission ->
+                val uri = permission.uri
+                try {
+                    contentResolver.releasePersistableUriPermission(
+                        uri,
+                        buildPersistablePermissionFlags(permission)
+                    )
+                    revokedCount++
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "SettingsFragment",
+                        "Failed to revoke persisted tree permission: $uri",
+                        e
+                    )
+                }
+            }
+
+            val removedMappingsCount = ExternalFolderGrantStore.clearAllMappings(context)
+            updateExternalFolderGrantSummary()
+            showToast(
+                getString(
+                    R.string.reset_external_folder_grants_done,
+                    removedMappingsCount,
+                    revokedCount
+                )
+            )
+        }
+
+        private fun getPersistedTreePermissions(): List<android.content.UriPermission> {
+            return requireContext()
+                .contentResolver
+                .persistedUriPermissions
+                .filter { permission ->
+                    android.provider.DocumentsContract.isTreeUri(permission.uri)
+                }
+                .sortedBy { permission ->
+                    formatTreeUriForDisplay(permission.uri)
+                }
+        }
+
+        private fun buildPersistablePermissionFlags(permission: android.content.UriPermission): Int {
+            var flags = 0
+            if (permission.isReadPermission) {
+                flags = flags or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
+            if (permission.isWritePermission) {
+                flags = flags or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            }
+            if (flags == 0) {
+                flags =
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            }
+            return flags
+        }
+
+        private fun formatMappingForDisplay(mapping: ExternalFolderGrantStore.GrantMapping): String {
+            val parentFolderDisplay = formatDocumentIdForDisplay(mapping.authority, mapping.parentDocumentId)
+            val treeUriDisplay = mapping.treeUri?.let { formatTreeUriForDisplay(it) } ?: getString(R.string.unknown_value)
+            return "$parentFolderDisplay -> $treeUriDisplay"
+        }
+
+        private fun formatTreeUriForDisplay(treeUri: android.net.Uri): String {
+            val authority = treeUri.authority ?: return treeUri.toString()
+            val treeDocumentId = try {
+                android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+            } catch (_: Exception) {
+                null
+            } ?: return treeUri.toString()
+            return formatDocumentIdForDisplay(authority, treeDocumentId)
+        }
+
+        private fun formatDocumentIdForDisplay(authority: String, documentId: String): String {
+            if (authority == "com.android.externalstorage.documents") {
+                val volume = documentId.substringBefore(':', "")
+                val relativePath = documentId.substringAfter(':', "").trim('/')
+
+                if (volume.equals("primary", ignoreCase = true)) {
+                    val rootLabel = getString(R.string.storage_internal_label)
+                    return if (relativePath.isBlank()) rootLabel else "$rootLabel/$relativePath"
+                }
+
+                if (volume.isNotBlank()) {
+                    val rootLabel = getString(R.string.storage_external_label_format, volume)
+                    return if (relativePath.isBlank()) rootLabel else "$rootLabel/$relativePath"
+                }
+            }
+            return "$authority:$documentId"
         }
 
         private fun getTrashRetentionSummary(retentionDays: Int): String {
@@ -715,6 +904,8 @@ class SettingsActivity : AppCompatActivity() {
                     updateDisplaySummary()
                     updateVideoGestureSummary()
                     updateTrashSettingsSummary()
+                    updateAdvancedStorageAccessSummary()
+                    updateExternalFolderGrantSummary()
 
                     // Recreate activity to apply theme changes if any
                     activity?.recreate()
