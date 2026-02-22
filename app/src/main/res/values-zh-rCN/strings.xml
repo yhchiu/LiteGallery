@@ -78,6 +78,7 @@
     <string name="done">完成</string>
     <string name="error">错误</string>
     <string name="success">成功</string>
+    <string name="retry">重试</string>
 
     <!-- Additional strings -->
     <string name="no_media_found">找不到媒体</string>
@@ -135,6 +136,9 @@
     <string name="advanced_full_storage_open_failed">无法打开完整存储访问设置</string>
     <string name="external_folder_access_title">授予文件夹访问</string>
     <string name="external_folder_access_message">要保持此外部文件的同文件夹浏览，请授予其文件夹访问权限。你也可以在设置中开启“完整存储访问”，之后通常不需要逐个授权文件夹。</string>
+    <string name="external_folder_access_target_folder">目标文件夹：%1$s</string>
+    <string name="external_folder_access_if_not_opened_hint">如果选择器没有自动打开这个文件夹，请手动导航到该文件夹。</string>
+    <string name="external_folder_access_select_folder_hint">请在选择器中授权这个文件夹：%1$s</string>
     <string name="external_folder_access_dont_show_again">不再提示</string>
     <string name="grant_folder_access">授予文件夹访问</string>
     <string name="external_folder_access_cancelled">未授予文件夹访问，仅显示当前文件。</string>

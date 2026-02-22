@@ -90,8 +90,13 @@ class MediaViewerActivity : AppCompatActivity() {
             // Keep going; provider may already have a persisted grant.
         }
 
-        ExternalFolderGrantStore.rememberTreeUriForContentUri(this, targetUri, treeUri)
-        applyTreeFolderContinuation(treeUri, targetUri, targetName)
+        applyTreeFolderContinuation(treeUri, targetUri, targetName) { success ->
+            if (success) {
+                ExternalFolderGrantStore.rememberTreeUriForContentUri(this, targetUri, treeUri)
+            } else {
+                showExternalFolderGrantRetryDialog(targetUri, targetName)
+            }
+        }
     }
 
     private val deleteUserActionLauncher = registerForActivityResult(
@@ -1447,7 +1452,15 @@ class MediaViewerActivity : AppCompatActivity() {
 
         val persistedTreeUri = ExternalFolderGrantStore.findTreeUriForContentUri(this, uri)
         if (persistedTreeUri != null) {
-            applyTreeFolderContinuation(persistedTreeUri, uri, targetName)
+            applyTreeFolderContinuation(persistedTreeUri, uri, targetName) { success ->
+                if (!success) {
+                    android.widget.Toast.makeText(
+                        this,
+                        R.string.external_folder_access_failed,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
             return
         }
 
@@ -1465,7 +1478,14 @@ class MediaViewerActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_external_folder_access, null)
         val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessMessageTextView)
         val dontShowAgainCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.externalFolderAccessDontShowAgainCheckBox)
-        messageTextView.text = getString(R.string.external_folder_access_message)
+        val targetFolderPath = resolveExpectedFolderDisplayPath(uri, targetName)
+        messageTextView.text = buildString {
+            append(getString(R.string.external_folder_access_message))
+            append("\n\n")
+            append(getString(R.string.external_folder_access_target_folder, targetFolderPath))
+            append('\n')
+            append(getString(R.string.external_folder_access_if_not_opened_hint))
+        }
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.external_folder_access_title)
@@ -1474,15 +1494,87 @@ class MediaViewerActivity : AppCompatActivity() {
                 saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
                 pendingExternalFolderTargetUri = uri
                 pendingExternalFolderTargetName = targetName
+                android.widget.Toast.makeText(
+                    this,
+                    getString(R.string.external_folder_access_select_folder_hint, targetFolderPath),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
                 openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(uri))
             }
+            .setNeutralButton(R.string.copy_path, null)
             .setNegativeButton(R.string.cancel) { _, _ ->
                 saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
                 showExternalFolderAccessCancelledToast()
             }
             .create()
 
+        dialog.setOnShowListener {
+            val copyButton = dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
+            copyButton?.setOnClickListener {
+                val copied = copyTextToClipboard(getString(R.string.file_path), targetFolderPath)
+                val message = if (copied) {
+                    R.string.properties_path_copied
+                } else {
+                    R.string.error
+                }
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
         dialog.show()
+    }
+
+    private fun resolveExpectedFolderDisplayPath(
+        targetUri: android.net.Uri,
+        targetName: String?
+    ): String {
+        resolveExpectedFolderPath(targetUri, targetName)?.let { return it }
+        return getString(R.string.unknown_value)
+    }
+
+    private fun resolveExpectedFolderPath(
+        targetUri: android.net.Uri,
+        targetName: String?
+    ): String? {
+        if (targetUri.scheme == "file") {
+            return targetUri.path?.let { java.io.File(it).parent }
+        }
+
+        getRealPathFromURI(targetUri)?.let { absolutePath ->
+            return java.io.File(absolutePath).parent
+        }
+
+        if (android.provider.DocumentsContract.isDocumentUri(this, targetUri)) {
+            val authority = targetUri.authority
+            val documentId = try {
+                android.provider.DocumentsContract.getDocumentId(targetUri)
+            } catch (_: Exception) {
+                null
+            }
+            if (authority == "com.android.externalstorage.documents" && !documentId.isNullOrBlank()) {
+                val parentDocumentId = documentId.substringBeforeLast('/', documentId)
+                val volume = parentDocumentId.substringBefore(':', "")
+                val relativePath = parentDocumentId.substringAfter(':', "").trim('/')
+                if (volume.equals("primary", ignoreCase = true)) {
+                    val root = android.os.Environment.getExternalStorageDirectory()?.absolutePath
+                    if (!root.isNullOrBlank()) {
+                        return if (relativePath.isBlank()) root else "$root/$relativePath"
+                    }
+                } else if (volume.isNotBlank()) {
+                    return if (relativePath.isBlank()) "/storage/$volume" else "/storage/$volume/$relativePath"
+                }
+            }
+        }
+
+        if (!targetName.isNullOrBlank()) {
+            val uriString = targetUri.toString()
+            val marker = "/$targetName"
+            if (uriString.contains(marker)) {
+                return uriString.substringBeforeLast(marker)
+            }
+        }
+
+        return null
     }
 
     private fun resolveInitialUriForOpenDocumentTree(targetUri: android.net.Uri): android.net.Uri? {
@@ -1568,6 +1660,50 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
+    private fun showExternalFolderGrantRetryDialog(
+        targetUri: android.net.Uri,
+        targetName: String?
+    ) {
+        val targetFolderPath = resolveExpectedFolderDisplayPath(targetUri, targetName)
+        val message = buildString {
+            append(getString(R.string.external_folder_access_failed))
+            append("\n\n")
+            append(getString(R.string.external_folder_access_target_folder, targetFolderPath))
+            append('\n')
+            append(getString(R.string.external_folder_access_if_not_opened_hint))
+        }
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.external_folder_access_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.retry) { _, _ ->
+                pendingExternalFolderTargetUri = targetUri
+                pendingExternalFolderTargetName = targetName
+                android.widget.Toast.makeText(
+                    this,
+                    getString(R.string.external_folder_access_select_folder_hint, targetFolderPath),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(targetUri))
+            }
+            .setNeutralButton(R.string.copy_path, null)
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                showExternalFolderAccessCancelledToast()
+            }
+            .create()
+
+        dialog.setOnShowListener {
+            val copyButton = dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
+            copyButton?.setOnClickListener {
+                val copied = copyTextToClipboard(getString(R.string.file_path), targetFolderPath)
+                val messageRes = if (copied) R.string.properties_path_copied else R.string.error
+                android.widget.Toast.makeText(this, messageRes, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        dialog.show()
+    }
+
     private fun showExternalFolderAccessCancelledToast() {
         android.widget.Toast.makeText(
             this,
@@ -1589,14 +1725,18 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun applyTreeFolderContinuation(
         treeUri: android.net.Uri,
         targetUri: android.net.Uri,
-        targetName: String?
+        targetName: String?,
+        onCompleted: ((Boolean) -> Unit)? = null
     ) {
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 scanMediaItemsFromTree(treeUri, targetUri, targetName)
             }
 
-            if (result.items.size <= 1 || result.targetIndex !in result.items.indices) return@launch
+            if (result.items.size <= 1 || result.targetIndex !in result.items.indices) {
+                onCompleted?.invoke(false)
+                return@launch
+            }
 
             mediaItems = result.items
             mediaViewerAdapter.submitList(mediaItems) {
@@ -1606,6 +1746,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 mediaViewerAdapter.setActivePosition(currentPosition)
                 updateFileName(currentPosition)
                 applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+                onCompleted?.invoke(true)
             }
         }
     }

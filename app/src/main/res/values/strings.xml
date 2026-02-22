@@ -78,6 +78,7 @@
     <string name="done">Done</string>
     <string name="error">Error</string>
     <string name="success">Success</string>
+    <string name="retry">Retry</string>
     
     <!-- Additional strings -->
     <string name="no_media_found">No media found</string>
@@ -135,6 +136,9 @@
     <string name="advanced_full_storage_open_failed">Unable to open full storage access settings</string>
     <string name="external_folder_access_title">Grant Folder Access</string>
     <string name="external_folder_access_message">To keep same-folder browsing for this external file, grant access to its folder. You can also enable Full Storage Access in Settings to avoid granting folders one by one.</string>
+    <string name="external_folder_access_target_folder">Target folder: %1$s</string>
+    <string name="external_folder_access_if_not_opened_hint">If the picker does not open this folder automatically, please navigate to it manually.</string>
+    <string name="external_folder_access_select_folder_hint">Please grant this folder in the picker: %1$s</string>
     <string name="external_folder_access_dont_show_again">Don\'t show again</string>
     <string name="grant_folder_access">Grant Folder Access</string>
     <string name="external_folder_access_cancelled">Folder access not granted. Showing current file only.</string>
