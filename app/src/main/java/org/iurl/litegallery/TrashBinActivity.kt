@@ -439,6 +439,12 @@ class TrashBinActivity : AppCompatActivity() {
             return
         }
 
+        val titleText = if (isSystemTrashItem(mediaItem)) {
+            mediaItem.name
+        } else {
+            resolveOriginalNameForAppTrashItem(mediaItem) ?: mediaItem.name
+        }
+
         val trashSource = if (isSystemTrashItem(mediaItem)) {
             getString(R.string.trash_source_system)
         } else {
@@ -457,7 +463,7 @@ class TrashBinActivity : AppCompatActivity() {
         }
 
         android.app.AlertDialog.Builder(this)
-            .setTitle(mediaItem.name)
+            .setTitle(titleText)
             .setMessage(detailsMessage)
             .setPositiveButton(R.string.restore) { _, _ ->
                 confirmRestoreItem(mediaItem)
@@ -477,15 +483,21 @@ class TrashBinActivity : AppCompatActivity() {
         }
     }
 
-    private fun resolveOriginalPathForAppTrashItem(mediaItem: MediaItem): String? {
+    private fun resolveOriginalNameForAppTrashItem(mediaItem: MediaItem): String? {
         val trashedFile = File(mediaItem.path)
-        val parent = trashedFile.parentFile ?: return null
+        val fallbackName = if (mediaItem.name.isNotBlank()) mediaItem.name else trashedFile.name
         val originalName = if (trashedFile.exists()) {
             TrashBinStore.resolveOriginalName(this, trashedFile)
         } else {
-            TrashBinStore.fallbackOriginalNameFromTrashedName(trashedFile.name)
+            TrashBinStore.fallbackOriginalNameFromTrashedName(fallbackName)
         }
-        if (originalName.isBlank()) return null
+        return originalName.takeIf { it.isNotBlank() }
+    }
+
+    private fun resolveOriginalPathForAppTrashItem(mediaItem: MediaItem): String? {
+        val trashedFile = File(mediaItem.path)
+        val parent = trashedFile.parentFile ?: return null
+        val originalName = resolveOriginalNameForAppTrashItem(mediaItem) ?: return null
         return File(parent, originalName).absolutePath
     }
 
