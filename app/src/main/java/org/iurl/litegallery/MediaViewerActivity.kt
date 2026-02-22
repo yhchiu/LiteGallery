@@ -630,12 +630,16 @@ class MediaViewerActivity : AppCompatActivity() {
                 try {
                     if (item.path.startsWith("content://")) {
                         val contentUri = android.net.Uri.parse(item.path)
-                        if (moveToTrash && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                            val mediaStoreUri = resolveMediaStoreUriForItem(item)
+                        if (moveToTrash) {
+                            val mediaStoreUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                resolveMediaStoreUriForItem(item)
+                            } else {
+                                null
+                            }
                             if (mediaStoreUri != null) {
                                 trashContentUriWithFallback(mediaStoreUri)
                             } else {
-                                deleteContentUriWithFallback(contentUri)
+                                moveContentUriToAppTrash(contentUri, item.name)
                             }
                         } else {
                             deleteContentUriWithFallback(contentUri)
@@ -650,12 +654,7 @@ class MediaViewerActivity : AppCompatActivity() {
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && mediaUri != null) {
                                     trashContentUriWithFallback(mediaUri)
                                 } else {
-                                    val movedFile = moveFileToTrash(file)
-                                    if (movedFile != null) {
-                                        DeleteOperationResult(success = true)
-                                    } else {
-                                        DeleteOperationResult(success = false)
-                                    }
+                                    moveLocalFileToAppTrash(file)
                                 }
                             } else {
                                 if (file.delete()) {
@@ -700,33 +699,126 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
-    private fun moveFileToTrash(file: java.io.File): java.io.File? {
-        val parent = file.parentFile ?: return null
+    private fun moveLocalFileToAppTrash(file: java.io.File): DeleteOperationResult {
+        val parent = file.parentFile ?: return DeleteOperationResult(success = false)
         val originalName = file.name
 
         for (index in 0..9999) {
-            val candidateName = if (index == 0) {
-                "${TrashBinStore.TRASH_FILE_PREFIX}$originalName"
-            } else {
-                "${TrashBinStore.TRASH_FILE_PREFIX}${index}-$originalName"
-            }
+            val candidateName = buildTrashedCandidateName(originalName, index)
             val candidateFile = java.io.File(parent, candidateName)
             if (candidateFile.exists()) continue
-            return if (file.renameTo(candidateFile)) {
-                TrashBinStore.rememberTrashedFile(applicationContext, candidateFile.absolutePath, originalName)
-                candidateFile
-            } else {
+            if (!file.renameTo(candidateFile)) {
+                return DeleteOperationResult(success = false)
+            }
+            TrashBinStore.rememberTrashedFile(
+                context = applicationContext,
+                trashedUri = android.net.Uri.fromFile(candidateFile),
+                originalUri = android.net.Uri.fromFile(file),
+                originalName = originalName,
+                originalPathHint = file.absolutePath
+            )
+            return DeleteOperationResult(success = true)
+        }
+
+        return DeleteOperationResult(success = false)
+    }
+
+    private fun moveContentUriToAppTrash(
+        sourceUri: android.net.Uri,
+        displayNameHint: String?
+    ): DeleteOperationResult {
+        if (!android.provider.DocumentsContract.isDocumentUri(this, sourceUri)) {
+            return DeleteOperationResult(success = false)
+        }
+
+        val originalName = resolveDisplayNameForUri(sourceUri)
+            ?: displayNameHint?.takeIf { it.isNotBlank() }
+            ?: sourceUri.lastPathSegment
+            ?: return DeleteOperationResult(success = false)
+        if (originalName.startsWith(TrashBinStore.TRASH_FILE_PREFIX)) {
+            return DeleteOperationResult(success = false)
+        }
+
+        for (index in 0..9999) {
+            val candidateName = buildTrashedCandidateName(originalName, index)
+            val trashedUri = try {
+                android.provider.DocumentsContract.renameDocument(contentResolver, sourceUri, candidateName)
+            } catch (_: Exception) {
                 null
+            }
+            if (trashedUri != null) {
+                TrashBinStore.rememberTrashedFile(
+                    context = applicationContext,
+                    trashedUri = trashedUri,
+                    originalUri = sourceUri,
+                    originalName = originalName,
+                    originalPathHint = buildOriginalPathHint(sourceUri)
+                )
+                return DeleteOperationResult(success = true)
             }
         }
 
-        return null
+        return DeleteOperationResult(success = false)
+    }
+
+    private fun resolveDisplayNameForUri(uri: android.net.Uri): String? {
+        return try {
+            contentResolver.query(
+                uri,
+                arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (index < 0 || cursor.isNull(index)) null else cursor.getString(index)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun buildOriginalPathHint(uri: android.net.Uri): String {
+        if (!android.provider.DocumentsContract.isDocumentUri(this, uri)) {
+            return uri.toString()
+        }
+        return try {
+            val documentId = android.provider.DocumentsContract.getDocumentId(uri)
+            if (uri.authority == "com.android.externalstorage.documents") {
+                val volume = documentId.substringBefore(':', "")
+                val relativePath = documentId.substringAfter(':', "").trim('/')
+                val root = if (volume.equals("primary", ignoreCase = true)) {
+                    android.os.Environment.getExternalStorageDirectory().absolutePath
+                } else {
+                    "/storage/$volume"
+                }
+                if (relativePath.isBlank()) root else "$root/$relativePath"
+            } else {
+                uri.toString()
+            }
+        } catch (_: Exception) {
+            uri.toString()
+        }
+    }
+
+    private fun buildTrashedCandidateName(originalName: String, index: Int): String {
+        return if (index == 0) {
+            "${TrashBinStore.TRASH_FILE_PREFIX}$originalName"
+        } else {
+            "${TrashBinStore.TRASH_FILE_PREFIX}${index}-$originalName"
+        }
     }
 
     private fun supportsTrashOption(item: MediaItem): Boolean {
         if (!item.path.startsWith("content://")) return true
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
-        return resolveMediaStoreUriForItem(item) != null
+        val uri = runCatching { android.net.Uri.parse(item.path) }.getOrNull() ?: return false
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+            resolveMediaStoreUriForItem(item) != null
+        ) {
+            return true
+        }
+        return android.provider.DocumentsContract.isDocumentUri(this, uri)
     }
 
     private fun resolveMediaStoreUriForItem(item: MediaItem): android.net.Uri? {

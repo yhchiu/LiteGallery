@@ -12,8 +12,10 @@ class TrashBinDatabase private constructor(context: Context) :
         db.execSQL(
             """
             CREATE TABLE $TABLE_TRASH_RECORDS (
-                $COLUMN_PATH TEXT PRIMARY KEY NOT NULL,
+                $COLUMN_TRASHED_URI TEXT PRIMARY KEY NOT NULL,
+                $COLUMN_ORIGINAL_URI TEXT,
                 $COLUMN_ORIGINAL_NAME TEXT NOT NULL,
+                $COLUMN_ORIGINAL_PATH_HINT TEXT,
                 $COLUMN_TRASHED_AT INTEGER NOT NULL
             )
             """.trimIndent()
@@ -21,14 +23,22 @@ class TrashBinDatabase private constructor(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // No upgrade path yet.
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_TRASH_RECORDS")
+        onCreate(db)
     }
 
-    fun upsertRecord(path: String, originalName: String, trashedAtMs: Long) {
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_TRASH_RECORDS")
+        onCreate(db)
+    }
+
+    fun upsertRecord(record: TrashRecord) {
         val values = ContentValues().apply {
-            put(COLUMN_PATH, path)
-            put(COLUMN_ORIGINAL_NAME, originalName)
-            put(COLUMN_TRASHED_AT, trashedAtMs)
+            put(COLUMN_TRASHED_URI, record.trashedUri)
+            put(COLUMN_ORIGINAL_URI, record.originalUri)
+            put(COLUMN_ORIGINAL_NAME, record.originalName)
+            put(COLUMN_ORIGINAL_PATH_HINT, record.originalPathHint)
+            put(COLUMN_TRASHED_AT, record.trashedAtMs)
         }
         writableDatabase.insertWithOnConflict(
             TABLE_TRASH_RECORDS,
@@ -46,8 +56,10 @@ class TrashBinDatabase private constructor(context: Context) :
         try {
             records.forEach { record ->
                 val values = ContentValues().apply {
-                    put(COLUMN_PATH, record.path)
+                    put(COLUMN_TRASHED_URI, record.trashedUri)
+                    put(COLUMN_ORIGINAL_URI, record.originalUri)
                     put(COLUMN_ORIGINAL_NAME, record.originalName)
+                    put(COLUMN_ORIGINAL_PATH_HINT, record.originalPathHint)
                     put(COLUMN_TRASHED_AT, record.trashedAtMs)
                 }
                 db.insertWithOnConflict(
@@ -63,29 +75,17 @@ class TrashBinDatabase private constructor(context: Context) :
         }
     }
 
-    fun getAllPaths(): Set<String> {
-        val paths = mutableSetOf<String>()
-        readableDatabase.query(
-            TABLE_TRASH_RECORDS,
-            arrayOf(COLUMN_PATH),
-            null,
-            null,
-            null,
-            null,
-            null
-        ).use { cursor ->
-            while (cursor.moveToNext()) {
-                paths.add(cursor.getString(0))
-            }
-        }
-        return paths
-    }
-
     fun getAllRecords(): List<TrashRecord> {
         val records = mutableListOf<TrashRecord>()
         readableDatabase.query(
             TABLE_TRASH_RECORDS,
-            arrayOf(COLUMN_PATH, COLUMN_ORIGINAL_NAME, COLUMN_TRASHED_AT),
+            arrayOf(
+                COLUMN_TRASHED_URI,
+                COLUMN_ORIGINAL_URI,
+                COLUMN_ORIGINAL_NAME,
+                COLUMN_ORIGINAL_PATH_HINT,
+                COLUMN_TRASHED_AT
+            ),
             null,
             null,
             null,
@@ -95,9 +95,11 @@ class TrashBinDatabase private constructor(context: Context) :
             while (cursor.moveToNext()) {
                 records.add(
                     TrashRecord(
-                        path = cursor.getString(0),
-                        originalName = cursor.getString(1),
-                        trashedAtMs = cursor.getLong(2)
+                        trashedUri = cursor.getString(0),
+                        originalUri = cursor.getString(1),
+                        originalName = cursor.getString(2),
+                        originalPathHint = cursor.getString(3),
+                        trashedAtMs = cursor.getLong(4)
                     )
                 )
             }
@@ -105,59 +107,48 @@ class TrashBinDatabase private constructor(context: Context) :
         return records
     }
 
-    fun getOriginalName(path: String): String? {
+    fun getRecordByTrashedUri(trashedUri: String): TrashRecord? {
         readableDatabase.query(
             TABLE_TRASH_RECORDS,
-            arrayOf(COLUMN_ORIGINAL_NAME),
-            "$COLUMN_PATH = ?",
-            arrayOf(path),
+            arrayOf(
+                COLUMN_TRASHED_URI,
+                COLUMN_ORIGINAL_URI,
+                COLUMN_ORIGINAL_NAME,
+                COLUMN_ORIGINAL_PATH_HINT,
+                COLUMN_TRASHED_AT
+            ),
+            "$COLUMN_TRASHED_URI = ?",
+            arrayOf(trashedUri),
             null,
             null,
             null,
             "1"
         ).use { cursor ->
             if (cursor.moveToFirst()) {
-                return cursor.getString(0)
+                return TrashRecord(
+                    trashedUri = cursor.getString(0),
+                    originalUri = cursor.getString(1),
+                    originalName = cursor.getString(2),
+                    originalPathHint = cursor.getString(3),
+                    trashedAtMs = cursor.getLong(4)
+                )
             }
         }
         return null
     }
 
-    fun removePaths(paths: Collection<String>) {
-        if (paths.isEmpty()) return
+    fun removeByTrashedUris(trashedUris: Collection<String>) {
+        if (trashedUris.isEmpty()) return
 
         val db = writableDatabase
         val chunkSize = 900
-        paths.chunked(chunkSize).forEach { chunk ->
+        trashedUris.chunked(chunkSize).forEach { chunk ->
             val placeholders = chunk.joinToString(",") { "?" }
             db.delete(
                 TABLE_TRASH_RECORDS,
-                "$COLUMN_PATH IN ($placeholders)",
+                "$COLUMN_TRASHED_URI IN ($placeholders)",
                 chunk.toTypedArray()
             )
-        }
-    }
-
-    fun updateTrashedAt(paths: Collection<String>, trashedAtMs: Long) {
-        if (paths.isEmpty()) return
-
-        val values = ContentValues().apply {
-            put(COLUMN_TRASHED_AT, trashedAtMs)
-        }
-        val db = writableDatabase
-        db.beginTransaction()
-        try {
-            paths.forEach { path ->
-                db.update(
-                    TABLE_TRASH_RECORDS,
-                    values,
-                    "$COLUMN_PATH = ?",
-                    arrayOf(path)
-                )
-            }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
         }
     }
 
@@ -166,17 +157,21 @@ class TrashBinDatabase private constructor(context: Context) :
     }
 
     data class TrashRecord(
-        val path: String,
+        val trashedUri: String,
+        val originalUri: String?,
         val originalName: String,
+        val originalPathHint: String?,
         val trashedAtMs: Long
     )
 
     companion object {
         private const val DATABASE_NAME = "trash_bin.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         private const val TABLE_TRASH_RECORDS = "trash_records"
-        private const val COLUMN_PATH = "path"
+        private const val COLUMN_TRASHED_URI = "trashed_uri"
+        private const val COLUMN_ORIGINAL_URI = "original_uri"
         private const val COLUMN_ORIGINAL_NAME = "original_name"
+        private const val COLUMN_ORIGINAL_PATH_HINT = "original_path_hint"
         private const val COLUMN_TRASHED_AT = "trashed_at"
 
         @Volatile

@@ -331,8 +331,8 @@ class MainActivity : AppCompatActivity() {
                 TrashBinStore.cleanupExpiredTrash(this@MainActivity)
             }
 
-            if (result.removedPaths.isNotEmpty()) {
-                result.removedPaths.forEach { oldPath ->
+            if (result.removedScannerPaths.isNotEmpty()) {
+                result.removedScannerPaths.forEach { oldPath ->
                     android.media.MediaScannerConnection.scanFile(
                         this@MainActivity,
                         arrayOf(oldPath),
