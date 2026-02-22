@@ -99,6 +99,9 @@
     <string name="trash_source_label">垃圾桶來源</string>
     <string name="trash_source_app">App 垃圾桶</string>
     <string name="trash_source_system">系統垃圾桶</string>
+    <string name="trash_source_badge_app">APP</string>
+    <string name="trash_source_badge_system">SYS</string>
+    <string name="trash_source_badge_content_description">垃圾桶來源：%1$s</string>
     <string name="original_file_path">原始路徑</string>
     <string name="restore_all">全部還原</string>
     <string name="restore_all_confirmation">要還原垃圾桶中的全部檔案嗎？</string>

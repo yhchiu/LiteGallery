@@ -44,4 +44,20 @@
         app:layout_constraintEnd_toEndOf="@+id/thumbnailImageView"
         tools:text="1:23" />
 
+    <TextView
+        android:id="@+id/sourceBadgeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="4dp"
+        android:background="@drawable/duration_background"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="2dp"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@+id/thumbnailImageView"
+        app:layout_constraintTop_toTopOf="@+id/thumbnailImageView"
+        tools:text="SYS" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

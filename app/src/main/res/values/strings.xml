@@ -99,6 +99,9 @@
     <string name="trash_source_label">Trash Source</string>
     <string name="trash_source_app">App Trash</string>
     <string name="trash_source_system">System Trash</string>
+    <string name="trash_source_badge_app">APP</string>
+    <string name="trash_source_badge_system">SYS</string>
+    <string name="trash_source_badge_content_description">Trash source: %1$s</string>
     <string name="original_file_path">Original Path</string>
     <string name="restore_all">Restore All</string>
     <string name="restore_all_confirmation">Restore all files in trash?</string>
