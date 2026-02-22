@@ -1477,15 +1477,17 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun promptExternalFolderAccess(uri: android.net.Uri, targetName: String?) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_external_folder_access, null)
         val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessMessageTextView)
+        val pathLabelTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessPathLabelTextView)
+        val pathTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessPathTextView)
         val dontShowAgainCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.externalFolderAccessDontShowAgainCheckBox)
-        val targetFolderPath = resolveExpectedFolderDisplayPath(uri, targetName)
+        val targetFolderPathInfo = resolveExpectedFolderPathInfo(uri, targetName)
         messageTextView.text = buildString {
             append(getString(R.string.external_folder_access_message))
             append("\n\n")
-            append(getString(R.string.external_folder_access_target_folder, targetFolderPath))
-            append('\n')
             append(getString(R.string.external_folder_access_if_not_opened_hint))
         }
+        pathLabelTextView.text = getString(R.string.external_folder_access_target_folder_label)
+        pathTextView.text = targetFolderPathInfo.displayPath
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.external_folder_access_title)
@@ -1496,7 +1498,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 pendingExternalFolderTargetName = targetName
                 android.widget.Toast.makeText(
                     this,
-                    getString(R.string.external_folder_access_select_folder_hint, targetFolderPath),
+                    getString(R.string.external_folder_access_select_folder_hint, targetFolderPathInfo.displayPath),
                     android.widget.Toast.LENGTH_LONG
                 ).show()
                 openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(uri))
@@ -1511,7 +1513,7 @@ class MediaViewerActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             val copyButton = dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
             copyButton?.setOnClickListener {
-                val copied = copyTextToClipboard(getString(R.string.file_path), targetFolderPath)
+                val copied = copyTextToClipboard(getString(R.string.file_path), targetFolderPathInfo.rawPath)
                 val message = if (copied) {
                     R.string.properties_path_copied
                 } else {
@@ -1524,12 +1526,56 @@ class MediaViewerActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun resolveExpectedFolderDisplayPath(
+    private data class ExpectedFolderPathInfo(
+        val rawPath: String,
+        val displayPath: String
+    )
+
+    private fun resolveExpectedFolderPathInfo(
         targetUri: android.net.Uri,
         targetName: String?
-    ): String {
-        resolveExpectedFolderPath(targetUri, targetName)?.let { return it }
-        return getString(R.string.unknown_value)
+    ): ExpectedFolderPathInfo {
+        val rawPath = resolveExpectedFolderPath(targetUri, targetName)
+            ?: getString(R.string.unknown_value)
+        return ExpectedFolderPathInfo(
+            rawPath = rawPath,
+            displayPath = formatFolderPathForUser(rawPath)
+        )
+    }
+
+    private fun formatFolderPathForUser(rawPath: String): String {
+        val unknown = getString(R.string.unknown_value)
+        if (rawPath.isBlank() || rawPath == unknown) return unknown
+
+        val normalized = rawPath.replace('\\', '/').trimEnd('/')
+        val internalPrefixes = listOf("/storage/emulated/0", "/storage/self/primary")
+        internalPrefixes.forEach { prefix ->
+            if (normalized == prefix) {
+                return getString(R.string.storage_internal_label)
+            }
+            if (normalized.startsWith("$prefix/")) {
+                val suffix = normalized.removePrefix(prefix).trimStart('/')
+                return if (suffix.isBlank()) {
+                    getString(R.string.storage_internal_label)
+                } else {
+                    "${getString(R.string.storage_internal_label)}/$suffix"
+                }
+            }
+        }
+
+        if (normalized.startsWith("/storage/")) {
+            val segments = normalized.removePrefix("/storage/").split('/', limit = 2)
+            if (segments.isNotEmpty()) {
+                val volumeId = segments[0]
+                if (volumeId.isNotBlank() && volumeId != "emulated" && volumeId != "self") {
+                    val rootLabel = getString(R.string.storage_external_label_format, volumeId)
+                    val suffix = if (segments.size > 1) segments[1] else ""
+                    return if (suffix.isBlank()) rootLabel else "$rootLabel/$suffix"
+                }
+            }
+        }
+
+        return rawPath
     }
 
     private fun resolveExpectedFolderPath(
@@ -1664,24 +1710,31 @@ class MediaViewerActivity : AppCompatActivity() {
         targetUri: android.net.Uri,
         targetName: String?
     ) {
-        val targetFolderPath = resolveExpectedFolderDisplayPath(targetUri, targetName)
-        val message = buildString {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_external_folder_access, null)
+        val messageTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessMessageTextView)
+        val pathLabelTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessPathLabelTextView)
+        val pathTextView = dialogView.findViewById<android.widget.TextView>(R.id.externalFolderAccessPathTextView)
+        val dontShowAgainCheckBox = dialogView.findViewById<android.widget.CheckBox>(R.id.externalFolderAccessDontShowAgainCheckBox)
+
+        val targetFolderPathInfo = resolveExpectedFolderPathInfo(targetUri, targetName)
+        messageTextView.text = buildString {
             append(getString(R.string.external_folder_access_failed))
             append("\n\n")
-            append(getString(R.string.external_folder_access_target_folder, targetFolderPath))
-            append('\n')
             append(getString(R.string.external_folder_access_if_not_opened_hint))
         }
+        pathLabelTextView.text = getString(R.string.external_folder_access_target_folder_label)
+        pathTextView.text = targetFolderPathInfo.displayPath
+        dontShowAgainCheckBox.visibility = android.view.View.GONE
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.external_folder_access_title)
-            .setMessage(message)
+            .setView(dialogView)
             .setPositiveButton(R.string.retry) { _, _ ->
                 pendingExternalFolderTargetUri = targetUri
                 pendingExternalFolderTargetName = targetName
                 android.widget.Toast.makeText(
                     this,
-                    getString(R.string.external_folder_access_select_folder_hint, targetFolderPath),
+                    getString(R.string.external_folder_access_select_folder_hint, targetFolderPathInfo.displayPath),
                     android.widget.Toast.LENGTH_LONG
                 ).show()
                 openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(targetUri))
@@ -1695,7 +1748,7 @@ class MediaViewerActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             val copyButton = dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
             copyButton?.setOnClickListener {
-                val copied = copyTextToClipboard(getString(R.string.file_path), targetFolderPath)
+                val copied = copyTextToClipboard(getString(R.string.file_path), targetFolderPathInfo.rawPath)
                 val messageRes = if (copied) R.string.properties_path_copied else R.string.error
                 android.widget.Toast.makeText(this, messageRes, android.widget.Toast.LENGTH_SHORT).show()
             }
