@@ -96,6 +96,7 @@
     <!-- Trash Bin -->
     <string name="trash_bin_empty">垃圾桶是空的</string>
     <string name="restore_all">全部还原</string>
+    <string name="restore_all_confirmation">要还原垃圾桶中的所有文件吗？</string>
     <string name="restore_selected">还原已选中</string>
     <string name="delete_selected_permanently">永久删除已选中</string>
     <string name="delete_selected_confirmation">永久删除已选中的 %d 个文件？</string>

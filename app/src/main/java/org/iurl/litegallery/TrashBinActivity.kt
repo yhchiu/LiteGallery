@@ -161,7 +161,7 @@ class TrashBinActivity : AppCompatActivity() {
                 if (isSelectionMode) {
                     restoreSelectedItems()
                 } else {
-                    restoreAllItems()
+                    confirmAndRestoreAll()
                 }
                 true
             }
@@ -569,6 +569,19 @@ class TrashBinActivity : AppCompatActivity() {
     private fun restoreAllItems() {
         if (trashItems.isEmpty()) return
         performRestoreForItems(trashItems, exitSelectionAfter = false)
+    }
+
+    private fun confirmAndRestoreAll() {
+        if (trashItems.isEmpty()) return
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.restore_all)
+            .setMessage(R.string.restore_all_confirmation)
+            .setPositiveButton(R.string.restore_all) { _, _ ->
+                restoreAllItems()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun restoreSelectedItems() {

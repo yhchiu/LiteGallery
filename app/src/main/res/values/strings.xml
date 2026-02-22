@@ -96,6 +96,7 @@
     <!-- Trash Bin -->
     <string name="trash_bin_empty">Trash bin is empty</string>
     <string name="restore_all">Restore All</string>
+    <string name="restore_all_confirmation">Restore all files in trash?</string>
     <string name="restore_selected">Restore Selected</string>
     <string name="delete_selected_permanently">Delete Selected Permanently</string>
     <string name="delete_selected_confirmation">Permanently delete %d selected files?</string>
