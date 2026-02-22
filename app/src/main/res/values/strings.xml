@@ -95,6 +95,10 @@
     
     <!-- Trash Bin -->
     <string name="trash_bin_empty">Trash bin is empty</string>
+    <string name="trash_source_label">Trash Source</string>
+    <string name="trash_source_app">App Trash</string>
+    <string name="trash_source_system">System Trash</string>
+    <string name="original_file_path">Original Path</string>
     <string name="restore_all">Restore All</string>
     <string name="restore_all_confirmation">Restore all files in trash?</string>
     <string name="restore_selected">Restore Selected</string>
