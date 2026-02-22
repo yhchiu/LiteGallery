@@ -1,6 +1,9 @@
 package org.iurl.litegallery
 
 import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import androidx.preference.PreferenceManager
 import java.io.File
 
@@ -10,44 +13,55 @@ object TrashBinStore {
     const val TRASH_RETENTION_DAYS_KEY = "trash_retention_days"
     const val TRASH_RETENTION_DEFAULT_DAYS = 30
 
-    private const val PREFS_NAME = "trash_bin_store"
-    // Legacy keys for migration from SharedPreferences to SQLite.
-    private const val KEY_TRASHED_PATHS = "trashed_paths"
-    private const val KEY_ORIGINAL_NAME_PREFIX = "original_name::"
-    private const val KEY_TRASHED_AT_PREFIX = "trashed_at::"
-    private const val KEY_LAST_REINDEX_AT = "last_reindex_at"
-    private const val REINDEX_INTERVAL_MS = 6L * 60L * 60L * 1000L
-
     fun rememberTrashedFile(
         context: Context,
-        trashedPath: String,
+        trashedUri: Uri,
+        originalUri: Uri?,
         originalName: String,
+        originalPathHint: String? = null,
         trashedAtMs: Long = System.currentTimeMillis()
     ) {
-        openDatabase(context).upsertRecord(
-            path = trashedPath,
-            originalName = originalName,
+        val normalizedOriginalName = originalName.ifBlank {
+            fallbackOriginalNameFromTrashedName(
+                trashedUri.lastPathSegment.orEmpty()
+            )
+        }
+        val record = TrashBinDatabase.TrashRecord(
+            trashedUri = trashedUri.toString(),
+            originalUri = originalUri?.toString(),
+            originalName = normalizedOriginalName,
+            originalPathHint = originalPathHint,
             trashedAtMs = trashedAtMs
         )
+        openDatabase(context).upsertRecord(record)
     }
 
-    fun getTrashedPaths(context: Context): Set<String> {
-        return openDatabase(context).getAllPaths()
+    fun getTrashedRecords(context: Context): List<TrashBinDatabase.TrashRecord> {
+        return openDatabase(context).getAllRecords()
     }
 
-    fun removeTrashedPath(context: Context, trashedPath: String) {
-        removeTrashedPaths(context, listOf(trashedPath))
+    fun getTrashedRecord(context: Context, trashedUri: String): TrashBinDatabase.TrashRecord? {
+        return openDatabase(context).getRecordByTrashedUri(trashedUri)
     }
 
-    fun removeTrashedPaths(context: Context, trashedPaths: Collection<String>) {
-        if (trashedPaths.isEmpty()) return
+    fun removeTrashedUri(context: Context, trashedUri: String) {
+        if (trashedUri.isBlank()) return
+        val database = openDatabase(context)
+        database.removeByTrashedUris(listOf(trashedUri))
 
-        openDatabase(context).removePaths(trashedPaths)
+        val scannerPath = resolveScannerPath(trashedUri) ?: trashedUri.takeIf { it.startsWith("/") }
+        if (scannerPath.isNullOrBlank()) return
+
+        val matchedRecordUri = database.getAllRecords()
+            .firstOrNull { resolveScannerPath(it.trashedUri) == scannerPath }
+            ?.trashedUri
+            ?: return
+        database.removeByTrashedUris(listOf(matchedRecordUri))
     }
 
-    fun resolveOriginalName(context: Context, trashedFile: File): String {
-        val rememberedName = openDatabase(context).getOriginalName(trashedFile.absolutePath)
-        return rememberedName ?: fallbackOriginalNameFromTrashedName(trashedFile.name)
+    fun removeTrashedUris(context: Context, trashedUris: Collection<String>) {
+        if (trashedUris.isEmpty()) return
+        openDatabase(context).removeByTrashedUris(trashedUris)
     }
 
     fun fallbackOriginalNameFromTrashedName(trashedName: String): String {
@@ -56,8 +70,6 @@ object TrashBinStore {
         val payload = trashedName.removePrefix(TRASH_FILE_PREFIX)
         if (payload.isEmpty()) return trashedName
 
-        // Backward-compat parser for ".trashed-<index>-<original>" naming.
-        // If no clear pattern can be determined, keep full payload.
         val firstDash = payload.indexOf('-')
         if (firstDash > 0) {
             val maybeIndex = payload.substring(0, firstDash)
@@ -68,14 +80,6 @@ object TrashBinStore {
         }
 
         return payload
-    }
-
-    private fun originalNameKey(path: String): String {
-        return "$KEY_ORIGINAL_NAME_PREFIX$path"
-    }
-
-    private fun trashedAtKey(path: String): String {
-        return "$KEY_TRASHED_AT_PREFIX$path"
     }
 
     fun getTrashRetentionDays(context: Context): Int {
@@ -89,186 +93,134 @@ object TrashBinStore {
     fun cleanupExpiredTrash(context: Context, nowMs: Long = System.currentTimeMillis()): CleanupResult {
         val retentionDays = getTrashRetentionDays(context)
         if (retentionDays <= 0) {
-            return CleanupResult(emptyList(), 0)
+            return CleanupResult(emptyList(), emptyList(), 0)
         }
 
         val thresholdMs = nowMs - retentionDays * 24L * 60L * 60L * 1000L
-        val database = openDatabase(context)
-        val records = database.getAllRecords()
+        val records = openDatabase(context).getAllRecords()
 
-        val removedPaths = mutableListOf<String>()
-        val needsBackfillPaths = mutableListOf<String>()
+        val removedUris = mutableListOf<String>()
+        val removedScannerPaths = mutableListOf<String>()
         var failedCount = 0
 
         records.forEach { record ->
-            val path = record.path
-            val file = File(path)
-            val normalizedTrashedAt = if (record.trashedAtMs > 0L) {
-                record.trashedAtMs
-            } else {
-                needsBackfillPaths.add(path)
-                nowMs
+            if (record.trashedAtMs >= thresholdMs) return@forEach
+
+            when (val result = removeTrashedReference(context, record.trashedUri)) {
+                is RemoveResult.Removed -> {
+                    removedUris.add(record.trashedUri)
+                    result.scannerPath?.let(removedScannerPaths::add)
+                }
+                is RemoveResult.Missing -> {
+                    removedUris.add(record.trashedUri)
+                    result.scannerPath?.let(removedScannerPaths::add)
+                }
+                is RemoveResult.Failed -> {
+                    failedCount++
+                }
             }
-
-            when {
-                !file.exists() -> removedPaths.add(path)
-                normalizedTrashedAt >= thresholdMs -> Unit
-                file.delete() -> removedPaths.add(path)
-                else -> failedCount++
-            }
         }
 
-        if (needsBackfillPaths.isNotEmpty()) {
-            database.updateTrashedAt(needsBackfillPaths, nowMs)
+        if (removedUris.isNotEmpty()) {
+            openDatabase(context).removeByTrashedUris(removedUris)
         }
 
-        if (removedPaths.isNotEmpty()) {
-            database.removePaths(removedPaths)
-        }
-
-        return CleanupResult(removedPaths, failedCount)
+        return CleanupResult(
+            removedUris = removedUris,
+            removedScannerPaths = removedScannerPaths,
+            failedCount = failedCount
+        )
     }
 
-    fun reindexOrphanTrashedFiles(
-        context: Context,
-        nowMs: Long = System.currentTimeMillis(),
-        force: Boolean = false
-    ): Int {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val lastReindexAt = prefs.getLong(KEY_LAST_REINDEX_AT, 0L)
-        if (!force && nowMs - lastReindexAt < REINDEX_INTERVAL_MS) {
-            return 0
+    fun resolveScannerPath(reference: String): String? {
+        if (reference.isBlank()) return null
+        if (reference.startsWith("/")) return reference
+        val uri = runCatching { Uri.parse(reference) }.getOrNull() ?: return null
+        return when (uri.scheme) {
+            "file" -> uri.path?.takeIf { it.isNotBlank() }
+            else -> null
         }
-
-        val database = openDatabase(context)
-        val existingPaths = database.getAllPaths().toMutableSet()
-        val discoveredRecords = mutableListOf<TrashBinDatabase.TrashRecord>()
-
-        getAccessibleStoragePaths(context).forEach { rootPath ->
-            val root = File(rootPath)
-            scanForTrashedFiles(
-                directory = root,
-                maxDepth = 6,
-                currentDepth = 0
-            ) { file ->
-                val path = file.absolutePath
-                if (path in existingPaths) return@scanForTrashedFiles
-
-                val originalName = fallbackOriginalNameFromTrashedName(file.name)
-                // Orphan files have no reliable trashed timestamp; use now for safe retention behavior.
-                discoveredRecords.add(
-                    TrashBinDatabase.TrashRecord(
-                        path = path,
-                        originalName = originalName,
-                        trashedAtMs = nowMs
-                    )
-                )
-                existingPaths.add(path)
-            }
-        }
-
-        if (discoveredRecords.isNotEmpty()) {
-            database.upsertRecords(discoveredRecords)
-        }
-
-        prefs.edit().putLong(KEY_LAST_REINDEX_AT, nowMs).apply()
-        return discoveredRecords.size
     }
 
     private fun openDatabase(context: Context): TrashBinDatabase {
-        val appContext = context.applicationContext
-        migrateLegacyPrefsIfNeeded(appContext)
-        return TrashBinDatabase.getInstance(appContext)
+        return TrashBinDatabase.getInstance(context.applicationContext)
     }
 
-    @Synchronized
-    private fun migrateLegacyPrefsIfNeeded(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val legacyPaths = prefs.getStringSet(KEY_TRASHED_PATHS, emptySet())?.toList().orEmpty()
-        if (legacyPaths.isEmpty()) return
-
-        val nowMs = System.currentTimeMillis()
-        val legacyRecords = legacyPaths.map { path ->
-            val rememberedName = prefs.getString(originalNameKey(path), null)
-                ?: fallbackOriginalNameFromTrashedName(File(path).name)
-            val storedTrashedAt = prefs.getLong(trashedAtKey(path), -1L)
-            val normalizedTrashedAt = if (storedTrashedAt > 0L) storedTrashedAt else nowMs
-            TrashBinDatabase.TrashRecord(
-                path = path,
-                originalName = rememberedName,
-                trashedAtMs = normalizedTrashedAt
-            )
-        }
-
-        try {
-            TrashBinDatabase.getInstance(context).upsertRecords(legacyRecords)
-        } catch (_: Exception) {
-            // Keep legacy data untouched and retry on next access.
-            return
-        }
-
-        val editor = prefs.edit().remove(KEY_TRASHED_PATHS)
-        legacyPaths.forEach { path ->
-            editor.remove(originalNameKey(path))
-            editor.remove(trashedAtKey(path))
-        }
-        editor.apply()
+    private sealed class RemoveResult(val scannerPath: String?) {
+        class Removed(scannerPath: String? = null) : RemoveResult(scannerPath)
+        class Missing(scannerPath: String? = null) : RemoveResult(scannerPath)
+        class Failed(scannerPath: String? = null) : RemoveResult(scannerPath)
     }
 
-    private fun getAccessibleStoragePaths(context: Context): List<String> {
-        val paths = mutableListOf<String>()
+    private fun removeTrashedReference(context: Context, trashedUriString: String): RemoveResult {
+        if (trashedUriString.isBlank()) return RemoveResult.Missing()
+        val parsedUri = runCatching { Uri.parse(trashedUriString) }.getOrNull()
+        val scannerPath = resolveScannerPath(trashedUriString)
 
-        android.os.Environment.getExternalStorageDirectory()?.let { primaryStorage ->
-            if (primaryStorage.exists() && primaryStorage.canRead()) {
-                paths.add(primaryStorage.absolutePath)
+        if (parsedUri == null || parsedUri.scheme.isNullOrBlank()) {
+            val file = File(trashedUriString)
+            return when {
+                !file.exists() -> RemoveResult.Missing(file.absolutePath)
+                file.delete() -> RemoveResult.Removed(file.absolutePath)
+                else -> RemoveResult.Failed(file.absolutePath)
             }
         }
 
-        context.getExternalFilesDirs(null)?.forEach { dir ->
-            dir?.let { externalDir ->
-                var parent = externalDir.parentFile
-                while (parent != null && parent.name != "Android") {
-                    val tempParent = parent.parentFile
-                    if (tempParent == null) break
-                    parent = tempParent
-                }
-                parent?.let { root ->
-                    if (root.exists() && root.canRead() && !paths.contains(root.absolutePath)) {
-                        paths.add(root.absolutePath)
+        return when (parsedUri.scheme) {
+            "file" -> {
+                val path = parsedUri.path
+                if (path.isNullOrBlank()) {
+                    RemoveResult.Missing()
+                } else {
+                    val file = File(path)
+                    when {
+                        !file.exists() -> RemoveResult.Missing(file.absolutePath)
+                        file.delete() -> RemoveResult.Removed(file.absolutePath)
+                        else -> RemoveResult.Failed(file.absolutePath)
                     }
                 }
             }
-        }
+            "content" -> {
+                if (isContentUriMissing(context, parsedUri)) return RemoveResult.Missing(scannerPath)
 
-        return paths
-    }
-
-    private fun scanForTrashedFiles(
-        directory: File,
-        maxDepth: Int,
-        currentDepth: Int,
-        onFound: (File) -> Unit
-    ) {
-        if (currentDepth > maxDepth || !directory.exists() || !directory.isDirectory) return
-
-        try {
-            directory.listFiles()?.forEach { file ->
-                when {
-                    file.isFile && file.name.startsWith(TRASH_FILE_PREFIX) -> onFound(file)
-                    file.isDirectory && !file.name.startsWith(".") -> {
-                        scanForTrashedFiles(file, maxDepth, currentDepth + 1, onFound)
+                try {
+                    val deleted = if (DocumentsContract.isDocumentUri(context, parsedUri)) {
+                        DocumentsContract.deleteDocument(context.contentResolver, parsedUri)
+                    } else {
+                        context.contentResolver.delete(parsedUri, null, null) > 0
                     }
+                    if (deleted) RemoveResult.Removed(scannerPath) else RemoveResult.Failed(scannerPath)
+                } catch (_: SecurityException) {
+                    RemoveResult.Failed(scannerPath)
+                } catch (_: Exception) {
+                    RemoveResult.Failed(scannerPath)
                 }
             }
+            else -> RemoveResult.Failed(scannerPath)
+        }
+    }
+
+    private fun isContentUriMissing(context: Context, uri: Uri): Boolean {
+        return try {
+            context.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                !cursor.moveToFirst()
+            } ?: true
         } catch (_: SecurityException) {
-            // Skip restricted folders.
+            false
         } catch (_: Exception) {
-            // Skip unreadable folders.
+            false
         }
     }
 
     data class CleanupResult(
-        val removedPaths: List<String>,
+        val removedUris: List<String>,
+        val removedScannerPaths: List<String>,
         val failedCount: Int
     )
 }

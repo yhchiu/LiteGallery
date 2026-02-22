@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -22,6 +23,7 @@ class TrashBinActivity : AppCompatActivity() {
     private lateinit var mediaAdapter: MediaAdapter
     private var currentColorTheme: String? = null
     private var trashItems: List<MediaItem> = emptyList()
+    private var appTrashRecordByUri: Map<String, TrashBinDatabase.TrashRecord> = emptyMap()
     private val selectedPaths = mutableSetOf<String>()
     private var previousSelectionPaths: Set<String> = emptySet()
     private var isSelectionMode = false
@@ -223,27 +225,18 @@ class TrashBinActivity : AppCompatActivity() {
     
     private fun loadTrashItems() {
         lifecycleScope.launch {
-            val (reindexedCount, cleanupResult, items) = withContext(Dispatchers.IO) {
-                val reindexed = TrashBinStore.reindexOrphanTrashedFiles(this@TrashBinActivity)
+            val (cleanupResult, items) = withContext(Dispatchers.IO) {
                 val cleanup = TrashBinStore.cleanupExpiredTrash(this@TrashBinActivity)
-                Triple(reindexed, cleanup, scanTrashItems())
+                Pair(cleanup, scanTrashItems())
             }
 
-            if (reindexedCount > 0) {
-                android.widget.Toast.makeText(
-                    this@TrashBinActivity,
-                    getString(R.string.trash_reindexed_count, reindexedCount),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            if (cleanupResult.removedPaths.isNotEmpty()) {
-                cleanupResult.removedPaths.forEach { oldPath ->
+            if (cleanupResult.removedScannerPaths.isNotEmpty()) {
+                cleanupResult.removedScannerPaths.forEach { oldPath ->
                     notifyMediaScanner(oldPath, null)
                 }
                 android.widget.Toast.makeText(
                     this@TrashBinActivity,
-                    getString(R.string.trash_auto_cleaned_count, cleanupResult.removedPaths.size),
+                    getString(R.string.trash_auto_cleaned_count, cleanupResult.removedUris.size),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
@@ -276,33 +269,111 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun scanAppTrashItems(): List<MediaItem> {
-        val persistedPaths = TrashBinStore.getTrashedPaths(this)
-        if (persistedPaths.isEmpty()) return emptyList()
+        val records = TrashBinStore.getTrashedRecords(this)
+        if (records.isEmpty()) {
+            appTrashRecordByUri = emptyMap()
+            return emptyList()
+        }
 
-        val stalePaths = mutableListOf<String>()
+        val staleUris = mutableListOf<String>()
         val items = mutableListOf<MediaItem>()
+        val recordMap = mutableMapOf<String, TrashBinDatabase.TrashRecord>()
 
-        persistedPaths.forEach { path ->
-            val file = File(path)
-            if (!file.exists() || !file.isFile || !file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)) {
-                stalePaths.add(path)
-                return@forEach
-            }
-
-            val mediaItem = createMediaItemFromFile(file)
+        records.forEach { record ->
+            val mediaItem = createMediaItemFromRecord(record)
             if (mediaItem == null) {
-                stalePaths.add(path)
+                staleUris.add(record.trashedUri)
                 return@forEach
             }
 
             items.add(mediaItem)
+            recordMap[mediaItem.path] = record
         }
 
-        if (stalePaths.isNotEmpty()) {
-            TrashBinStore.removeTrashedPaths(this, stalePaths)
+        if (staleUris.isNotEmpty()) {
+            TrashBinStore.removeTrashedUris(this, staleUris)
         }
 
+        appTrashRecordByUri = recordMap
         return items
+    }
+
+    private fun createMediaItemFromRecord(record: TrashBinDatabase.TrashRecord): MediaItem? {
+        val uri = runCatching { Uri.parse(record.trashedUri) }.getOrNull()
+        if (uri == null || uri.scheme.isNullOrBlank()) {
+            return createMediaItemFromFileReference(record.trashedUri)
+        }
+
+        return when (uri.scheme) {
+            "file" -> createMediaItemFromFileReference(uri.path)
+            "content" -> createMediaItemFromContentUri(record, uri)
+            else -> null
+        }
+    }
+
+    private fun createMediaItemFromFileReference(filePath: String?): MediaItem? {
+        if (filePath.isNullOrBlank()) return null
+        val file = File(filePath)
+        if (!file.exists() || !file.isFile || !file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)) {
+            return null
+        }
+        return createMediaItemFromFile(file)
+    }
+
+    private fun createMediaItemFromContentUri(
+        record: TrashBinDatabase.TrashRecord,
+        uri: Uri
+    ): MediaItem? {
+        val projection = arrayOf(
+            android.provider.OpenableColumns.DISPLAY_NAME,
+            android.provider.OpenableColumns.SIZE,
+            android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE,
+            android.provider.MediaStore.MediaColumns.DATE_MODIFIED,
+            android.provider.MediaStore.MediaColumns.MIME_TYPE
+        )
+
+        val cursor = try {
+            contentResolver.query(uri, projection, null, null, null)
+        } catch (_: Exception) {
+            null
+        } ?: return null
+
+        cursor.use {
+            if (!it.moveToFirst()) return null
+
+            val displayName = getCursorString(it, android.provider.OpenableColumns.DISPLAY_NAME)
+                ?: uri.lastPathSegment
+                ?: record.originalName
+            if (!displayName.startsWith(TrashBinStore.TRASH_FILE_PREFIX)) return null
+
+            val size = getCursorLong(it, android.provider.OpenableColumns.SIZE)?.coerceAtLeast(0L) ?: 0L
+            val docLastModified =
+                getCursorLong(it, android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                    ?.coerceAtLeast(0L)
+                    ?: 0L
+            val mediaDateModified =
+                getCursorLong(it, android.provider.MediaStore.MediaColumns.DATE_MODIFIED)
+                    ?.coerceAtLeast(0L)
+                    ?: 0L
+            val dateModifiedMs = when {
+                docLastModified > 0L -> docLastModified
+                mediaDateModified > 1_000_000_000_000L -> mediaDateModified
+                mediaDateModified > 0L -> mediaDateModified * 1000L
+                else -> record.trashedAtMs
+            }
+            val mimeType = getCursorString(it, android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                ?: getCursorString(it, android.provider.MediaStore.MediaColumns.MIME_TYPE)
+                ?: resolveMimeTypeFromName(displayName)
+            return MediaItem(
+                name = displayName,
+                path = record.trashedUri,
+                dateModified = dateModifiedMs,
+                size = size,
+                mimeType = mimeType,
+                duration = 0L
+            )
+        }
     }
 
     private fun scanSystemTrashItems(): List<MediaItem> {
@@ -433,6 +504,24 @@ class TrashBinActivity : AppCompatActivity() {
         }
     }
 
+    private fun resolveMimeTypeFromName(name: String): String {
+        val extension = name.substringAfterLast('.', "").lowercase()
+        val isVideo = videoExtensions.contains(extension)
+        return getMimeTypeFromExtension(extension, isVideo)
+    }
+
+    private fun getCursorString(cursor: Cursor, columnName: String): String? {
+        val columnIndex = cursor.getColumnIndex(columnName)
+        if (columnIndex < 0 || cursor.isNull(columnIndex)) return null
+        return cursor.getString(columnIndex)
+    }
+
+    private fun getCursorLong(cursor: Cursor, columnName: String): Long? {
+        val columnIndex = cursor.getColumnIndex(columnName)
+        if (columnIndex < 0 || cursor.isNull(columnIndex)) return null
+        return cursor.getLong(columnIndex)
+    }
+
     private fun showTrashItemActions(mediaItem: MediaItem) {
         if (isSelectionMode) {
             toggleSelection(mediaItem.path)
@@ -483,19 +572,37 @@ class TrashBinActivity : AppCompatActivity() {
         }
     }
 
-    private fun resolveOriginalNameForAppTrashItem(mediaItem: MediaItem): String? {
-        val trashedFile = File(mediaItem.path)
-        val fallbackName = if (mediaItem.name.isNotBlank()) mediaItem.name else trashedFile.name
-        val originalName = if (trashedFile.exists()) {
-            TrashBinStore.resolveOriginalName(this, trashedFile)
-        } else {
-            TrashBinStore.fallbackOriginalNameFromTrashedName(fallbackName)
+    private fun getAppTrashRecord(mediaItem: MediaItem): TrashBinDatabase.TrashRecord? {
+        appTrashRecordByUri[mediaItem.path]?.let { return it }
+        val scannerPathMatch = appTrashRecordByUri.values.firstOrNull { record ->
+            TrashBinStore.resolveScannerPath(record.trashedUri) == mediaItem.path
         }
-        return originalName.takeIf { it.isNotBlank() }
+        if (scannerPathMatch != null) return scannerPathMatch
+        return TrashBinStore.getTrashedRecord(this, mediaItem.path)
+    }
+
+    private fun resolveOriginalNameForAppTrashItem(mediaItem: MediaItem): String? {
+        val record = getAppTrashRecord(mediaItem)
+        if (record != null && record.originalName.isNotBlank()) {
+            return record.originalName
+        }
+        return TrashBinStore.fallbackOriginalNameFromTrashedName(mediaItem.name).takeIf { it.isNotBlank() }
     }
 
     private fun resolveOriginalPathForAppTrashItem(mediaItem: MediaItem): String? {
-        val trashedFile = File(mediaItem.path)
+        val record = getAppTrashRecord(mediaItem)
+        val originalHint = record?.originalPathHint?.takeIf { it.isNotBlank() }
+        if (!originalHint.isNullOrBlank()) return originalHint
+
+        val originalUri = record?.originalUri?.takeIf { it.isNotBlank() }
+        if (!originalUri.isNullOrBlank()) {
+            val scannerPath = TrashBinStore.resolveScannerPath(originalUri)
+            if (!scannerPath.isNullOrBlank()) return scannerPath
+            return originalUri
+        }
+
+        val localPath = TrashBinStore.resolveScannerPath(mediaItem.path) ?: mediaItem.path
+        val trashedFile = File(localPath)
         val parent = trashedFile.parentFile ?: return null
         val originalName = resolveOriginalNameForAppTrashItem(mediaItem) ?: return null
         return File(parent, originalName).absolutePath
@@ -552,19 +659,31 @@ class TrashBinActivity : AppCompatActivity() {
             return
         }
 
-        val trashedFile = File(mediaItem.path)
-        val parent = trashedFile.parentFile
-        if (!trashedFile.exists() || parent == null) {
-            TrashBinStore.removeTrashedPath(this, mediaItem.path)
+        val record = getAppTrashRecord(mediaItem)
+        if (record == null) {
+            TrashBinStore.removeTrashedUri(this, mediaItem.path)
             loadTrashItems()
             return
         }
 
-        val originalName = TrashBinStore.resolveOriginalName(this, trashedFile)
+        val trashedFile = resolveLocalFileFromReference(record.trashedUri)
+        if (trashedFile == null) {
+            restoreSingleUriItem(record)
+            return
+        }
+
+        val parent = trashedFile.parentFile
+        if (!trashedFile.exists() || parent == null) {
+            TrashBinStore.removeTrashedUri(this, record.trashedUri)
+            loadTrashItems()
+            return
+        }
+
+        val originalName = record.originalName
         val targetFile = File(parent, originalName)
 
         if (!targetFile.exists()) {
-            restoreSingleItem(trashedFile, targetFile, overwriteExisting = false)
+            restoreSingleLocalItem(record, trashedFile, targetFile, overwriteExisting = false)
             return
         }
 
@@ -572,19 +691,34 @@ class TrashBinActivity : AppCompatActivity() {
             .setTitle(R.string.file_conflict_title)
             .setMessage(R.string.file_conflict_message)
             .setPositiveButton(R.string.overwrite) { _, _ ->
-                restoreSingleItem(trashedFile, targetFile, overwriteExisting = true)
+                restoreSingleLocalItem(record, trashedFile, targetFile, overwriteExisting = true)
             }
             .setNeutralButton(R.string.use_new_name) { _, _ ->
                 val nonConflictFile = findAvailableFileName(parent, originalName)
-                restoreSingleItem(trashedFile, nonConflictFile, overwriteExisting = false)
+                restoreSingleLocalItem(record, trashedFile, nonConflictFile, overwriteExisting = false)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun restoreSingleItem(trashedFile: File, targetFile: File, overwriteExisting: Boolean) {
+    private fun resolveLocalFileFromReference(reference: String): File? {
+        if (reference.startsWith("/")) return File(reference)
+        val uri = runCatching { Uri.parse(reference) }.getOrNull()
+        return when {
+            uri == null || uri.scheme.isNullOrBlank() -> File(reference)
+            uri.scheme == "file" && !uri.path.isNullOrBlank() -> File(uri.path!!)
+            else -> null
+        }
+    }
+
+    private fun restoreSingleLocalItem(
+        record: TrashBinDatabase.TrashRecord,
+        trashedFile: File,
+        targetFile: File,
+        overwriteExisting: Boolean
+    ) {
         lifecycleScope.launch {
-            val oldPath = trashedFile.absolutePath
+            val oldReference = record.trashedUri
             val success = withContext(Dispatchers.IO) {
                 if (!trashedFile.exists()) return@withContext false
                 if (overwriteExisting && targetFile.exists() && !targetFile.delete()) return@withContext false
@@ -593,8 +727,8 @@ class TrashBinActivity : AppCompatActivity() {
             }
 
             if (success) {
-                TrashBinStore.removeTrashedPath(this@TrashBinActivity, oldPath)
-                notifyMediaScanner(oldPath, targetFile.absolutePath)
+                TrashBinStore.removeTrashedUri(this@TrashBinActivity, oldReference)
+                notifyMediaScanner(oldReference, targetFile.absolutePath)
                 hasMediaCollectionChanged = true
                 android.widget.Toast.makeText(this@TrashBinActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                 loadTrashItems()
@@ -602,6 +736,63 @@ class TrashBinActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this@TrashBinActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun restoreSingleUriItem(record: TrashBinDatabase.TrashRecord) {
+        lifecycleScope.launch {
+            val restoredUri = withContext(Dispatchers.IO) {
+                restoreContentUriByRename(record.trashedUri, record.originalName)
+            }
+
+            if (restoredUri != null) {
+                TrashBinStore.removeTrashedUri(this@TrashBinActivity, record.trashedUri)
+                hasMediaCollectionChanged = true
+                android.widget.Toast.makeText(this@TrashBinActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
+                loadTrashItems()
+            } else {
+                android.widget.Toast.makeText(this@TrashBinActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun restoreContentUriByRename(
+        trashedUriString: String,
+        preferredName: String
+    ): Uri? {
+        val uri = runCatching { Uri.parse(trashedUriString) }.getOrNull() ?: return null
+        if (uri.scheme != "content") return null
+
+        try {
+            val restored = android.provider.DocumentsContract.renameDocument(
+                contentResolver,
+                uri,
+                preferredName
+            )
+            if (restored != null) return restored
+        } catch (_: Exception) {
+            // Fallback to auto-generated non-conflict names below.
+        }
+
+        val dotIndex = preferredName.lastIndexOf('.')
+        val hasExtension = dotIndex > 0 && dotIndex < preferredName.length - 1
+        val baseName = if (hasExtension) preferredName.substring(0, dotIndex) else preferredName
+        val extension = if (hasExtension) preferredName.substring(dotIndex) else ""
+
+        for (index in 1..9999) {
+            val candidateName = "$baseName ($index)$extension"
+            val renamed = try {
+                android.provider.DocumentsContract.renameDocument(
+                    contentResolver,
+                    uri,
+                    candidateName
+                )
+            } catch (_: Exception) {
+                null
+            }
+            if (renamed != null) return renamed
+        }
+
+        return null
     }
 
     private fun confirmDeletePermanently(mediaItem: MediaItem) {
@@ -629,22 +820,50 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun deleteSingleTrashedItem(mediaItem: MediaItem) {
+        val record = getAppTrashRecord(mediaItem)
+        if (record == null) {
+            TrashBinStore.removeTrashedUri(this, mediaItem.path)
+            loadTrashItems()
+            return
+        }
+
         lifecycleScope.launch {
-            val path = mediaItem.path
             val deleted = withContext(Dispatchers.IO) {
-                val file = File(path)
-                !file.exists() || file.delete()
+                deleteTrashedReference(record.trashedUri)
             }
 
             if (deleted) {
-                TrashBinStore.removeTrashedPath(this@TrashBinActivity, path)
-                notifyMediaScanner(path, null)
+                TrashBinStore.removeTrashedUri(this@TrashBinActivity, record.trashedUri)
+                notifyMediaScanner(record.trashedUri, null)
                 hasMediaCollectionChanged = true
                 android.widget.Toast.makeText(this@TrashBinActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
                 loadTrashItems()
             } else {
                 android.widget.Toast.makeText(this@TrashBinActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun deleteTrashedReference(reference: String): Boolean {
+        val localFile = resolveLocalFileFromReference(reference)
+        if (localFile != null) {
+            return !localFile.exists() || localFile.delete()
+        }
+
+        val uri = runCatching { Uri.parse(reference) }.getOrNull() ?: return false
+        if (uri.scheme != "content") return false
+        if (isContentReferenceMissing(reference)) return true
+
+        return try {
+            if (android.provider.DocumentsContract.isDocumentUri(this, uri)) {
+                android.provider.DocumentsContract.deleteDocument(contentResolver, uri)
+            } else {
+                contentResolver.delete(uri, null, null) > 0
+            }
+        } catch (_: java.io.FileNotFoundException) {
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -714,7 +933,7 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun isSystemTrashItem(item: MediaItem): Boolean {
-        return item.path.startsWith("content://")
+        return !appTrashRecordByUri.containsKey(item.path)
     }
 
     private fun performRestoreForItems(targetItems: List<MediaItem>, exitSelectionAfter: Boolean) {
@@ -790,34 +1009,34 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun restoreMixedItemsInternal(targetItems: List<MediaItem>): MixedRestoreResult {
-        val appPaths = targetItems
-            .filterNot(::isSystemTrashItem)
-            .map { it.path }
+        val appRecords = targetItems
+            .mapNotNull { appTrashRecordByUri[it.path] }
+            .distinctBy { it.trashedUri }
         val systemUris = targetItems
-            .filter(::isSystemTrashItem)
+            .filter { appTrashRecordByUri[it.path] == null }
             .mapNotNull { runCatching { Uri.parse(it.path) }.getOrNull() }
 
-        val appResult = restoreAllItemsInternal(appPaths)
+        val appResult = restoreAllItemsInternal(appRecords)
         val systemResult = executeSystemTrashAction(systemUris, SystemTrashActionType.RESTORE)
         return MixedRestoreResult(appResult, systemResult)
     }
 
     private fun deleteMixedItemsInternal(targetItems: List<MediaItem>): MixedDeleteResult {
-        val appPaths = targetItems
-            .filterNot(::isSystemTrashItem)
-            .map { it.path }
+        val appRecords = targetItems
+            .mapNotNull { appTrashRecordByUri[it.path] }
+            .distinctBy { it.trashedUri }
         val systemUris = targetItems
-            .filter(::isSystemTrashItem)
+            .filter { appTrashRecordByUri[it.path] == null }
             .mapNotNull { runCatching { Uri.parse(it.path) }.getOrNull() }
 
-        val appResult = emptyTrashInternal(appPaths)
+        val appResult = emptyTrashInternal(appRecords)
         val systemResult = executeSystemTrashAction(systemUris, SystemTrashActionType.DELETE)
         return MixedDeleteResult(appResult, systemResult)
     }
 
     private fun applyAppRestoreResult(result: BulkResult) {
         if (result.removedPaths.isNotEmpty()) {
-            TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
+            TrashBinStore.removeTrashedUris(this@TrashBinActivity, result.removedPaths)
         }
         result.scannerUpdates.forEach { update ->
             notifyMediaScanner(update.oldPath, update.newPath)
@@ -826,7 +1045,7 @@ class TrashBinActivity : AppCompatActivity() {
 
     private fun applyAppDeleteResult(result: DeleteResult) {
         if (result.removedPaths.isNotEmpty()) {
-            TrashBinStore.removeTrashedPaths(this@TrashBinActivity, result.removedPaths)
+            TrashBinStore.removeTrashedUris(this@TrashBinActivity, result.removedPaths)
             result.removedPaths.forEach { oldPath ->
                 notifyMediaScanner(oldPath, null)
             }
@@ -970,34 +1189,48 @@ class TrashBinActivity : AppCompatActivity() {
         }
     }
 
-    private fun restoreAllItemsInternal(paths: List<String>): BulkResult {
+    private fun restoreAllItemsInternal(records: List<TrashBinDatabase.TrashRecord>): BulkResult {
         val removedPaths = mutableListOf<String>()
         val scannerUpdates = mutableListOf<ScannerUpdate>()
         var failedCount = 0
 
-        paths.forEach { oldPath ->
-            val trashedFile = File(oldPath)
-            if (!trashedFile.exists()) {
-                removedPaths.add(oldPath)
+        records.forEach { record ->
+            val oldReference = record.trashedUri
+            val trashedFile = resolveLocalFileFromReference(oldReference)
+
+            if (trashedFile != null) {
+                if (!trashedFile.exists()) {
+                    removedPaths.add(oldReference)
+                    return@forEach
+                }
+
+                val parent = trashedFile.parentFile
+                if (parent == null) {
+                    failedCount++
+                    return@forEach
+                }
+
+                val originalName = record.originalName
+                val target = if (File(parent, originalName).exists()) {
+                    findAvailableFileName(parent, originalName)
+                } else {
+                    File(parent, originalName)
+                }
+
+                if (trashedFile.renameTo(target)) {
+                    removedPaths.add(oldReference)
+                    scannerUpdates.add(ScannerUpdate(oldReference, target.absolutePath))
+                } else {
+                    failedCount++
+                }
                 return@forEach
             }
 
-            val parent = trashedFile.parentFile
-            if (parent == null) {
-                failedCount++
-                return@forEach
-            }
-
-            val originalName = TrashBinStore.resolveOriginalName(this, trashedFile)
-            val target = if (File(parent, originalName).exists()) {
-                findAvailableFileName(parent, originalName)
-            } else {
-                File(parent, originalName)
-            }
-
-            if (trashedFile.renameTo(target)) {
-                removedPaths.add(oldPath)
-                scannerUpdates.add(ScannerUpdate(oldPath, target.absolutePath))
+            val restoredUri = restoreContentUriByRename(oldReference, record.originalName)
+            if (restoredUri != null) {
+                removedPaths.add(oldReference)
+            } else if (isContentReferenceMissing(oldReference)) {
+                removedPaths.add(oldReference)
             } else {
                 failedCount++
             }
@@ -1010,16 +1243,16 @@ class TrashBinActivity : AppCompatActivity() {
         )
     }
 
-    private fun emptyTrashInternal(paths: List<String>): DeleteResult {
+    private fun emptyTrashInternal(records: List<TrashBinDatabase.TrashRecord>): DeleteResult {
         val removedPaths = mutableListOf<String>()
         var failedCount = 0
 
-        paths.forEach { path ->
-            val file = File(path)
-            when {
-                !file.exists() -> removedPaths.add(path)
-                file.delete() -> removedPaths.add(path)
-                else -> failedCount++
+        records.forEach { record ->
+            val removed = deleteTrashedReference(record.trashedUri)
+            if (removed) {
+                removedPaths.add(record.trashedUri)
+            } else {
+                failedCount++
             }
         }
 
@@ -1043,17 +1276,46 @@ class TrashBinActivity : AppCompatActivity() {
         return File(parent, "$baseName (restored)$extension")
     }
 
-    private fun notifyMediaScanner(oldPath: String, newPath: String?) {
-        android.media.MediaScannerConnection.scanFile(
-            this,
-            arrayOf(oldPath),
-            null
-        ) { _, _ -> }
+    private fun isContentReferenceMissing(reference: String): Boolean {
+        val uri = runCatching { Uri.parse(reference) }.getOrNull() ?: return false
+        if (uri.scheme != "content") return false
+        return try {
+            contentResolver.query(
+                uri,
+                arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                !cursor.moveToFirst()
+            } ?: true
+        } catch (_: SecurityException) {
+            false
+        } catch (_: Exception) {
+            false
+        }
+    }
 
-        if (!newPath.isNullOrBlank() && newPath != oldPath) {
+    private fun notifyMediaScanner(oldPath: String, newPath: String?) {
+        val oldScannerPath = TrashBinStore.resolveScannerPath(oldPath)
+            ?: oldPath.takeIf { it.startsWith("/") }
+        if (!oldScannerPath.isNullOrBlank()) {
             android.media.MediaScannerConnection.scanFile(
                 this,
-                arrayOf(newPath),
+                arrayOf(oldScannerPath),
+                null
+            ) { _, _ -> }
+        }
+
+        val newScannerPath = if (!newPath.isNullOrBlank()) {
+            TrashBinStore.resolveScannerPath(newPath) ?: newPath.takeIf { it.startsWith("/") }
+        } else {
+            null
+        }
+        if (!newScannerPath.isNullOrBlank() && newScannerPath != oldScannerPath) {
+            android.media.MediaScannerConnection.scanFile(
+                this,
+                arrayOf(newScannerPath),
                 null
             ) { _, _ -> }
         }

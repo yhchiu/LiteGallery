@@ -1,29 +1,36 @@
 # Trash and Delete Strategy
 
 ## Purpose
-This document explains the app's full behavior for:
+This document explains the current app behavior for:
 - Move to Trash
 - Delete Permanently
+- Restore from Trash
 
-It includes platform differences (Android 9 and below, Android 10, Android 11+).
+It also explains platform differences (Android 9 and below, Android 10, Android 11+).
 
 ## Core Design
 The app uses two trash systems:
-1. App Trash (file rename in the same folder)
+1. App Trash (same-folder rename with `.trashed-` prefix)
 2. System Trash (MediaStore `IS_TRASHED`)
 
-Routing rule:
-1. MediaStore-backed media should use System Trash when available.
-2. Non-MediaStore local files should use App Trash.
-3. If trash is not supported for a source/platform, the app falls back to permanent delete logic.
+App Trash is now URI-first:
+- Local files are stored as `file://` URI records.
+- SAF documents are stored as `content://` URI records.
+
+Routing rules:
+1. MediaStore-backed media on Android 11+ uses System Trash first.
+2. Non-MediaStore items use App Trash when rename is supported.
+3. Permanent delete is a separate path and is not used as implicit fallback when trash option is explicitly selected.
 
 ## Terms
 - App Trash:
-  The app renames a local file in the same folder with `.trashed-` prefix.
+  The app renames the original item in the same folder with `.trashed-` prefix and stores a URI record.
 - System Trash:
   MediaStore trash state (`IS_TRASHED=1`) and related system APIs.
 - MediaStore-backed item:
   An item that can be resolved to a MediaStore URI (`content://media/...`).
+- URI-first trash record:
+  Stored metadata includes `trashed_uri`, `original_uri`, `original_name`, `original_path_hint`, `trashed_at`.
 
 ## Viewer Delete Flow (Single Item)
 Entry point: delete dialog in Media Viewer.
@@ -34,60 +41,78 @@ Entry point: delete dialog in Media Viewer.
 3. If not supported, the checkbox is hidden and only permanent delete is offered.
 
 ### 2) If user selects "Move to Trash"
-1. If item is MediaStore-backed and Android is 11+:
-   - Try System Trash first (`IS_TRASHED=1` or user-consent trash request).
-2. Else if item is a non-MediaStore local file path:
-   - Use App Trash: rename to `.trashed-<original>` in the same folder.
-   - Save trash metadata to `TrashBinStore`.
-3. If source does not support trash:
-   - Fall back to delete path.
+1. Content URI item:
+   - If MediaStore-backed and Android 11+: use System Trash (`IS_TRASHED=1` or system consent request).
+   - Else if it is a SAF Document URI: rename document to `.trashed-...` and store App Trash record.
+2. File path item:
+   - If Android 11+ and MediaStore URI can be resolved: use System Trash.
+   - Else: rename local file to `.trashed-...` and store App Trash record (as `file://` URI).
+3. On success:
+   - Remove item from viewer list.
+   - Mark media collection changed.
+   - Notify scanner for local file paths when applicable.
 
 ### 3) If user selects "Delete Permanently"
 1. For `content://` items:
    - Try provider delete (`DocumentsContract.deleteDocument` / `ContentResolver.delete`).
-   - If blocked by scoped storage policy, request system user consent when supported.
+   - If blocked by scoped storage policy, request system user consent when supported (`MediaStore.createDeleteRequest` on Android 11+, `RecoverableSecurityException` on Android 10).
 2. For file-path items:
    - Try `file.delete()` first.
-   - If failed and item is MediaStore-backed, try MediaStore delete path (with user consent when needed).
-
-### 4) On success
-1. Mark media collection as changed.
-2. Remove the item from current viewer list.
-3. Notify media scanner for file-path updates when needed.
-4. Return `RESULT_MEDIA_CHANGED` to parent pages.
+   - If failed and MediaStore-backed URI exists, try MediaStore delete path (with user consent when needed).
 
 ## Trash Bin Page (Unified Bin)
 The Trash page shows a merged list from both sources:
-1. App Trash items (`.trashed-` files tracked in `TrashBinStore`).
+1. App Trash items from URI-first `TrashBinStore` records.
 2. System Trash items (MediaStore query `IS_TRASHED=1`, Android 11+).
 
-The list is merged, deduplicated by path, and sorted by modified time.
+The list is merged and sorted by modified time.
+
+Source classification rule:
+- If an item exists in the App Trash record map, it is handled as App Trash.
+- Otherwise it is handled as System Trash.
+
+This avoids incorrect classification based only on `content://` prefix.
 
 ## Trash Bin Actions
 The app routes actions by item source.
 
 ### 1) Restore
 - App Trash item:
-  1. Rename file back to original name.
-  2. Handle name conflict (overwrite or auto new name).
-  3. Remove record from `TrashBinStore`.
+  1. Local file record: rename file back to original name.
+  2. SAF document record: rename document back to original name.
+  3. Handle name conflict with indexed name when needed.
+  4. Remove record from `TrashBinStore`.
 - System Trash item:
   1. Set `IS_TRASHED=0` (or use system consent request when required).
 
 ### 2) Delete Permanently
 - App Trash item:
-  1. Physical file delete.
-  2. Remove record from `TrashBinStore`.
+  1. Local file record: physical file delete.
+  2. SAF document record: provider delete (`DocumentsContract.deleteDocument` / `ContentResolver.delete`).
+  3. Remove record from `TrashBinStore`.
 - System Trash item:
   1. MediaStore delete.
   2. Use system consent request when required.
 
 ### 3) Bulk actions
 Bulk restore/delete split input into two groups:
-1. App Trash group -> file rename/delete logic.
+1. App Trash group -> URI-aware restore/delete logic.
 2. System Trash group -> MediaStore restore/delete logic.
 
 If system user consent is required, the app launches one consent flow and refreshes list after result.
+
+## Retention and Cleanup
+1. Retention is controlled by `trash_retention_days`.
+2. Expired App Trash records are processed by URI:
+   - local file URI -> file delete
+   - content URI -> provider delete
+3. Missing targets are treated as stale and records are removed.
+4. Cleanup reports removed scanner paths so UI callers can notify MediaScanner only for valid local paths.
+
+## Data Model and Upgrade Policy
+1. Trash DB schema is URI-first and replaces old path-based schema.
+2. Upgrade policy is destructive (`drop + recreate`).
+3. No old data migration logic is kept in app code.
 
 ## Version Matrix
 
@@ -95,13 +120,13 @@ If system user consent is required, the app launches one consent flow and refres
 1. Full System Trash behavior is available.
 2. App supports mixed trash model:
    - MediaStore items -> System Trash preferred.
-   - Non-MediaStore local files -> App Trash.
+   - Non-MediaStore local files and SAF docs -> App Trash.
 3. Trash page can show both App Trash and System Trash.
 
 ### Android 10 (API 29)
 1. No complete System Trash API support.
 2. Move to Trash behavior:
-   - Non-MediaStore local files -> App Trash.
+   - Local files and SAF docs -> App Trash (rename-based).
    - MediaStore system trash path is not fully available.
 3. Delete behavior:
    - Uses delete APIs and can request user consent via `RecoverableSecurityException` when needed.
@@ -110,16 +135,19 @@ If system user consent is required, the app launches one consent flow and refres
 ### Android 9 and below (API <= 28)
 1. No System Trash API.
 2. Move to Trash uses App Trash for local files.
-3. Permanent delete uses file/provider delete only.
-4. `content://` deletes depend on provider capability; no modern MediaStore consent flow.
+3. Provider-backed `content://` trash depends on document provider rename support.
+4. Permanent delete uses file/provider delete only.
 
 ## Privacy and Performance Notes
 1. App Trash avoids cross-folder moves; it renames in place.
 2. System Trash uses platform-managed metadata/state.
-3. Heavy operations run off main thread where possible.
+3. Heavy operations run off main thread.
 4. UI refresh propagates to parent lists through `RESULT_MEDIA_CHANGED`.
+5. URI-first records avoid storing large file copies in app private space.
 
 ## Related Files
 - `app/src/main/java/org/iurl/litegallery/MediaViewerActivity.kt`
 - `app/src/main/java/org/iurl/litegallery/TrashBinActivity.kt`
 - `app/src/main/java/org/iurl/litegallery/TrashBinStore.kt`
+- `app/src/main/java/org/iurl/litegallery/TrashBinDatabase.kt`
+- `app/src/main/java/org/iurl/litegallery/MainActivity.kt`
