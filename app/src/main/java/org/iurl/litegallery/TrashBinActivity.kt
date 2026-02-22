@@ -439,20 +439,90 @@ class TrashBinActivity : AppCompatActivity() {
             return
         }
 
-        val actions = arrayOf(
-            getString(R.string.restore),
-            getString(R.string.delete_permanently)
-        )
+        val trashSource = if (isSystemTrashItem(mediaItem)) {
+            getString(R.string.trash_source_system)
+        } else {
+            getString(R.string.trash_source_app)
+        }
+        val originalPath = resolveOriginalPathForActionDialog(mediaItem)
+            ?: getString(R.string.unknown_value)
+        val detailsMessage = buildString {
+            append(getString(R.string.trash_source_label))
+            append(": ")
+            append(trashSource)
+            append('\n')
+            append(getString(R.string.original_file_path))
+            append(": ")
+            append(originalPath)
+        }
 
         android.app.AlertDialog.Builder(this)
             .setTitle(mediaItem.name)
-            .setItems(actions) { _, which ->
-                when (which) {
-                    0 -> confirmRestoreItem(mediaItem)
-                    1 -> confirmDeletePermanently(mediaItem)
-                }
+            .setMessage(detailsMessage)
+            .setPositiveButton(R.string.restore) { _, _ ->
+                confirmRestoreItem(mediaItem)
             }
+            .setNeutralButton(R.string.delete_permanently) { _, _ ->
+                confirmDeletePermanently(mediaItem)
+            }
+            .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    private fun resolveOriginalPathForActionDialog(mediaItem: MediaItem): String? {
+        return if (isSystemTrashItem(mediaItem)) {
+            resolveOriginalPathForSystemTrashItem(mediaItem)
+        } else {
+            resolveOriginalPathForAppTrashItem(mediaItem)
+        }
+    }
+
+    private fun resolveOriginalPathForAppTrashItem(mediaItem: MediaItem): String? {
+        val trashedFile = File(mediaItem.path)
+        val parent = trashedFile.parentFile ?: return null
+        val originalName = if (trashedFile.exists()) {
+            TrashBinStore.resolveOriginalName(this, trashedFile)
+        } else {
+            TrashBinStore.fallbackOriginalNameFromTrashedName(trashedFile.name)
+        }
+        if (originalName.isBlank()) return null
+        return File(parent, originalName).absolutePath
+    }
+
+    private fun resolveOriginalPathForSystemTrashItem(mediaItem: MediaItem): String? {
+        val uri = runCatching { Uri.parse(mediaItem.path) }.getOrNull() ?: return null
+        val projection = arrayOf(
+            android.provider.MediaStore.MediaColumns.DATA,
+            android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+            android.provider.MediaStore.MediaColumns.DISPLAY_NAME
+        )
+        val cursor = try {
+            contentResolver.query(uri, projection, null, null, null)
+        } catch (_: Exception) {
+            null
+        } ?: return null
+
+        cursor.use {
+            if (!it.moveToFirst()) return null
+
+            val dataColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
+            if (dataColumn >= 0) {
+                val dataPath = it.getString(dataColumn)
+                if (!dataPath.isNullOrBlank()) return dataPath
+            }
+
+            val relativePathColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.RELATIVE_PATH)
+            val nameColumn = it.getColumnIndex(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)
+            val relativePath = if (relativePathColumn >= 0) it.getString(relativePathColumn) else null
+            val displayName = if (nameColumn >= 0) it.getString(nameColumn) else mediaItem.name
+
+            if (!relativePath.isNullOrBlank() && !displayName.isNullOrBlank()) {
+                val root = android.os.Environment.getExternalStorageDirectory()
+                return File(File(root, relativePath), displayName).absolutePath
+            }
+        }
+
+        return null
     }
 
     private fun confirmRestoreItem(mediaItem: MediaItem) {
