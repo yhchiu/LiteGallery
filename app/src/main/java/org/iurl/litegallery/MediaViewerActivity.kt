@@ -1474,7 +1474,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
                 pendingExternalFolderTargetUri = uri
                 pendingExternalFolderTargetName = targetName
-                openExternalFolderTreeLauncher.launch(null)
+                openExternalFolderTreeLauncher.launch(resolveInitialUriForOpenDocumentTree(uri))
             }
             .setNegativeButton(R.string.cancel) { _, _ ->
                 saveShouldShowExternalFolderAccessPrompt(!dontShowAgainCheckBox.isChecked)
@@ -1483,6 +1483,89 @@ class MediaViewerActivity : AppCompatActivity() {
             .create()
 
         dialog.show()
+    }
+
+    private fun resolveInitialUriForOpenDocumentTree(targetUri: android.net.Uri): android.net.Uri? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return null
+
+        if (android.provider.DocumentsContract.isTreeUri(targetUri)) {
+            return targetUri
+        }
+
+        if (android.provider.DocumentsContract.isDocumentUri(this, targetUri)) {
+            val authority = targetUri.authority ?: return targetUri
+            val documentId = try {
+                android.provider.DocumentsContract.getDocumentId(targetUri)
+            } catch (_: Exception) {
+                return targetUri
+            }
+            if (documentId.isBlank()) return targetUri
+
+            val parentDocumentId = deriveParentDocumentIdForInitialTreeUri(authority, documentId)
+            if (parentDocumentId.isNullOrBlank()) return targetUri
+
+            // ACTION_OPEN_DOCUMENT_TREE behaves more consistently when initial URI is tree-form.
+            return try {
+                android.provider.DocumentsContract.buildTreeDocumentUri(authority, parentDocumentId)
+            } catch (_: Exception) {
+                targetUri
+            }
+        }
+
+        val realPath = getRealPathFromURI(targetUri) ?: return null
+        return buildExternalStorageTreeUriFromPath(realPath)
+    }
+
+    private fun deriveParentDocumentIdForInitialTreeUri(
+        authority: String,
+        documentId: String
+    ): String? {
+        if (documentId.contains('/')) {
+            return documentId.substringBeforeLast('/').ifBlank { null }
+        }
+
+        if (authority == "com.android.externalstorage.documents") {
+            val volume = documentId.substringBefore(':', "")
+            if (volume.isBlank()) return null
+            return "$volume:"
+        }
+
+        return null
+    }
+
+    private fun buildExternalStorageTreeUriFromPath(path: String): android.net.Uri? {
+        val normalizedPath = path.replace('\\', '/')
+        val parentPath = java.io.File(path).parent?.replace('\\', '/') ?: return null
+
+        val primaryRoot = android.os.Environment.getExternalStorageDirectory()?.absolutePath
+            ?.replace('\\', '/')
+            ?.trimEnd('/')
+            ?: return null
+
+        if (parentPath.startsWith("$primaryRoot/") || parentPath == primaryRoot) {
+            val relativeParent = parentPath.removePrefix(primaryRoot).trimStart('/')
+            val documentId = if (relativeParent.isBlank()) "primary:" else "primary:$relativeParent"
+            return android.provider.DocumentsContract.buildTreeDocumentUri(
+                "com.android.externalstorage.documents",
+                documentId
+            )
+        }
+
+        if (!normalizedPath.startsWith("/storage/")) return null
+        val pathSegments = parentPath.trim('/').split('/')
+        if (pathSegments.size < 2 || pathSegments[0] != "storage") return null
+        val volume = pathSegments[1]
+        val relativeParent = pathSegments.drop(2).joinToString("/")
+        val documentId = if (relativeParent.isBlank()) "$volume:" else "$volume:$relativeParent"
+
+        return try {
+            android.provider.DocumentsContract.buildTreeDocumentUri(
+                "com.android.externalstorage.documents",
+                documentId
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun showExternalFolderAccessCancelledToast() {
