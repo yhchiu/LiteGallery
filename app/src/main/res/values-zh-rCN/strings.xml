@@ -141,10 +141,15 @@
     <string name="manage_external_folder_grants_dialog_mappings_header">已保存映射</string>
     <string name="manage_external_folder_grants_dialog_persisted_header">持久授权文件夹</string>
     <string name="manage_external_folder_grants_dialog_none">无</string>
+    <string name="manage_external_folder_grants_dialog_summary_format">已保存映射 %1$d 项，持久授权文件夹 %2$d 项</string>
+    <string name="manage_external_folder_grants_item_parent">父级文件夹</string>
+    <string name="manage_external_folder_grants_item_tree">授权树路径</string>
+    <string name="manage_external_folder_grants_item_folder">文件夹</string>
     <string name="reset_external_folder_grants_title">重置文件夹授权</string>
     <string name="reset_external_folder_grants_summary">撤销所有文件夹授权并清除已保存映射</string>
     <string name="reset_external_folder_grants_confirm_title">要重置文件夹授权吗？</string>
     <string name="reset_external_folder_grants_confirm_message">此操作会撤销所有用于外部浏览的文件夹授权，并清除已保存映射。</string>
+    <string name="reset_external_folder_grants_warning_access_disabled">当前“显示文件夹授权提示”已关闭，且“完整存储访问”尚未授予。重置后，外部文件夹可能无法同文件夹浏览。你可以在设置页重新开启提示或授予完整存储访问。</string>
     <string name="reset_external_folder_grants_done">已清除 %1$d 条映射并撤销 %2$d 个持久授权文件夹</string>
     <string name="external_folder_access_title">授予文件夹访问</string>
     <string name="external_folder_access_message">要保持此外部文件的同文件夹浏览，请授予其文件夹访问权限。你也可以在设置中开启“完整存储访问”，之后通常不需要逐个授权文件夹。</string>

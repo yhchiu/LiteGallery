@@ -141,10 +141,15 @@
     <string name="manage_external_folder_grants_dialog_mappings_header">Saved mappings</string>
     <string name="manage_external_folder_grants_dialog_persisted_header">Persisted folder grants</string>
     <string name="manage_external_folder_grants_dialog_none">None</string>
+    <string name="manage_external_folder_grants_dialog_summary_format">%1$d saved mappings, %2$d persisted folder grants</string>
+    <string name="manage_external_folder_grants_item_parent">Parent folder</string>
+    <string name="manage_external_folder_grants_item_tree">Granted tree</string>
+    <string name="manage_external_folder_grants_item_folder">Folder</string>
     <string name="reset_external_folder_grants_title">Reset Folder Grants</string>
     <string name="reset_external_folder_grants_summary">Revoke all folder grants and clear saved mappings</string>
     <string name="reset_external_folder_grants_confirm_title">Reset Folder Grants?</string>
     <string name="reset_external_folder_grants_confirm_message">This will revoke all granted folders for external browsing and clear saved mappings.</string>
+    <string name="reset_external_folder_grants_warning_access_disabled">Show Folder Access Prompt is off and Full Storage Access is not granted. After reset, same-folder browsing may fail for external folders. You can enable the prompt or grant Full Storage Access in Settings.</string>
     <string name="reset_external_folder_grants_done">Cleared %1$d saved mappings and revoked %2$d persisted folder grants</string>
     <string name="external_folder_access_title">Grant Folder Access</string>
     <string name="external_folder_access_message">To keep same-folder browsing for this external file, grant access to its folder. You can also enable Full Storage Access in Settings to avoid granting folders one by one.</string>

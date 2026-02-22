@@ -496,59 +496,57 @@ class SettingsActivity : AppCompatActivity() {
             val context = requireContext()
             val mappings = ExternalFolderGrantStore.getAllMappings(context)
             val persistedTreePermissions = getPersistedTreePermissions()
-            val message = buildString {
-                append(getString(R.string.manage_external_folder_grants_dialog_mappings_header))
-                append(" (")
-                append(mappings.size)
-                append(")")
-                append('\n')
-                if (mappings.isEmpty()) {
-                    append(getString(R.string.manage_external_folder_grants_dialog_none))
-                } else {
-                    mappings.forEach { mapping ->
-                        append("- ")
-                        append(formatMappingForDisplay(mapping))
-                        append('\n')
-                    }
-                }
-                if (mappings.isNotEmpty()) {
-                    setLength(length - 1)
-                }
-                append("\n\n")
-                append(getString(R.string.manage_external_folder_grants_dialog_persisted_header))
-                append(" (")
-                append(persistedTreePermissions.size)
-                append(")")
-                append('\n')
-                if (persistedTreePermissions.isEmpty()) {
-                    append(getString(R.string.manage_external_folder_grants_dialog_none))
-                } else {
-                    persistedTreePermissions.forEachIndexed { index, permission ->
-                        append("- ")
-                        append(formatTreeUriForDisplay(permission.uri))
-                        if (index != persistedTreePermissions.lastIndex) {
-                            append('\n')
-                        }
-                    }
-                }
-            }
+            val dialogView = android.view.LayoutInflater.from(context)
+                .inflate(R.layout.dialog_manage_folder_grants, null)
+            val summaryTextView =
+                dialogView.findViewById<android.widget.TextView>(R.id.manageFolderGrantsSummaryTextView)
+            val mappingsTextView =
+                dialogView.findViewById<android.widget.TextView>(R.id.manageFolderGrantsMappingsTextView)
+            val persistedTextView =
+                dialogView.findViewById<android.widget.TextView>(R.id.manageFolderGrantsPersistedTextView)
+            summaryTextView.text = getString(
+                R.string.manage_external_folder_grants_dialog_summary_format,
+                mappings.size,
+                persistedTreePermissions.size
+            )
+            mappingsTextView.text = formatMappingsForDialog(mappings)
+            persistedTextView.text = formatPersistedPermissionsForDialog(persistedTreePermissions)
 
             android.app.AlertDialog.Builder(context)
                 .setTitle(R.string.manage_external_folder_grants_dialog_title)
-                .setMessage(message)
+                .setView(dialogView)
                 .setPositiveButton(R.string.close, null)
                 .show()
         }
 
         private fun showResetExternalFolderGrantsConfirmation() {
+            val baseMessage = getString(R.string.reset_external_folder_grants_confirm_message)
+            val shouldWarn = !isExternalFolderAccessPromptEnabled() && !isFullStorageAccessGranted()
+            val message = if (shouldWarn) {
+                "$baseMessage\n\n${getString(R.string.reset_external_folder_grants_warning_access_disabled)}"
+            } else {
+                baseMessage
+            }
             android.app.AlertDialog.Builder(requireContext())
                 .setTitle(R.string.reset_external_folder_grants_confirm_title)
-                .setMessage(R.string.reset_external_folder_grants_confirm_message)
+                .setMessage(message)
                 .setNegativeButton(R.string.cancel, null)
                 .setPositiveButton(R.string.ok) { _, _ ->
                     resetExternalFolderGrants()
                 }
                 .show()
+        }
+
+        private fun isExternalFolderAccessPromptEnabled(): Boolean {
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
+            return prefs.getBoolean(StorageAccessPreferences.KEY_EXTERNAL_FOLDER_ACCESS_PROMPT_ENABLED, true)
+        }
+
+        private fun isFullStorageAccessGranted(): Boolean {
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+                return true
+            }
+            return android.os.Environment.isExternalStorageManager()
         }
 
         private fun resetExternalFolderGrants() {
@@ -613,10 +611,46 @@ class SettingsActivity : AppCompatActivity() {
             return flags
         }
 
-        private fun formatMappingForDisplay(mapping: ExternalFolderGrantStore.GrantMapping): String {
-            val parentFolderDisplay = formatDocumentIdForDisplay(mapping.authority, mapping.parentDocumentId)
-            val treeUriDisplay = mapping.treeUri?.let { formatTreeUriForDisplay(it) } ?: getString(R.string.unknown_value)
-            return "$parentFolderDisplay -> $treeUriDisplay"
+        private fun formatMappingsForDialog(mappings: List<ExternalFolderGrantStore.GrantMapping>): String {
+            if (mappings.isEmpty()) {
+                return getString(R.string.manage_external_folder_grants_dialog_none)
+            }
+            val parentLabel = getString(R.string.manage_external_folder_grants_item_parent)
+            val treeLabel = getString(R.string.manage_external_folder_grants_item_tree)
+            return buildString {
+                mappings.forEachIndexed { index, mapping ->
+                    if (index > 0) append("\n\n")
+                    append(index + 1)
+                    append(". ")
+                    append(parentLabel)
+                    append(": ")
+                    append(formatDocumentIdForDisplay(mapping.authority, mapping.parentDocumentId))
+                    append('\n')
+                    append("   ")
+                    append(treeLabel)
+                    append(": ")
+                    append(mapping.treeUri?.let { formatTreeUriForDisplay(it) } ?: getString(R.string.unknown_value))
+                }
+            }
+        }
+
+        private fun formatPersistedPermissionsForDialog(
+            permissions: List<android.content.UriPermission>
+        ): String {
+            if (permissions.isEmpty()) {
+                return getString(R.string.manage_external_folder_grants_dialog_none)
+            }
+            val folderLabel = getString(R.string.manage_external_folder_grants_item_folder)
+            return buildString {
+                permissions.forEachIndexed { index, permission ->
+                    if (index > 0) append('\n')
+                    append(index + 1)
+                    append(". ")
+                    append(folderLabel)
+                    append(": ")
+                    append(formatTreeUriForDisplay(permission.uri))
+                }
+            }
         }
 
         private fun formatTreeUriForDisplay(treeUri: android.net.Uri): String {
