@@ -165,9 +165,11 @@
     <string name="external_folder_access_cancelled_with_settings_hint">未授予資料夾存取，僅顯示目前檔案。您可在設定頁重新開啟「顯示資料夾授權提示」或授予「完整儲存空間存取」。</string>
     <string name="external_folder_access_failed">無法從授權資料夾載入清單</string>
     <string name="trash_retention_days_title">垃圾桶保留天數</string>
-    <string name="trash_retention_days_summary_default">自動刪除超過 30 天的垃圾桶檔案</string>
-    <string name="trash_retention_days_summary_disabled">停用（僅手動清理）</string>
-    <string name="trash_retention_days_summary_format">自動刪除超過 %d 天的垃圾桶檔案</string>
+    <string name="trash_retention_days_summary_default">自動刪除超過 30 天的 App 垃圾桶檔案</string>
+    <string name="trash_retention_days_summary_disabled">停用（僅手動清理 App 垃圾桶）</string>
+    <string name="trash_retention_days_summary_format">自動刪除超過 %d 天的 App 垃圾桶檔案</string>
+    <string name="trash_retention_scope_note_with_system">保留天數僅套用於 App 垃圾桶。系統垃圾桶由 Android 管理，且可能與其他相簿 App 共用。</string>
+    <string name="trash_retention_scope_note_app_only">保留天數僅套用於 App 垃圾桶。</string>
     <string name="trash_retention_never">不自動刪除</string>
     <string name="trash_retention_days_1">1 天</string>
     <string name="trash_retention_days_3">3 天</string>

@@ -17,6 +17,21 @@
         app:navigationIcon="@drawable/ic_arrow_back"
         app:titleTextColor="?attr/colorOnSurface" />
 
+    <TextView
+        android:id="@+id/trashScopeNoteTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="6dp"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="?attr/colorOnSurface"
+        tools:text="Retention applies to App Trash only. System Trash is managed by Android."
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
@@ -26,7 +41,7 @@
         app:layout_constraintBottom_toTopOf="@+id/selectionActionBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+        app:layout_constraintTop_toBottomOf="@+id/trashScopeNoteTextView" />
 
     <TextView
         android:id="@+id/emptyView"
