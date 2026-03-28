@@ -29,8 +29,9 @@ class MainActivity : AppCompatActivity() {
     
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions.all { it.value }) {
+    ) {
+        if (hasStoragePermissions()) {
+            permissionsGrantedOnStart = true
             loadMediaFolders()
         } else {
             showPermissionRequired()
@@ -252,16 +253,23 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun requestRegularPermissions() {
-        val permissions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VIDEO
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
+        val sdkInt = android.os.Build.VERSION.SDK_INT
+        val permissions = when {
+            sdkInt >= android.os.Build.VERSION_CODES.TIRAMISU -> {
+                arrayOf(
+                    Manifest.permission.READ_MEDIA_IMAGES,
+                    Manifest.permission.READ_MEDIA_VIDEO
+                )
+            }
+            sdkInt >= android.os.Build.VERSION_CODES.Q -> {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            else -> {
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            }
         }
         
         permissionLauncher.launch(permissions)
