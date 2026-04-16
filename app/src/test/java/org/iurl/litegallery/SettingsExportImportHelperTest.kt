@@ -70,6 +70,30 @@ class SettingsExportImportHelperTest {
         assertEquals("list", prefs.getString("last_folder_view_mode", null))
     }
 
+    @Test
+    fun importSettings_restoresSavedVideoBrightnessAsFloatWhenJsonUsesIntegerLiteral() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 1)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("remember_video_brightness", true)
+                put("saved_video_brightness", 1)
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertTrue(prefs.getBoolean("remember_video_brightness", false))
+        assertEquals(1f, prefs.getFloat("saved_video_brightness", -1f))
+        assertTrue(prefs.all["saved_video_brightness"] is Float)
+    }
+
     private fun clearPrefs() {
         PreferenceManager.getDefaultSharedPreferences(context)
             .edit()

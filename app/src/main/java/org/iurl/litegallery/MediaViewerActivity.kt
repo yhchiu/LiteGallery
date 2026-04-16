@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.Manifest
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
@@ -3118,7 +3119,7 @@ class MediaViewerActivity : AppCompatActivity() {
         val shouldRemember = prefs.getBoolean(REMEMBER_VIDEO_BRIGHTNESS_KEY, false)
         if (!shouldRemember || !prefs.contains(SAVED_VIDEO_BRIGHTNESS_KEY)) return
 
-        val rememberedBrightness = prefs.getFloat(SAVED_VIDEO_BRIGHTNESS_KEY, -1f)
+        val rememberedBrightness = getSavedVideoBrightnessCompat(prefs) ?: return
         if (rememberedBrightness !in 0.1f..1.0f) return
 
         setBrightness(rememberedBrightness, persistIfEnabled = false)
@@ -3128,10 +3129,32 @@ class MediaViewerActivity : AppCompatActivity() {
         val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
         if (!prefs.getBoolean(REMEMBER_VIDEO_BRIGHTNESS_KEY, false)) return
 
-        val currentSaved = prefs.getFloat(SAVED_VIDEO_BRIGHTNESS_KEY, -1f)
+        val currentSaved = getSavedVideoBrightnessCompat(prefs) ?: -1f
         if (kotlin.math.abs(currentSaved - brightness) < 0.001f) return
 
         prefs.edit().putFloat(SAVED_VIDEO_BRIGHTNESS_KEY, brightness).apply()
+    }
+
+    private fun getSavedVideoBrightnessCompat(prefs: SharedPreferences): Float? {
+        val rawValue = prefs.all[SAVED_VIDEO_BRIGHTNESS_KEY] ?: return null
+        val normalizedValue = when (rawValue) {
+            is Float -> rawValue
+            is Double -> rawValue.toFloat()
+            is Int -> rawValue.toFloat()
+            is Long -> rawValue.toFloat()
+            is String -> rawValue.toFloatOrNull()
+            else -> null
+        } ?: return null
+
+        if (rawValue !is Float) {
+            prefs.edit().putFloat(SAVED_VIDEO_BRIGHTNESS_KEY, normalizedValue).apply()
+            android.util.Log.w(
+                "MediaViewerActivity",
+                "Migrated saved_video_brightness from ${rawValue::class.java.simpleName} to Float"
+            )
+        }
+
+        return normalizedValue
     }
 
     private fun setBrightness(brightness: Float, persistIfEnabled: Boolean = true) {
