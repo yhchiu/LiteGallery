@@ -15,6 +15,9 @@ class SettingsExportImportHelper(private val context: Context) {
     companion object {
         private const val SETTINGS_VERSION = 1
         private const val APP_NAME = "LiteGallery"
+        private val FLOAT_PREFERENCES = setOf(
+            "saved_video_brightness"
+        )
 
         // All known preference keys for validation
         private val KNOWN_PREFERENCES = setOf(
@@ -139,22 +142,56 @@ class SettingsExportImportHelper(private val context: Context) {
                 if (KNOWN_PREFERENCES.contains(key)) {
                     try {
                         val value = preferencesJson.get(key)
-                        when (value) {
-                            is String -> editor.putString(key, value)
-                            is Boolean -> editor.putBoolean(key, value)
-                            is Int -> editor.putInt(key, value)
-                            is Long -> editor.putLong(key, value)
-                            is Double -> editor.putFloat(key, value.toFloat())
-                            is org.json.JSONArray -> {
+                        val imported = when {
+                            key in FLOAT_PREFERENCES && value is Number -> {
+                                editor.putFloat(key, value.toFloat())
+                                true
+                            }
+
+                            value is String -> {
+                                editor.putString(key, value)
+                                true
+                            }
+
+                            value is Boolean -> {
+                                editor.putBoolean(key, value)
+                                true
+                            }
+
+                            value is Int -> {
+                                editor.putInt(key, value)
+                                true
+                            }
+
+                            value is Long -> {
+                                editor.putLong(key, value)
+                                true
+                            }
+
+                            value is Double -> {
+                                editor.putFloat(key, value.toFloat())
+                                true
+                            }
+
+                            value is org.json.JSONArray -> {
                                 // Convert JSON array back to string set
                                 val stringSet = mutableSetOf<String>()
                                 for (i in 0 until value.length()) {
                                     stringSet.add(value.getString(i))
                                 }
                                 editor.putStringSet(key, stringSet)
+                                true
                             }
+
+                            else -> false
                         }
-                        importedCount++
+
+                        if (imported) {
+                            importedCount++
+                        } else {
+                            android.util.Log.w("SettingsImport", "Unsupported value type for setting: $key")
+                            skippedCount++
+                        }
                     } catch (e: Exception) {
                         android.util.Log.w("SettingsImport", "Failed to import setting: $key", e)
                         skippedCount++
