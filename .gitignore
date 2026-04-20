@@ -49,9 +49,6 @@ build/
 # Ignore Gradle GUI config
 gradle-app.setting
 
-# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored).
-!gradle-wrapper.jar
-
 # Avoid ignoring Gradle wrapper properties file (wrapper properties files are usually ignored).
 !gradle-wrapper.properties
 
@@ -67,6 +64,9 @@ build/reports/tests/test/index.html
 
 # Compiled JAR files
 *.jar
+
+# Keep the Gradle wrapper binary in version control.
+!gradle/wrapper/gradle-wrapper.jar
 
 # Log files
 *.log
