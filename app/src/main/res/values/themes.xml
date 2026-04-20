@@ -9,6 +9,10 @@
         <item name="colorOnSecondary">@color/white</item>
         <item name="colorSecondaryContainer">@color/secondary_container</item>
         <item name="colorOnSecondaryContainer">@color/on_secondary_container</item>
+        <!-- Keep legacy AppCompat/Preference widgets aligned with the active theme hue. -->
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnSurface">@color/on_surface</item>
         <item name="colorSurfaceVariant">@color/surface_variant</item>
@@ -46,5 +50,6 @@
     <style name="PreferenceThemeOverlay" parent="PreferenceThemeOverlay.v14.Material">
         <item name="android:textColorPrimary">@color/on_surface</item>
         <item name="android:textColorSecondary">@color/on_surface_variant</item>
+        <item name="preferenceCategoryTitleTextColor">?attr/colorPrimary</item>
     </style>
 </resources>
