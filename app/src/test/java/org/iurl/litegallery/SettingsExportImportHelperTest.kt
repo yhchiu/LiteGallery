@@ -48,6 +48,40 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
+    fun exportSettings_includesLanguagePreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit()
+            .putString("app_language", "zh_TW")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("preferences")
+        assertEquals("zh_TW", preferences.getString("app_language"))
+    }
+
+    @Test
+    fun exportSettings_includesCustomizedActionBarPreferences() {
+        val prefs = context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString(ActionBarPreferences.KEY_ORDER, "rename,delete,properties")
+            .putString(ActionBarPreferences.KEY_VISIBLE, "delete,properties")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("action_bar_preferences")
+        assertEquals("rename,delete,properties", preferences.getString(ActionBarPreferences.KEY_ORDER))
+        assertEquals("delete,properties", preferences.getString(ActionBarPreferences.KEY_VISIBLE))
+    }
+
+    @Test
     fun importSettings_restoresRememberFolderViewModeValues() {
         val settingsJson = JSONObject().apply {
             put("app_name", "LiteGallery")
@@ -68,6 +102,72 @@ class SettingsExportImportHelperTest {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         assertTrue(prefs.getBoolean("remember_folder_view_mode", false))
         assertEquals("list", prefs.getString("last_folder_view_mode", null))
+    }
+
+    @Test
+    fun importSettings_restoresLanguagePreference() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 1)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("app_language", "zh_TW")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(1, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertEquals("zh_TW", prefs.getString("app_language", null))
+    }
+
+    @Test
+    fun importSettings_restoresCustomizedActionBarPreferences() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 1)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject())
+            put("action_bar_preferences", JSONObject().apply {
+                put(ActionBarPreferences.KEY_ORDER, "rename,delete,properties")
+                put(ActionBarPreferences.KEY_VISIBLE, "delete,properties")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
+        assertEquals("rename,delete,properties", prefs.getString(ActionBarPreferences.KEY_ORDER, null))
+        assertEquals("delete,properties", prefs.getString(ActionBarPreferences.KEY_VISIBLE, null))
+    }
+
+    @Test
+    fun importSettings_coercesNumericLiteralIntoStringPreference() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 1)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("zoom_max_scale", 3)
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(1, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertEquals("3", prefs.getString("zoom_max_scale", null))
     }
 
     @Test
@@ -96,6 +196,10 @@ class SettingsExportImportHelperTest {
 
     private fun clearPrefs() {
         PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .clear()
+            .commit()
+        context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .clear()
             .commit()
