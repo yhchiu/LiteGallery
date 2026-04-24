@@ -165,11 +165,15 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         folderAdapter = FolderAdapter { folder ->
-            val intent = Intent(this, FolderViewActivity::class.java).apply {
-                putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
-                putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, folder.name)
+            if (SmbPath.isSmb(folder.path)) {
+                startActivity(Intent(this, SmbBrowseActivity::class.java))
+            } else {
+                val intent = Intent(this, FolderViewActivity::class.java).apply {
+                    putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
+                    putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, folder.name)
+                }
+                folderViewLauncher.launch(intent)
             }
-            folderViewLauncher.launch(intent)
         }
         
         binding.recyclerView.apply {
@@ -298,7 +302,20 @@ class MainActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val folders = mediaScanner.scanMediaFolders()
+                val scannedFolders = mediaScanner.scanMediaFolders()
+                val folders = mutableListOf<MediaFolder>()
+                folders.addAll(scannedFolders)
+                
+                // Add SMB virtual folder at the bottom
+                val smbServerCount = withContext(Dispatchers.IO) {
+                    SmbConfigStore.getAllServers(this@MainActivity).size
+                }
+                folders.add(MediaFolder(
+                    name = getString(R.string.smb_browse_title),
+                    path = "smb://",
+                    itemCount = smbServerCount,
+                    thumbnail = null
+                ))
                 
                 if (folders.isEmpty()) {
                     binding.progressBar.visibility = View.GONE

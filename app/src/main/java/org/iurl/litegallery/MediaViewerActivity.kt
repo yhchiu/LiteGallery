@@ -1301,24 +1301,32 @@ class MediaViewerActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     val targetPath = mediaPath
-                    mediaItems = mediaScanner.scanMediaInFolder(
-                        folderPath = path,
-                        includeDeferredMetadata = false,
-                        includeVideoDuration = false,
-                        mergeFileSystemFallback = false
-                    )
 
-                    val shouldFallbackToFileSystem = mediaItems.isEmpty() || (
-                        !targetPath.isNullOrBlank() && findMediaItemIndexByPath(mediaItems, targetPath) < 0
-                    )
-
-                    if (shouldFallbackToFileSystem) {
+                    if (SmbPath.isSmb(path)) {
+                        // SMB folder: use SmbMediaScanner
+                        val smbScanner = SmbMediaScanner(this@MediaViewerActivity)
+                        mediaItems = smbScanner.scanSmbMediaInFolder(path)
+                    } else {
+                        // Local folder: use MediaScanner
                         mediaItems = mediaScanner.scanMediaInFolder(
                             folderPath = path,
                             includeDeferredMetadata = false,
                             includeVideoDuration = false,
-                            mergeFileSystemFallback = true
+                            mergeFileSystemFallback = false
                         )
+
+                        val shouldFallbackToFileSystem = mediaItems.isEmpty() || (
+                            !targetPath.isNullOrBlank() && findMediaItemIndexByPath(mediaItems, targetPath) < 0
+                        )
+
+                        if (shouldFallbackToFileSystem) {
+                            mediaItems = mediaScanner.scanMediaInFolder(
+                                folderPath = path,
+                                includeDeferredMetadata = false,
+                                includeVideoDuration = false,
+                                mergeFileSystemFallback = true
+                            )
+                        }
                     }
 
                     mediaViewerAdapter.submitList(mediaItems) {
@@ -2421,14 +2429,28 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun showRenameDialog() {
         if (currentPosition >= mediaItems.size) return
-        
+                
         val currentMediaItem = mediaItems[currentPosition]
-        val currentFile = java.io.File(currentMediaItem.path)
         
         // Check if it's a content URI (can't rename)
         if (currentMediaItem.path.startsWith("content://")) {
             android.widget.Toast.makeText(this, "Cannot rename files opened from other apps", android.widget.Toast.LENGTH_SHORT).show()
             return
+        }
+        
+        val isSmb = SmbPath.isSmb(currentMediaItem.path)
+        
+        // Extract original name based on path type
+        val originalName: String
+        val fileExtension: String
+        if (isSmb) {
+            val smbPath = SmbPath.parse(currentMediaItem.path) ?: return
+            originalName = smbPath.fileNameWithoutExtension
+            fileExtension = smbPath.fileExtension
+        } else {
+            val currentFile = java.io.File(currentMediaItem.path)
+            originalName = currentFile.nameWithoutExtension
+            fileExtension = currentFile.extension
         }
         
         // Inflate custom dialog layout
@@ -2439,7 +2461,6 @@ class MediaViewerActivity : AppCompatActivity() {
         val addSuffixButton = dialogView.findViewById<android.widget.Button>(R.id.addSuffixButton)
         
         // Set current filename
-        val originalName = currentFile.nameWithoutExtension
         editText.setText(originalName)
         editText.selectAll()
         
@@ -2478,7 +2499,11 @@ class MediaViewerActivity : AppCompatActivity() {
             val newName = editText.text.toString().trim()
             if (newName.isNotEmpty() && newName != originalName) {
                 analyzeRename(originalName, newName)
-                performRename(currentFile, newName)
+                if (isSmb) {
+                    performSmbRename(currentMediaItem, newName, fileExtension)
+                } else {
+                    performRename(java.io.File(currentMediaItem.path), newName)
+                }
                 dialog.dismiss()
             } else {
                 android.widget.Toast.makeText(this, "Please enter a different name", android.widget.Toast.LENGTH_SHORT).show()
@@ -2582,6 +2607,105 @@ class MediaViewerActivity : AppCompatActivity() {
                 android.util.Log.e("MediaViewerActivity", "Error renaming file: ${e.message}")
                 android.widget.Toast.makeText(this@MediaViewerActivity, 
                     "Error renaming file: ${e.message}", 
+                    android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun performSmbRename(originalItem: MediaItem, newName: String, extension: String) {
+        lifecycleScope.launch {
+            try {
+                val sourcePosition = currentPosition
+                val directionForAutoNavigate = lastSwipeDirection
+                val smbPath = SmbPath.parse(originalItem.path) ?: run {
+                    android.widget.Toast.makeText(this@MediaViewerActivity,
+                        "Invalid SMB path", android.widget.Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val newFileName = if (extension.isNotEmpty()) "$newName.$extension" else newName
+                val oldFilePath = smbPath.path
+                val newFilePath = if (smbPath.parentPath.isBlank()) newFileName else "${smbPath.parentPath}/$newFileName"
+                val newSmbFullPath = "smb://${smbPath.host}/${smbPath.share}/$newFilePath"
+
+                val renameResult = withContext(Dispatchers.IO) {
+                    // Check if target exists
+                    if (SmbClient.fileExists(this@MediaViewerActivity, smbPath.host, smbPath.share, newFilePath)) {
+                        RenameOperationResult.ALREADY_EXISTS
+                    } else {
+                        if (SmbClient.rename(this@MediaViewerActivity, smbPath.host, smbPath.share, oldFilePath, newFilePath)) {
+                            RenameOperationResult.SUCCESS
+                        } else {
+                            RenameOperationResult.FAILED
+                        }
+                    }
+                }
+
+                if (renameResult == RenameOperationResult.ALREADY_EXISTS) {
+                    android.widget.Toast.makeText(this@MediaViewerActivity,
+                        "File with name '$newFileName' already exists",
+                        android.widget.Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                val success = renameResult == RenameOperationResult.SUCCESS
+
+                if (success) {
+                    hasMediaCollectionChanged = true
+                    if (sourcePosition !in mediaItems.indices) {
+                        android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    // Update media item
+                    val updatedMediaItem = mediaItems[sourcePosition].copy(
+                        name = newFileName,
+                        path = newSmbFullPath
+                    )
+
+                    // Update the list
+                    val updatedList = mediaItems.toMutableList()
+                    updatedList[sourcePosition] = updatedMediaItem
+                    mediaItems = updatedList
+
+                    val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+                    val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {
+                        when (directionForAutoNavigate) {
+                            1 -> if (safeCurrentPosition < mediaItems.size - 1) safeCurrentPosition + 1 else 0
+                            -1 -> if (safeCurrentPosition > 0) safeCurrentPosition - 1 else mediaItems.size - 1
+                            else -> safeCurrentPosition
+                        }
+                    } else {
+                        null
+                    }
+
+                    mediaViewerAdapter.submitList(mediaItems) {
+                        currentPosition = safeCurrentPosition
+                        previousPosition = safeCurrentPosition
+                        mediaViewerAdapter.setActivePosition(currentPosition)
+                        updateFileName(currentPosition)
+
+                        autoNavigateTarget?.let { target ->
+                            if (target != currentPosition) {
+                                binding.viewPager.setCurrentItem(target, true)
+                            }
+                        }
+                    }
+
+                    android.widget.Toast.makeText(this@MediaViewerActivity,
+                        "File renamed to '$newFileName'",
+                        android.widget.Toast.LENGTH_SHORT).show()
+
+                } else {
+                    android.widget.Toast.makeText(this@MediaViewerActivity,
+                        "Failed to rename file",
+                        android.widget.Toast.LENGTH_SHORT).show()
+                }
+
+            } catch (e: Exception) {
+                android.util.Log.e("MediaViewerActivity", "Error renaming SMB file: ${e.message}")
+                android.widget.Toast.makeText(this@MediaViewerActivity,
+                    "Error renaming file: ${e.message}",
                     android.widget.Toast.LENGTH_SHORT).show()
             }
         }

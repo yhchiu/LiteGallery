@@ -32,12 +32,15 @@ class MediaViewerAdapter(
         val oldPosition = activePosition
         activePosition = normalizedPosition
 
-        if (oldPosition in 0 until itemCount) {
-            notifyItemChanged(oldPosition, PAYLOAD_ACTIVE_STATE)
+        val updateTask = Runnable {
+            if (oldPosition in 0 until itemCount) {
+                notifyItemChanged(oldPosition, PAYLOAD_ACTIVE_STATE)
+            }
+            if (normalizedPosition in 0 until itemCount) {
+                notifyItemChanged(normalizedPosition, PAYLOAD_ACTIVE_STATE)
+            }
         }
-        if (normalizedPosition in 0 until itemCount) {
-            notifyItemChanged(normalizedPosition, PAYLOAD_ACTIVE_STATE)
-        }
+        android.os.Handler(android.os.Looper.getMainLooper()).post(updateTask)
     }
     
     fun setVideoDoubleClickListener(listener: () -> Unit) {
@@ -125,13 +128,17 @@ class MediaViewerAdapter(
                 binding.photoImageView.visibility = View.GONE
                 binding.videoContainer.visibility = View.VISIBLE
                 
-                // Load video thumbnail as fallback
-                val context = binding.root.context
-                if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
-                    Glide.with(context)
-                        .load(mediaItem.path)
-                        .fitCenter()
-                        .into(binding.videoThumbnail)
+                // Load video thumbnail as fallback (skip for SMB - can't extract frames from network)
+                if (!mediaItem.isSmb) {
+                    val context = binding.root.context
+                    if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                        Glide.with(context)
+                            .load(mediaItem.path)
+                            .fitCenter()
+                            .into(binding.videoThumbnail)
+                    }
+                } else {
+                    binding.videoThumbnail?.setImageResource(R.drawable.ic_play_circle)
                 }
                 
                 // Set up video player

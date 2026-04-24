@@ -13,13 +13,20 @@ data class MediaItem(
     val height: Int = 0, // Height in pixels
     val isVideo: Boolean = mimeType.startsWith("video/")
 ) {
-    fun getFile(): File = File(path)
+    /** Whether this item is from an SMB share. */
+    val isSmb: Boolean
+        get() = SmbPath.isSmb(path)
+
+    fun getFile(): File {
+        if (isSmb) throw UnsupportedOperationException("Cannot create File from SMB path: $path")
+        return File(path)
+    }
     
     val extension: String
-        get() = File(path).extension
+        get() = name.substringAfterLast('.', "")
     
     val nameWithoutExtension: String
-        get() = File(path).nameWithoutExtension
+        get() = name.substringBeforeLast('.', name)
     
     fun getFormattedDuration(): String {
         if (!isVideo || duration <= 0) return ""
@@ -34,4 +41,4 @@ data class MediaItem(
             String.format("%d:%02d", minutes, seconds % 60)
         }
     }
-}
+}

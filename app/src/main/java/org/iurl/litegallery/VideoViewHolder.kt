@@ -186,13 +186,22 @@ class VideoViewHolder(
         hideLoadingIndicator()
         showLoadingUi()
 
-        val mediaUri = if (item.path.startsWith("content://")) {
-            Uri.parse(item.path)
+        if (SmbPath.isSmb(item.path)) {
+            // SMB streaming: use custom DataSource with ProgressiveMediaSource
+            val context = binding.root.context
+            val dataSourceFactory = SmbDataSourceFactory(context)
+            val mediaSource = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dataSourceFactory)
+                .createMediaSource(MediaItem.fromUri(android.net.Uri.parse(item.path)))
+            player.setMediaSource(mediaSource, true)
         } else {
-            Uri.fromFile(File(item.path))
+            val mediaUri = if (item.path.startsWith("content://")) {
+                Uri.parse(item.path)
+            } else {
+                Uri.fromFile(File(item.path))
+            }
+            player.setMediaItem(MediaItem.fromUri(mediaUri), true)
         }
 
-        player.setMediaItem(MediaItem.fromUri(mediaUri), true)
         player.prepare()
         activePath = item.path
         scheduleLoadingTimeout()
@@ -375,8 +384,8 @@ class VideoViewHolder(
         private var activePath: String? = null
         private var retryCount = 0
 
-        private const val MAX_RETRIES = 2
-        private const val LOADING_TIMEOUT_MS = 8000L
+        private const val MAX_RETRIES = 3
+        private const val LOADING_TIMEOUT_MS = 30000L
         private const val LOADING_INDICATOR_DELAY_MS = 250L
 
         private val mainHandler = Handler(Looper.getMainLooper())

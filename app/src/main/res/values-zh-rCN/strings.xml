@@ -323,4 +323,31 @@
     <string name="items_30">30 項</string>
     <string name="items_50">50 項</string>
     <string name="items_100">100 項</string>
+
+    <!-- SMB Settings -->
+    <string name="smb_browse_title">网络（SMB）</string>
+    <string name="smb_address_hint">smb://192.168.1.100/share</string>
+    <string name="smb_connect_button">前往</string>
+    <string name="smb_saved_servers">已保存的服务器</string>
+    <string name="smb_add_server">添加服务器</string>
+    <string name="smb_edit_server">编辑服务器</string>
+    <string name="smb_no_saved_servers">没有已保存的服务器。请在上方输入地址或点击 + 添加。</string>
+    <string name="smb_empty_folder">此文件夹为空</string>
+    <string name="smb_enter_address">请输入 SMB 地址</string>
+    <string name="smb_invalid_address">无效的 SMB 地址</string>
+    <string name="smb_enter_share_name">请在上方地址栏输入共享路径</string>
+    <string name="smb_enter_host">请输入服务器地址</string>
+    <string name="smb_connect_to">连接到 %1$s</string>
+    <string name="smb_connect">连接</string>
+    <string name="smb_save">保存</string>
+    <string name="smb_connection_failed">连接失败：%1$s</string>
+    <string name="smb_connection_test_failed">连接测试失败</string>
+    <string name="smb_server_saved">服务器已保存</string>
+    <string name="smb_delete_server_title">删除服务器</string>
+    <string name="smb_delete_server_message">删除服务器"%1$s"？</string>
+    <string name="smb_host_hint">服务器地址（IP 或主机名）</string>
+    <string name="smb_display_name_hint">显示名称（可选）</string>
+    <string name="smb_guest_login">以访客身份连接</string>
+    <string name="smb_username_hint">用户名</string>
+    <string name="smb_password_hint">密码</string>
 </resources>

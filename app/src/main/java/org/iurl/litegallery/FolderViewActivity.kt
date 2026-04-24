@@ -326,19 +326,26 @@ class FolderViewActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
-                mediaItems = mediaScanner.scanMediaInFolder(
-                    folderPath = folderPath,
-                    includeDeferredMetadata = includeDeferredMetadata,
-                    mergeFileSystemFallback = false
-                )
-
-                if (mediaItems.isEmpty()) {
+                if (SmbPath.isSmb(folderPath)) {
+                    // SMB folder: use SmbMediaScanner
+                    val smbScanner = SmbMediaScanner(this@FolderViewActivity)
+                    mediaItems = smbScanner.scanSmbMediaInFolder(folderPath)
+                } else {
+                    // Local folder: use MediaScanner
+                    val includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
                     mediaItems = mediaScanner.scanMediaInFolder(
                         folderPath = folderPath,
                         includeDeferredMetadata = includeDeferredMetadata,
-                        mergeFileSystemFallback = true
+                        mergeFileSystemFallback = false
                     )
+
+                    if (mediaItems.isEmpty()) {
+                        mediaItems = mediaScanner.scanMediaInFolder(
+                            folderPath = folderPath,
+                            includeDeferredMetadata = includeDeferredMetadata,
+                            mergeFileSystemFallback = true
+                        )
+                    }
                 }
 
                 if (mediaItems.isEmpty()) {
