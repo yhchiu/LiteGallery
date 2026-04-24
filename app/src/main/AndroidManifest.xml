@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
+    <!-- Network permissions for SMB file sharing -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".LiteGalleryApplication"
@@ -70,6 +73,13 @@
             android:exported="false"
             android:label="@string/trash_bin_title"
             android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".SmbBrowseActivity"
+            android:exported="false"
+            android:label="@string/smb_browse_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.LiteGallery.NoActionBar" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

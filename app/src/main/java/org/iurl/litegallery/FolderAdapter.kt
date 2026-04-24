@@ -31,15 +31,22 @@ class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
             )
 
             // Load thumbnail
-            if (folder.thumbnail != null) {
+            val thumb = folder.thumbnail
+            if (thumb != null && !(SmbPath.isSmb(thumb) && !SmbModelLoader.isSmbImage(thumb))) {
+                // Load via Glide: works for local files and SMB images
                 Glide.with(binding.root.context)
-                    .load(folder.thumbnail)
+                    .load(thumb)
                     .centerCrop()
                     .placeholder(R.drawable.ic_folder)
                     .error(R.drawable.ic_folder)
                     .into(binding.thumbnailImageView)
             } else {
-                binding.thumbnailImageView.setImageResource(R.drawable.ic_folder)
+                val iconRes = if (SmbPath.isSmb(folder.path)) {
+                    R.drawable.ic_network
+                } else {
+                    R.drawable.ic_folder
+                }
+                binding.thumbnailImageView.setImageResource(iconRes)
             }
 
             binding.root.setOnClickListener {

@@ -100,13 +100,17 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(mediaItem: MediaItem, position: Int) {
-            // Load thumbnail
-            Glide.with(binding.root.context)
-                .load(mediaItem.path)
-                .centerCrop()
-                .placeholder(R.drawable.ic_image_placeholder)
-                .error(R.drawable.ic_image_placeholder)
-                .into(binding.thumbnailImageView)
+            // Load thumbnail (skip Glide for SMB videos - can't extract frames from network)
+            if (mediaItem.isSmb && mediaItem.isVideo) {
+                binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
+            } else {
+                Glide.with(binding.root.context)
+                    .load(mediaItem.path)
+                    .centerCrop()
+                    .placeholder(R.drawable.ic_image_placeholder)
+                    .error(R.drawable.ic_image_placeholder)
+                    .into(binding.thumbnailImageView)
+            }
 
             // Show video indicators
             if (mediaItem.isVideo) {
@@ -156,13 +160,17 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(mediaItem: MediaItem, position: Int) {
-            // Load thumbnail
-            Glide.with(binding.root.context)
-                .load(mediaItem.path)
-                .centerCrop()
-                .placeholder(R.drawable.ic_image_placeholder)
-                .error(R.drawable.ic_image_placeholder)
-                .into(binding.thumbnailImageView)
+            // Load thumbnail (skip Glide for SMB videos)
+            if (mediaItem.isSmb && mediaItem.isVideo) {
+                binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
+            } else {
+                Glide.with(binding.root.context)
+                    .load(mediaItem.path)
+                    .centerCrop()
+                    .placeholder(R.drawable.ic_image_placeholder)
+                    .error(R.drawable.ic_image_placeholder)
+                    .into(binding.thumbnailImageView)
+            }
 
             // Show video indicators
             if (mediaItem.isVideo) {
@@ -204,13 +212,17 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(mediaItem: MediaItem, position: Int) {
-            // Load thumbnail
-            Glide.with(binding.root.context)
-                .load(mediaItem.path)
-                .centerCrop()
-                .placeholder(R.drawable.ic_image_placeholder)
-                .error(R.drawable.ic_image_placeholder)
-                .into(binding.thumbnailImageView)
+            // Load thumbnail (skip Glide for SMB videos)
+            if (mediaItem.isSmb && mediaItem.isVideo) {
+                binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
+            } else {
+                Glide.with(binding.root.context)
+                    .load(mediaItem.path)
+                    .centerCrop()
+                    .placeholder(R.drawable.ic_image_placeholder)
+                    .error(R.drawable.ic_image_placeholder)
+                    .into(binding.thumbnailImageView)
+            }
 
             // Show video indicators
             if (mediaItem.isVideo) {

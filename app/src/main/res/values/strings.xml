@@ -323,4 +323,32 @@
     <string name="items_30">30 items</string>
     <string name="items_50">50 items</string>
     <string name="items_100">100 items</string>
+
+    <!-- SMB Settings -->
+    <string name="smb_browse_title">Network (SMB)</string>
+    <string name="smb_address_hint">smb://192.168.1.100/share</string>
+    <string name="smb_connect_button">Go</string>
+    <string name="smb_saved_servers">Saved Servers</string>
+    <string name="smb_add_server">Add Server</string>
+    <string name="smb_edit_server">Edit Server</string>
+    <string name="smb_no_saved_servers">No saved servers. Enter an address above or tap + to add one.</string>
+    <string name="smb_empty_folder">This folder is empty</string>
+    <string name="smb_enter_address">Please enter an SMB address</string>
+    <string name="smb_invalid_address">Invalid SMB address</string>
+    <string name="smb_enter_share_name">Please enter the share path in the address bar above</string>
+    <string name="smb_enter_host">Please enter the server address</string>
+    <string name="smb_connect_to">Connect to %1$s</string>
+    <string name="smb_connect">Connect</string>
+    <string name="smb_save">Save</string>
+    <string name="smb_save_server">Save Server</string>
+    <string name="smb_connection_failed">Connection failed: %1$s</string>
+    <string name="smb_connection_test_failed">Connection test failed</string>
+    <string name="smb_server_saved">Server saved</string>
+    <string name="smb_delete_server_title">Delete Server</string>
+    <string name="smb_delete_server_message">Delete server \"%1$s\"?</string>
+    <string name="smb_host_hint">Server address (IP or hostname)</string>
+    <string name="smb_display_name_hint">Display name (optional)</string>
+    <string name="smb_guest_login">Connect as Guest</string>
+    <string name="smb_username_hint">Username</string>
+    <string name="smb_password_hint">Password</string>
 </resources>

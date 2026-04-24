@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/hostEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_host_hint"
+        android:inputType="text"
+        android:singleLine="true"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/displayNameEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_display_name_hint"
+        android:inputType="text"
+        android:singleLine="true"
+        android:layout_marginBottom="8dp" />
+
+    <CheckBox
+        android:id="@+id/guestCheckBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/smb_guest_login"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/usernameEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_username_hint"
+        android:inputType="text"
+        android:singleLine="true"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/passwordEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_password_hint"
+        android:inputType="textPassword"
+        android:singleLine="true" />
+</LinearLayout>
