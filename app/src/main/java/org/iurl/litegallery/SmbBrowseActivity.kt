@@ -115,6 +115,20 @@ class SmbBrowseActivity : AppCompatActivity() {
             setDisplayShowHomeEnabled(true)
             title = getString(R.string.smb_browse_title)
         }
+        
+        binding.homeButton.setOnClickListener {
+            goHome()
+        }
+    }
+
+    private fun goHome() {
+        currentPath = ""
+        refreshSavedServers()
+        browseAdapter.submitList(emptyList())
+        binding.recyclerView.visibility = View.GONE
+        binding.emptyView.visibility = View.GONE
+        binding.addressEditText.setText("")
+        supportActionBar?.title = getString(R.string.smb_browse_title)
     }
 
     private fun setupSwipeRefresh() {
@@ -324,13 +338,16 @@ class SmbBrowseActivity : AppCompatActivity() {
             binding.savedServersLayout.visibility = View.VISIBLE
             binding.savedServersList.visibility = View.GONE
             binding.noServersText.visibility = View.VISIBLE
+            binding.homeButton.visibility = View.GONE
         } else if (servers.isNotEmpty() && currentPath.isBlank()) {
             binding.savedServersLayout.visibility = View.VISIBLE
             binding.savedServersList.visibility = View.VISIBLE
             binding.noServersText.visibility = View.GONE
+            binding.homeButton.visibility = View.GONE
             setupSavedServersList(servers)
         } else {
             binding.savedServersLayout.visibility = View.GONE
+            binding.homeButton.visibility = View.VISIBLE
         }
     }
 
@@ -391,6 +408,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         currentPath = smbAddress
         binding.addressEditText.setText(smbAddress)
         binding.savedServersLayout.visibility = View.GONE
+        binding.homeButton.visibility = View.VISIBLE
         
         if (!binding.swipeRefreshLayout.isRefreshing) {
             binding.progressBar.visibility = View.VISIBLE
@@ -443,13 +461,7 @@ class SmbBrowseActivity : AppCompatActivity() {
 
         if (smbPath.path.isBlank()) {
             // At share root, go back to saved servers
-            currentPath = ""
-            refreshSavedServers()
-            browseAdapter.submitList(emptyList())
-            binding.recyclerView.visibility = View.GONE
-            binding.emptyView.visibility = View.GONE
-            binding.addressEditText.setText("")
-            supportActionBar?.title = getString(R.string.smb_browse_title)
+            goHome()
         } else {
             navigateTo(smbPath.parentFolderPath)
         }
