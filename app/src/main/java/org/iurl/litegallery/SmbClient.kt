@@ -26,8 +26,8 @@ object SmbClient {
 
     private val client: SMBClient by lazy {
         val config = SmbjConfig.builder()
-            .withTimeout(15, TimeUnit.SECONDS)
-            .withSoTimeout(15, TimeUnit.SECONDS)
+            .withTimeout(60, TimeUnit.SECONDS)
+            .withSoTimeout(0, TimeUnit.SECONDS)
             .build()
         SMBClient(config)
     }
