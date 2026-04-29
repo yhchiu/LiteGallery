@@ -1402,6 +1402,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 currentPosition = 0
                 mediaViewerAdapter.setActivePosition(currentPosition)
                 applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+                bindInfoSheet(mediaItem, currentPosition)
             }
         }
     }
@@ -1448,6 +1449,7 @@ class MediaViewerActivity : AppCompatActivity() {
                     }
                 }
                 applyRememberedBrightnessIfEnabledForVideo(currentPosition)
+                bindInfoSheet(mediaItem, currentPosition)
                 hideLoadingIndicator()
                 maybeTryContinueExternalFolderBrowsing(uri, fileName)
             } catch (e: Exception) {
@@ -2060,7 +2062,8 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun updateFileName(position: Int) {
         if (position < mediaItems.size) {
-            binding.fileNameTextView.text = mediaItems[position].name
+            val item = mediaItems[position]
+            binding.fileNameTextView.text = item.name
 
             // Apply filename max lines setting
             applyFilenameMaxLinesSetting()
@@ -2069,9 +2072,92 @@ class MediaViewerActivity : AppCompatActivity() {
             updateZoomLevelDisplay(1f)
             isZoomed = false
             setViewPagerSwipingEnabled(true)
+
+            // Mirror filename + meta into the V3 info sheet (Phase 3).
+            bindInfoSheet(item, position)
         }
 
         updateMediaTypeDependentUi(position)
+    }
+
+    private fun bindInfoSheet(item: MediaItem, position: Int) {
+        binding.sheetFileName.text = item.name
+
+        binding.sheetFileDate.text = if (item.dateModified > 0L) {
+            android.text.format.DateUtils.formatDateTime(
+                this,
+                item.dateModified,
+                android.text.format.DateUtils.FORMAT_SHOW_DATE or
+                    android.text.format.DateUtils.FORMAT_SHOW_TIME or
+                    android.text.format.DateUtils.FORMAT_SHOW_YEAR or
+                    android.text.format.DateUtils.FORMAT_ABBREV_MONTH
+            )
+        } else {
+            ""
+        }
+        binding.sheetFileDate.visibility =
+            if (binding.sheetFileDate.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+
+        if (mediaItems.size > 1) {
+            binding.sheetPositionChip.text =
+                getString(R.string.viewer_position_format, position + 1, mediaItems.size)
+            binding.sheetPositionChip.visibility = View.VISIBLE
+        } else {
+            binding.sheetPositionChip.visibility = View.GONE
+        }
+
+        rebuildExifChips(item)
+    }
+
+    private fun rebuildExifChips(item: MediaItem) {
+        val container = binding.sheetExifChips
+        container.removeAllViews()
+
+        val labels = mutableListOf<String>()
+        if (item.width > 0 && item.height > 0) {
+            labels.add("${item.width}×${item.height}")
+        }
+        if (item.size > 0L) {
+            labels.add(android.text.format.Formatter.formatShortFileSize(this, item.size))
+        }
+        if (item.isVideo && item.duration > 0L) {
+            labels.add(item.getFormattedDuration())
+        }
+
+        if (labels.isEmpty()) {
+            binding.sheetExifChipsScroll.visibility = View.GONE
+            return
+        }
+
+        val density = resources.displayMetrics.density
+        val padH = (10 * density).toInt()
+        val padV = (5 * density).toInt()
+        val gap = (6 * density).toInt()
+        val onSurface = resolveThemeColor(android.R.attr.textColorPrimary)
+
+        labels.forEachIndexed { i, label ->
+            val chip = android.widget.TextView(this).apply {
+                text = label
+                setBackgroundResource(R.drawable.bg_chip_pill)
+                setPadding(padH, padV, padH, padV)
+                setTextColor(onSurface)
+                textSize = 11f
+            }
+            val lp = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            if (i < labels.size - 1) lp.marginEnd = gap
+            container.addView(chip, lp)
+        }
+        binding.sheetExifChipsScroll.visibility = View.VISIBLE
+    }
+
+    private fun resolveThemeColor(attr: Int): Int {
+        val tv = android.util.TypedValue()
+        return if (theme.resolveAttribute(attr, tv, true)) {
+            if (tv.resourceId != 0) ContextCompat.getColor(this, tv.resourceId) else tv.data
+        } else 0
     }
 
     private fun applyFilenameMaxLinesSetting() {

@@ -12,6 +12,15 @@
             V4 Prism uses sans-serif (system Roboto — Inter approximation).
     -->
 
+    <!-- Shared shape used by the Media Viewer info sheet — rounded top, square bottom. -->
+    <style name="ShapeAppearance.LiteGallery.InfoSheet" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">20dp</item>
+        <item name="cornerSizeTopRight">20dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
     <!-- ============================================================
          Shape Appearance — corner radii per pack
          ============================================================ -->
