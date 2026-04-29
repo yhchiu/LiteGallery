@@ -5,20 +5,25 @@ import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceFragmentCompat
+import android.content.Intent
 import org.iurl.litegallery.databinding.ActivitySettingsBinding
+import org.iurl.litegallery.theme.ThemeVariant
 
 class SettingsActivity : AppCompatActivity() {
-    
+
     private lateinit var binding: ActivitySettingsBinding
-    
+    private var currentPackKey: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme and color theme before setting content view
+        // Apply theme pack before setting content view
         ThemeHelper.applyTheme(this)
-        ThemeHelper.applyColorTheme(this)
-        
+        ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
+
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        currentPackKey = ThemeHelper.getCurrentPack(this).key
 
         // Handle window insets for navigation bar
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -42,6 +47,21 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
     
+    override fun onResume() {
+        super.onResume()
+        // Apply theme in case the user changed pack/mode in ThemePackActivity
+        ThemeHelper.applyTheme(this)
+
+        // Recreate if the pack changed (e.g., user picked a new pack from
+        // ThemePackActivity and that didn't itself trigger a system-wide recreate)
+        val newPackKey = ThemeHelper.getCurrentPack(this).key
+        if (currentPackKey != null && currentPackKey != newPackKey) {
+            recreate()
+            return
+        }
+        currentPackKey = newPackKey
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
@@ -95,31 +115,9 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
-            // Handle theme preference change
-            findPreference<androidx.preference.ListPreference>("theme_preference")?.setOnPreferenceChangeListener { _, newValue ->
-                val theme = newValue as String
-                ThemeHelper.setTheme(requireContext(), theme)
-
-                // Update summary to show selected theme
-                val preference = findPreference<androidx.preference.ListPreference>("theme_preference")
-                preference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), theme)
-
-                // Recreate activity to apply theme immediately
-                activity?.recreate()
-                true
-            }
-
-            // Handle color theme preference change
-            findPreference<ColorThemePreference>("color_theme_preference")?.setOnPreferenceChangeListener { _, newValue ->
-                val colorTheme = newValue as String
-                ThemeHelper.setColorTheme(requireContext(), colorTheme)
-                
-                // Update summary to show selected color theme
-                val preference = findPreference<ColorThemePreference>("color_theme_preference")
-                preference?.summary = ThemeHelper.getColorThemeDisplayName(requireContext(), colorTheme)
-                
-                // Recreate activity to apply color theme immediately
-                activity?.recreate()
+            // Open the Theme Pack picker (Mode + Pack are chosen there).
+            findPreference<androidx.preference.Preference>("theme_pack")?.setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), ThemePackActivity::class.java))
                 true
             }
 
@@ -196,13 +194,19 @@ class SettingsActivity : AppCompatActivity() {
         }
         
         private fun updateThemeSummary() {
-            val themePreference = findPreference<androidx.preference.ListPreference>("theme_preference")
-            val currentTheme = ThemeHelper.getCurrentTheme(requireContext())
-            themePreference?.summary = ThemeHelper.getThemeDisplayName(requireContext(), currentTheme)
-
-            val colorThemePreference = findPreference<ColorThemePreference>("color_theme_preference")
-            val currentColorTheme = ThemeHelper.getCurrentColorTheme(requireContext())
-            colorThemePreference?.summary = ThemeHelper.getColorThemeDisplayName(requireContext(), currentColorTheme)
+            val packPreference = findPreference<androidx.preference.Preference>("theme_pack") ?: return
+            val ctx = requireContext()
+            val pack = ThemeHelper.getCurrentPack(ctx)
+            val packName = ctx.getString(pack.nameRes)
+            val modeBadge = when {
+                pack.isDarkOnly -> ctx.getString(R.string.pack_badge_dark_only)
+                pack.isLightOnly -> ctx.getString(R.string.pack_badge_light_only)
+                else -> {
+                    val themePref = ThemeHelper.getCurrentTheme(ctx)
+                    ThemeHelper.getThemeDisplayName(ctx, themePref)
+                }
+            }
+            packPreference.summary = ctx.getString(R.string.theme_pack_summary_format, packName, modeBadge)
         }
 
         private fun updateLanguageSummary() {

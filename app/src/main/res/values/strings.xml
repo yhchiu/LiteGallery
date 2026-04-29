@@ -186,24 +186,48 @@
     <string name="sort_by_name_asc">Sort by Name (A-Z)</string>
     <string name="sort_by_name_desc">Sort by Name (Z-A)</string>
     
-    <!-- Theme Settings -->
-    <string name="theme_title">Theme</string>
-    <string name="theme_summary">Choose app appearance</string>
+    <!-- Theme Mode (kept for dual-mode pack picker) -->
     <string name="theme_auto">Follow System</string>
     <string name="theme_light">Light Mode</string>
     <string name="theme_dark">Dark Mode</string>
-    
-    <!-- Color Theme Settings -->
-    <string name="color_theme_title">Color Theme</string>
-    <string name="color_theme_summary">Choose app color scheme</string>
-    <string name="color_theme_blue">Blue (Material)</string>
-    <string name="color_theme_green">Green (WhatsApp)</string>
-    <string name="color_theme_purple">Purple (Discord)</string>
-    <string name="color_theme_orange">Orange (VLC)</string>
-    <string name="color_theme_red">Red (YouTube)</string>
-    <string name="color_theme_teal">Teal (Messages)</string>
-    <string name="color_theme_indigo">Indigo (Facebook)</string>
-    <string name="color_theme_pink">Pink (Dribbble)</string>
+
+    <!-- Theme Pack Settings -->
+    <string name="theme_pack_title">Theme</string>
+    <string name="theme_pack_summary">Type, layout and palette as one pack</string>
+    <string name="theme_pack_summary_format">%1$s · %2$s</string>
+    <string name="theme_pack_eyebrow">Appearance</string>
+    <string name="theme_pack_subtitle">Each theme reshapes type, surfaces and accent.</string>
+    <string name="theme_pack_mode_label">Mode</string>
+    <string name="theme_pack_footer_title">Photos always look the same</string>
+    <string name="theme_pack_footer_subtitle">Theme only change the chrome. Your originals stay untouched.</string>
+
+    <!-- Mode segment labels -->
+    <string name="mode_auto">Auto</string>
+    <string name="mode_light">Light</string>
+    <string name="mode_dark">Dark</string>
+
+    <!-- Mode-capability captions -->
+    <string name="pack_caption_dark_only">Dark-locked by design.</string>
+    <string name="pack_caption_light_only">Light-locked by design.</string>
+    <string name="pack_caption_dual">Auto, Light and Dark all supported.</string>
+
+    <!-- Pack badges (capability summary on each card) -->
+    <string name="pack_badge_dark_only">DARK ONLY</string>
+    <string name="pack_badge_light_only">LIGHT ONLY</string>
+    <string name="pack_badge_dual">AUTO · LIGHT · DARK</string>
+    <string name="pack_active_chip">ACTIVE</string>
+
+    <!-- Pack names + subtitles -->
+    <string name="pack_warm_paper_name">Warm Paper</string>
+    <string name="pack_warm_paper_sub">Cream · serif · terracotta</string>
+    <string name="pack_editorial_name">Editorial Noir</string>
+    <string name="pack_editorial_sub">Dark · serif · amber</string>
+    <string name="pack_monolith_name">Monolith</string>
+    <string name="pack_monolith_sub">Graphite · mono · lime</string>
+    <string name="pack_prism_name">Prism</string>
+    <string name="pack_prism_sub">Violet · gradient · magenta</string>
+    <string name="pack_brutalist_name">Sharp Brutalist</string>
+    <string name="pack_brutalist_sub">Off-white · thick · hot orange</string>
     
     <!-- Quick Rename Settings -->
     <string name="quick_rename_settings">Quick Rename Settings</string>

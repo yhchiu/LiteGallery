@@ -50,7 +50,7 @@ class SettingsExportImportHelper(private val context: Context) {
             // General Settings
             "app_language" to PreferenceType.STRING,
             "theme_preference" to PreferenceType.STRING,
-            "color_theme_preference" to PreferenceType.STRING,
+            "theme_pack_preference" to PreferenceType.STRING,
             "restore_brightness" to PreferenceType.BOOLEAN,
             "remember_video_brightness" to PreferenceType.BOOLEAN,
             "saved_video_brightness" to PreferenceType.FLOAT,

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        Dark forms of the pack themes.
+
+        For V3/V5 (dual-mode packs): genuine Dark variants that switch parent
+        to Theme.Material3.Dark.NoActionBar and pull the dark colors from
+        values-night/colors_pack.xml automatically.
+
+        For V1/V2/V4 (Dark-only packs): identical content to values/themes_pack.xml.
+        ThemeHelper forces MODE_NIGHT_YES regardless of system setting, so this
+        qualifier is what's used most of the time. We keep the values/ definitions
+        as a fallback for the rare case where setDefaultNightMode hasn't fired yet
+        (cold start, first frame).
+    -->
+
+    <!-- =========================================================
+         V3 · Warm Paper · Dark — Same warmth, after dusk
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.WarmPaper" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">@font/fraunces</item>
+        <item name="fontFamily">@font/fraunces</item>
+
+        <item name="colorPrimary">@color/pack_warm_paper_accent</item>
+        <item name="colorOnPrimary">@color/pack_warm_paper_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_warm_paper_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_warm_paper_text</item>
+        <item name="colorSecondary">@color/pack_warm_paper_accent</item>
+        <item name="colorOnSecondary">@color/pack_warm_paper_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_warm_paper_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_warm_paper_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_warm_paper_card</item>
+        <item name="colorOnSurface">@color/pack_warm_paper_text</item>
+        <item name="colorSurfaceVariant">@color/pack_warm_paper_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_warm_paper_dim</item>
+        <item name="colorOutline">@color/pack_warm_paper_line</item>
+        <item name="colorOutlineVariant">@color/pack_warm_paper_faint</item>
+        <item name="android:colorBackground">@color/pack_warm_paper_bg</item>
+        <item name="android:windowBackground">@color/pack_warm_paper_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_warm_paper_text</item>
+        <item name="android:textColorSecondary">@color/pack_warm_paper_dim</item>
+        <item name="actionMenuTextColor">@color/pack_warm_paper_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.WarmPaper</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.WarmPaper.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.WarmPaper.FullScreen" parent="Theme.LiteGallery.Pack.WarmPaper.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!-- =========================================================
+         V5 · Sharp Brutalist · Dark — poster on black
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.Brutalist" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+
+        <item name="colorPrimary">@color/pack_brutalist_accent</item>
+        <item name="colorOnPrimary">@color/pack_brutalist_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_brutalist_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_brutalist_text</item>
+        <item name="colorSecondary">@color/pack_brutalist_accent</item>
+        <item name="colorOnSecondary">@color/pack_brutalist_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_brutalist_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_brutalist_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_brutalist_card</item>
+        <item name="colorOnSurface">@color/pack_brutalist_text</item>
+        <item name="colorSurfaceVariant">@color/pack_brutalist_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_brutalist_dim</item>
+        <item name="colorOutline">@color/pack_brutalist_line</item>
+        <item name="colorOutlineVariant">@color/pack_brutalist_dim</item>
+        <item name="android:colorBackground">@color/pack_brutalist_bg</item>
+        <item name="android:windowBackground">@color/pack_brutalist_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_brutalist_text</item>
+        <item name="android:textColorSecondary">@color/pack_brutalist_dim</item>
+        <item name="actionMenuTextColor">@color/pack_brutalist_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Brutalist.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.Brutalist.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.Brutalist</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Brutalist.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Brutalist.FullScreen" parent="Theme.LiteGallery.Pack.Brutalist.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!--
+        V1 Editorial, V2 Monolith, V4 Prism are dark-only — their values/
+        definitions are already Dark (Theme.Material3.Dark.NoActionBar parent),
+        and the colors_pack.xml in values-night/ matches values/ for these packs.
+        No night-qualified style needed; the framework falls back to values/.
+    -->
+
+</resources>

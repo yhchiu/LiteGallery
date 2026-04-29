@@ -12,7 +12,10 @@ class LiteGalleryApplication : Application() {
         // Apply locale before theme (order matters)
         LocaleHelper.applyLocale(this)
 
-        // Apply theme when app starts
+        // First-launch / upgrade: ensure a pack pref exists (default Warm Paper)
+        ThemeHelper.migrateLegacyIfNeeded(this)
+
+        // Apply theme when app starts (consults the active pack to decide night mode)
         ThemeHelper.applyTheme(this)
 
         // Register SMB model loader with Glide for loading images from SMB shares

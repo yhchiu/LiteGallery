@@ -135,21 +135,11 @@
             android:summary="@string/language_summary"
             android:title="@string/language_title" />
 
-        <ListPreference
-            android:defaultValue="auto"
-            android:entries="@array/theme_entries"
-            android:entryValues="@array/theme_values"
-            android:key="theme_preference"
-            android:summary="@string/theme_summary"
-            android:title="@string/theme_title" />
-
-        <org.iurl.litegallery.ColorThemePreference
-            android:defaultValue="blue"
-            android:entries="@array/color_theme_entries"
-            android:entryValues="@array/color_theme_values"
-            android:key="color_theme_preference"
-            android:summary="@string/color_theme_summary"
-            android:title="@string/color_theme_title" />
+        <Preference
+            android:icon="@drawable/ic_palette"
+            android:key="theme_pack"
+            android:summary="@string/theme_pack_summary"
+            android:title="@string/theme_pack_title" />
 
         <SwitchPreferenceCompat
             android:defaultValue="true"

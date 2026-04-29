@@ -26,14 +26,14 @@
         android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LiteGallery"
+        android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar"
         android:hardwareAccelerated="true"
         tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.LiteGallery.NoActionBar">
+            android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -44,12 +44,12 @@
             android:name=".FolderViewActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.LiteGallery.NoActionBar" />
+            android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar" />
 
         <activity
             android:name=".MediaViewerActivity"
             android:exported="true"
-            android:theme="@style/Theme.LiteGallery.FullScreen">
+            android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.FullScreen">
             <intent-filter android:priority="1000">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -79,7 +79,14 @@
             android:exported="false"
             android:label="@string/smb_browse_title"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.LiteGallery.NoActionBar" />
+            android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar" />
+
+        <activity
+            android:name=".ThemePackActivity"
+            android:exported="false"
+            android:label="@string/theme_pack_title"
+            android:parentActivityName=".SettingsActivity"
+            android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -29,42 +29,6 @@
         <item>detailed</item>
     </string-array>
     
-    <!-- Theme Options -->
-    <string-array name="theme_entries">
-        <item>@string/theme_auto</item>
-        <item>@string/theme_light</item>
-        <item>@string/theme_dark</item>
-    </string-array>
-    
-    <string-array name="theme_values">
-        <item>auto</item>
-        <item>light</item>
-        <item>dark</item>
-    </string-array>
-    
-    <!-- Color Theme Options -->
-    <string-array name="color_theme_entries">
-        <item>@string/color_theme_blue</item>
-        <item>@string/color_theme_green</item>
-        <item>@string/color_theme_purple</item>
-        <item>@string/color_theme_orange</item>
-        <item>@string/color_theme_red</item>
-        <item>@string/color_theme_teal</item>
-        <item>@string/color_theme_indigo</item>
-        <item>@string/color_theme_pink</item>
-    </string-array>
-    
-    <string-array name="color_theme_values">
-        <item>blue</item>
-        <item>green</item>
-        <item>purple</item>
-        <item>orange</item>
-        <item>red</item>
-        <item>teal</item>
-        <item>indigo</item>
-        <item>pink</item>
-    </string-array>
-    
     <!-- Quick Rename History Count Options -->
     <string-array name="rename_history_count_entries">
         <item>@string/items_10</item>

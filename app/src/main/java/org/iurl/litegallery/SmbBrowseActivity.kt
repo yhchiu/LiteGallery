@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.iurl.litegallery.databinding.ActivitySmbBrowseBinding
+import org.iurl.litegallery.theme.ThemeVariant
 
 /**
  * Activity for browsing SMB shared folders and files.
@@ -37,11 +38,11 @@ class SmbBrowseActivity : AppCompatActivity() {
     private lateinit var smbMediaScanner: SmbMediaScanner
     private var currentPath: String = ""
     private var isLoading = false
-    private var currentColorTheme: String? = null
+    private var currentPackKey: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemeHelper.applyTheme(this)
-        ThemeHelper.applyColorTheme(this)
+        ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
         binding = ActivitySmbBrowseBinding.inflate(layoutInflater)
@@ -58,7 +59,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             insets
         }
 
-        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        currentPackKey = ThemeHelper.getCurrentPack(this).key
         smbMediaScanner = SmbMediaScanner(this)
 
         setupToolbar()
@@ -78,12 +79,12 @@ class SmbBrowseActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         ThemeHelper.applyTheme(this)
-        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
-        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+        val newPackKey = ThemeHelper.getCurrentPack(this).key
+        if (currentPackKey != null && currentPackKey != newPackKey) {
             recreate()
             return
         }
-        currentColorTheme = newColorTheme
+        currentPackKey = newPackKey
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityFolderViewBinding
+import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.launch
 
 class FolderViewActivity : AppCompatActivity() {
@@ -33,7 +34,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var folderPath: String = ""
     private var folderName: String = ""
     private var mediaItems: List<MediaItem> = emptyList()
-    private var currentColorTheme: String? = null
+    private var currentPackKey: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
     private var isLoadingMediaItems = false
@@ -62,10 +63,10 @@ class FolderViewActivity : AppCompatActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme and color theme before setting content view
+        // Apply theme pack before setting content view
         ThemeHelper.applyTheme(this)
-        ThemeHelper.applyColorTheme(this)
-        
+        ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
+
         super.onCreate(savedInstanceState)
         binding = ActivityFolderViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -85,8 +86,8 @@ class FolderViewActivity : AppCompatActivity() {
         folderPath = intent.getStringExtra(EXTRA_FOLDER_PATH) ?: ""
         folderName = intent.getStringExtra(EXTRA_FOLDER_NAME) ?: ""
         
-        // Initialize current color theme
-        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
+        // Track current pack so onResume can detect changes from Settings/Picker
+        currentPackKey = ThemeHelper.getCurrentPack(this).key
 
         // Load default view mode and sort order from preferences
         loadViewModePreference()
@@ -104,14 +105,14 @@ class FolderViewActivity : AppCompatActivity() {
         super.onResume()
         // Apply theme in case it was changed in settings
         ThemeHelper.applyTheme(this)
-        
-        // Check if color theme changed and recreate if necessary
-        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
-        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+
+        // Recreate if the pack changed (e.g., user picked a new pack from settings)
+        val newPackKey = ThemeHelper.getCurrentPack(this).key
+        if (currentPackKey != null && currentPackKey != newPackKey) {
             recreate()
             return
         }
-        currentColorTheme = newColorTheme
+        currentPackKey = newPackKey
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

@@ -186,24 +186,48 @@
     <string name="sort_by_name_asc">依名稱排序（A-Z）</string>
     <string name="sort_by_name_desc">依名稱排序（Z-A）</string>
 
-    <!-- Theme Settings -->
-    <string name="theme_title">主題</string>
-    <string name="theme_summary">選擇應用程式外觀</string>
+    <!-- Theme Mode -->
     <string name="theme_auto">跟隨系統</string>
     <string name="theme_light">淺色模式</string>
     <string name="theme_dark">深色模式</string>
 
-    <!-- Color Theme Settings -->
-    <string name="color_theme_title">色彩主題</string>
-    <string name="color_theme_summary">選擇應用程式配色</string>
-    <string name="color_theme_blue">藍色（Material）</string>
-    <string name="color_theme_green">綠色（WhatsApp）</string>
-    <string name="color_theme_purple">紫色（Discord）</string>
-    <string name="color_theme_orange">橙色（VLC）</string>
-    <string name="color_theme_red">紅色（YouTube）</string>
-    <string name="color_theme_teal">青色（訊息）</string>
-    <string name="color_theme_indigo">靛藍色（Facebook）</string>
-    <string name="color_theme_pink">粉紅色（Dribbble）</string>
+    <!-- Theme Pack Settings -->
+    <string name="theme_pack_title">佈景主題</string>
+    <string name="theme_pack_summary">字型、版面、配色一次切換</string>
+    <string name="theme_pack_summary_format">%1$s · %2$s</string>
+    <string name="theme_pack_eyebrow">外觀</string>
+    <string name="theme_pack_subtitle">每個主題同時改變字型、表面與強調色。</string>
+    <string name="theme_pack_mode_label">模式</string>
+    <string name="theme_pack_footer_title">照片永遠保持原樣</string>
+    <string name="theme_pack_footer_subtitle">佈景主題只改變外觀，原始檔案不會被修改。</string>
+
+    <!-- Mode segment labels -->
+    <string name="mode_auto">自動</string>
+    <string name="mode_light">淺色</string>
+    <string name="mode_dark">深色</string>
+
+    <!-- Mode-capability captions -->
+    <string name="pack_caption_dark_only">設計上鎖定深色。</string>
+    <string name="pack_caption_light_only">設計上鎖定淺色。</string>
+    <string name="pack_caption_dual">支援自動、淺色與深色。</string>
+
+    <!-- Pack badges -->
+    <string name="pack_badge_dark_only">僅深色</string>
+    <string name="pack_badge_light_only">僅淺色</string>
+    <string name="pack_badge_dual">自動 · 淺 · 深</string>
+    <string name="pack_active_chip">使用中</string>
+
+    <!-- Pack names + subtitles -->
+    <string name="pack_warm_paper_name">暖紙</string>
+    <string name="pack_warm_paper_sub">奶油 · 襯線 · 陶土紅</string>
+    <string name="pack_editorial_name">夜讀編輯</string>
+    <string name="pack_editorial_sub">深色 · 襯線 · 琥珀</string>
+    <string name="pack_monolith_name">巨石</string>
+    <string name="pack_monolith_sub">石墨 · 等寬 · 螢光綠</string>
+    <string name="pack_prism_name">稜鏡</string>
+    <string name="pack_prism_sub">紫羅蘭 · 漸層 · 桃紅</string>
+    <string name="pack_brutalist_name">硬派</string>
+    <string name="pack_brutalist_sub">米白 · 厚邊 · 烈橘</string>
 
     <!-- Quick Rename Settings -->
     <string name="quick_rename_settings">快速重新命名設定</string>

@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
+import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,10 +62,10 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply theme and color theme before setting content view
+        // Apply theme pack before setting content view
         ThemeHelper.applyTheme(this)
-        ThemeHelper.applyColorTheme(this)
-        
+        ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
+
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -83,9 +84,9 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         
-        // Initialize current color theme
-        currentColorTheme = ThemeHelper.getCurrentColorTheme(this)
-        
+        // Track current pack so onResume can detect changes from Settings/Picker
+        currentPackKey = ThemeHelper.getCurrentPack(this).key
+
         mediaScanner = MediaScanner(this)
         setupRecyclerView()
         setupSwipeRefresh()
@@ -93,20 +94,20 @@ class MainActivity : AppCompatActivity() {
         checkPermissionsAndLoad()
     }
     
-    private var currentColorTheme: String? = null
+    private var currentPackKey: String? = null
 
     override fun onResume() {
         super.onResume()
         // Apply theme in case it was changed in settings
         ThemeHelper.applyTheme(this)
-        
-        // Check if color theme changed and recreate if necessary
-        val newColorTheme = ThemeHelper.getCurrentColorTheme(this)
-        if (currentColorTheme != null && currentColorTheme != newColorTheme) {
+
+        // Recreate if the pack changed (e.g., user picked a new pack from settings)
+        val newPackKey = ThemeHelper.getCurrentPack(this).key
+        if (currentPackKey != null && currentPackKey != newPackKey) {
             recreate()
             return
         }
-        currentColorTheme = newColorTheme
+        currentPackKey = newPackKey
         
         // Check permissions again when returning from settings
         if (!hasStoragePermissions()) {

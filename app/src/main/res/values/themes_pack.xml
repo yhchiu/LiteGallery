@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        Pack themes (Light forms for dual-mode packs V3/V5; native form for
+        single-mode dark packs V1/V2/V4 — those force MODE_NIGHT_YES at runtime
+        so the night-qualified version below is what users actually see).
+
+        Style names are stable across values/ and values-night/ folders:
+            Theme.LiteGallery.Pack.<Pack>.NoActionBar
+            Theme.LiteGallery.Pack.<Pack>.FullScreen
+    -->
+
+    <!-- =========================================================
+         V3 · Warm Paper · Light
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.WarmPaper" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:fontFamily">@font/fraunces</item>
+        <item name="fontFamily">@font/fraunces</item>
+
+        <item name="colorPrimary">@color/pack_warm_paper_accent</item>
+        <item name="colorOnPrimary">@color/pack_warm_paper_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_warm_paper_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_warm_paper_text</item>
+        <item name="colorSecondary">@color/pack_warm_paper_accent</item>
+        <item name="colorOnSecondary">@color/pack_warm_paper_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_warm_paper_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_warm_paper_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_warm_paper_card</item>
+        <item name="colorOnSurface">@color/pack_warm_paper_text</item>
+        <item name="colorSurfaceVariant">@color/pack_warm_paper_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_warm_paper_dim</item>
+        <item name="colorOutline">@color/pack_warm_paper_line</item>
+        <item name="colorOutlineVariant">@color/pack_warm_paper_faint</item>
+        <item name="android:colorBackground">@color/pack_warm_paper_bg</item>
+        <item name="android:windowBackground">@color/pack_warm_paper_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_warm_paper_text</item>
+        <item name="android:textColorSecondary">@color/pack_warm_paper_dim</item>
+        <item name="actionMenuTextColor">@color/pack_warm_paper_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.WarmPaper</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.WarmPaper.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.WarmPaper.FullScreen" parent="Theme.LiteGallery.Pack.WarmPaper.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!-- =========================================================
+         V1 · Editorial Noir · always Dark
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.Editorial" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">@font/cormorant_garamond</item>
+        <item name="fontFamily">@font/cormorant_garamond</item>
+
+        <item name="colorPrimary">@color/pack_editorial_accent</item>
+        <item name="colorOnPrimary">@color/pack_editorial_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_editorial_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_editorial_text</item>
+        <item name="colorSecondary">@color/pack_editorial_accent</item>
+        <item name="colorOnSecondary">@color/pack_editorial_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_editorial_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_editorial_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_editorial_card</item>
+        <item name="colorOnSurface">@color/pack_editorial_text</item>
+        <item name="colorSurfaceVariant">@color/pack_editorial_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_editorial_dim</item>
+        <item name="colorOutline">@color/pack_editorial_line</item>
+        <item name="colorOutlineVariant">@color/pack_editorial_faint</item>
+        <item name="android:colorBackground">@color/pack_editorial_bg</item>
+        <item name="android:windowBackground">@color/pack_editorial_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_editorial_text</item>
+        <item name="android:textColorSecondary">@color/pack_editorial_dim</item>
+        <item name="actionMenuTextColor">@color/pack_editorial_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Editorial.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Editorial.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.Editorial.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.Editorial.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.Editorial.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.Editorial</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Editorial.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Editorial.FullScreen" parent="Theme.LiteGallery.Pack.Editorial.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!-- =========================================================
+         V2 · Monolith · always Dark
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.Monolith" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+
+        <item name="colorPrimary">@color/pack_monolith_accent</item>
+        <item name="colorOnPrimary">@color/pack_monolith_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_monolith_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_monolith_text</item>
+        <item name="colorSecondary">@color/pack_monolith_accent</item>
+        <item name="colorOnSecondary">@color/pack_monolith_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_monolith_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_monolith_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_monolith_card</item>
+        <item name="colorOnSurface">@color/pack_monolith_text</item>
+        <item name="colorSurfaceVariant">@color/pack_monolith_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_monolith_dim</item>
+        <item name="colorOutline">@color/pack_monolith_line</item>
+        <item name="colorOutlineVariant">@color/pack_monolith_faint</item>
+        <item name="android:colorBackground">@color/pack_monolith_bg</item>
+        <item name="android:windowBackground">@color/pack_monolith_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_monolith_text</item>
+        <item name="android:textColorSecondary">@color/pack_monolith_dim</item>
+        <item name="actionMenuTextColor">@color/pack_monolith_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Monolith.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Monolith.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.Monolith.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.Monolith.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.Monolith.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.Monolith</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Monolith.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Monolith.FullScreen" parent="Theme.LiteGallery.Pack.Monolith.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!-- =========================================================
+         V4 · Prism · always Dark
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.Prism" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+
+        <item name="colorPrimary">@color/pack_prism_accent</item>
+        <item name="colorOnPrimary">@color/pack_prism_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_prism_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_prism_text</item>
+        <item name="colorSecondary">@color/pack_prism_accent2</item>
+        <item name="colorOnSecondary">@color/pack_prism_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_prism_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_prism_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_prism_card</item>
+        <item name="colorOnSurface">@color/pack_prism_text</item>
+        <item name="colorSurfaceVariant">@color/pack_prism_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_prism_dim</item>
+        <item name="colorOutline">@color/pack_prism_line</item>
+        <item name="colorOutlineVariant">@color/pack_prism_faint</item>
+        <item name="android:colorBackground">@color/pack_prism_bg</item>
+        <item name="android:windowBackground">@color/pack_prism_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_prism_text</item>
+        <item name="android:textColorSecondary">@color/pack_prism_dim</item>
+        <item name="actionMenuTextColor">@color/pack_prism_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Prism.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Prism.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Prism.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Prism.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Prism.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.Prism.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.Prism.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.Prism.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.Prism</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Prism.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Prism.FullScreen" parent="Theme.LiteGallery.Pack.Prism.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+    <!-- =========================================================
+         V5 · Sharp Brutalist · Light
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.Brutalist" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+
+        <item name="colorPrimary">@color/pack_brutalist_accent</item>
+        <item name="colorOnPrimary">@color/pack_brutalist_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_brutalist_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_brutalist_text</item>
+        <item name="colorSecondary">@color/pack_brutalist_accent</item>
+        <item name="colorOnSecondary">@color/pack_brutalist_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_brutalist_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_brutalist_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_brutalist_card</item>
+        <item name="colorOnSurface">@color/pack_brutalist_text</item>
+        <item name="colorSurfaceVariant">@color/pack_brutalist_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_brutalist_dim</item>
+        <item name="colorOutline">@color/pack_brutalist_line</item>
+        <item name="colorOutlineVariant">@color/pack_brutalist_dim</item>
+        <item name="android:colorBackground">@color/pack_brutalist_bg</item>
+        <item name="android:windowBackground">@color/pack_brutalist_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_brutalist_text</item>
+        <item name="android:textColorSecondary">@color/pack_brutalist_dim</item>
+        <item name="actionMenuTextColor">@color/pack_brutalist_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Brutalist.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.Brutalist.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.Brutalist</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Brutalist.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Brutalist.FullScreen" parent="Theme.LiteGallery.Pack.Brutalist.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
+</resources>

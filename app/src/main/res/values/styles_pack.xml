@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Pack-level shape and text appearance abstractions.
+
+        FONTS: Bundled in res/font/ (all SIL OFL licensed):
+            @font/fraunces            — Warm Paper (V3) variable serif
+            @font/cormorant_garamond  — Editorial Noir (V1) family with italic
+            @font/jetbrains_mono      — Monolith (V2) + Brutalist (V5) body
+            @font/archivo_black       — Brutalist (V5) display
+            V4 Prism uses sans-serif (system Roboto — Inter approximation).
+    -->
+
+    <!-- ============================================================
+         Shape Appearance — corner radii per pack
+         ============================================================ -->
+
+    <style name="ShapeAppearance.LiteGallery.Pack.WarmPaper.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">6dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.WarmPaper.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.WarmPaper.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="ShapeAppearance.LiteGallery.Pack.Editorial.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">2dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Editorial.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">4dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Editorial.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">4dp</item>
+    </style>
+
+    <style name="ShapeAppearance.LiteGallery.Pack.Monolith.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">2dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Monolith.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">4dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Monolith.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">4dp</item>
+    </style>
+
+    <style name="ShapeAppearance.LiteGallery.Pack.Prism.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">10dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Prism.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">16dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Prism.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">22dp</item>
+    </style>
+
+    <style name="ShapeAppearance.LiteGallery.Pack.Brutalist.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">0dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Brutalist.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">0dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Brutalist.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">0dp</item>
+    </style>
+
+    <!-- ============================================================
+         Text Appearance — typography per pack
+         Roles: Display / Headline / Title / Body / Label
+         ============================================================ -->
+
+    <!-- ===== Warm Paper · Fraunces serif (variable font) ===== -->
+    <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">@font/fraunces</item>
+        <item name="fontFamily">@font/fraunces</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:letterSpacing">-0.03</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">@font/fraunces</item>
+        <item name="fontFamily">@font/fraunces</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">@font/fraunces</item>
+        <item name="fontFamily">@font/fraunces</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- ===== Editorial Noir · Cormorant Garamond italic display ===== -->
+    <style name="TextAppearance.LiteGallery.Pack.Editorial.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">@font/cormorant_garamond</item>
+        <item name="fontFamily">@font/cormorant_garamond</item>
+        <item name="android:textStyle">italic</item>
+        <item name="android:letterSpacing">-0.025</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Editorial.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">@font/cormorant_garamond</item>
+        <item name="fontFamily">@font/cormorant_garamond</item>
+        <item name="android:textStyle">italic</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Editorial.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">@font/cormorant_garamond</item>
+        <item name="fontFamily">@font/cormorant_garamond</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Editorial.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Editorial.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0.25</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- ===== Monolith · monospace + tight sans ===== -->
+    <style name="TextAppearance.LiteGallery.Pack.Monolith.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.03</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Monolith.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Monolith.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Monolith.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Monolith.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+        <item name="android:letterSpacing">0.15</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- ===== Prism · sans-serif vivid ===== -->
+    <style name="TextAppearance.LiteGallery.Pack.Prism.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.025</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Prism.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Prism.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Prism.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Prism.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.15</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- ===== Sharp Brutalist · Archivo Black display + JetBrains Mono body ===== -->
+    <style name="TextAppearance.LiteGallery.Pack.Brutalist.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">@font/archivo_black</item>
+        <item name="fontFamily">@font/archivo_black</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">-0.04</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Brutalist.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">@font/archivo_black</item>
+        <item name="fontFamily">@font/archivo_black</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Brutalist.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Brutalist.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.Brutalist.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.2</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- ============================================================
+         PreferenceThemeOverlay variants — force pack typography through to
+         PreferenceFragmentCompat (which otherwise ignores the activity's fontFamily).
+         ============================================================ -->
+
+    <style name="PreferenceThemeOverlay.LiteGallery.WarmPaper" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/pack_warm_paper_text</item>
+        <item name="android:textColorSecondary">@color/pack_warm_paper_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/pack_warm_paper_accent</item>
+    </style>
+
+    <style name="PreferenceThemeOverlay.LiteGallery.Editorial" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/pack_editorial_text</item>
+        <item name="android:textColorSecondary">@color/pack_editorial_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/pack_editorial_accent</item>
+    </style>
+
+    <style name="PreferenceThemeOverlay.LiteGallery.Monolith" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/pack_monolith_text</item>
+        <item name="android:textColorSecondary">@color/pack_monolith_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/pack_monolith_accent</item>
+    </style>
+
+    <style name="PreferenceThemeOverlay.LiteGallery.Prism" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/pack_prism_text</item>
+        <item name="android:textColorSecondary">@color/pack_prism_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/pack_prism_accent</item>
+    </style>
+
+    <style name="PreferenceThemeOverlay.LiteGallery.Brutalist" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/pack_brutalist_text</item>
+        <item name="android:textColorSecondary">@color/pack_brutalist_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/pack_brutalist_accent</item>
+    </style>
+
+</resources>

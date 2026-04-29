@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ===== Warm Paper · Light (V3) ===== -->
+    <color name="pack_warm_paper_bg">#f4efe6</color>
+    <color name="pack_warm_paper_surface">#ebe4d7</color>
+    <color name="pack_warm_paper_card">#ffffff</color>
+    <color name="pack_warm_paper_text">#2a2621</color>
+    <color name="pack_warm_paper_dim">#9e2a2621</color>
+    <color name="pack_warm_paper_faint">#472a2621</color>
+    <color name="pack_warm_paper_line">#1a2a2621</color>
+    <color name="pack_warm_paper_accent">#c96442</color>
+    <color name="pack_warm_paper_on_accent">#ffffff</color>
+
+    <!-- ===== Editorial Noir · Dark only (V1) ===== -->
+    <color name="pack_editorial_bg">#0a0907</color>
+    <color name="pack_editorial_surface">#151310</color>
+    <color name="pack_editorial_card">#1d1a16</color>
+    <color name="pack_editorial_text">#f3ede0</color>
+    <color name="pack_editorial_dim">#8cf3ede0</color>
+    <color name="pack_editorial_faint">#40f3ede0</color>
+    <color name="pack_editorial_line">#15f3ede0</color>
+    <color name="pack_editorial_accent">#e8a15c</color>
+    <color name="pack_editorial_on_accent">#0a0907</color>
+
+    <!-- ===== Monolith · Dark only (V2) ===== -->
+    <color name="pack_monolith_bg">#0d0d0d</color>
+    <color name="pack_monolith_surface">#161616</color>
+    <color name="pack_monolith_card">#161616</color>
+    <color name="pack_monolith_text">#ffffff</color>
+    <color name="pack_monolith_dim">#80ffffff</color>
+    <color name="pack_monolith_faint">#2effffff</color>
+    <color name="pack_monolith_line">#15ffffff</color>
+    <color name="pack_monolith_accent">#c6ff47</color>
+    <color name="pack_monolith_on_accent">#0d0d0d</color>
+
+    <!-- ===== Prism · Dark only (V4) ===== -->
+    <color name="pack_prism_bg">#120a1e</color>
+    <color name="pack_prism_surface">#1c1230</color>
+    <color name="pack_prism_card">#261942</color>
+    <color name="pack_prism_text">#f5edff</color>
+    <color name="pack_prism_dim">#9ef5edff</color>
+    <color name="pack_prism_faint">#40f5edff</color>
+    <color name="pack_prism_line">#1af5edff</color>
+    <color name="pack_prism_accent">#ff4d9d</color>
+    <color name="pack_prism_accent2">#7dffc0</color>
+    <color name="pack_prism_on_accent">#120a1e</color>
+
+    <!-- ===== Sharp Brutalist · Light (V5) ===== -->
+    <color name="pack_brutalist_bg">#e8e6e0</color>
+    <color name="pack_brutalist_surface">#d9d7d0</color>
+    <color name="pack_brutalist_card">#ffffff</color>
+    <color name="pack_brutalist_text">#0a0a0a</color>
+    <color name="pack_brutalist_dim">#4a4a4a</color>
+    <color name="pack_brutalist_faint">#8a8a8a</color>
+    <color name="pack_brutalist_line">#0a0a0a</color>
+    <color name="pack_brutalist_accent">#ff3d00</color>
+    <color name="pack_brutalist_on_accent">#ffffff</color>
+
+</resources>
