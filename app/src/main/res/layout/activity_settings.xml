@@ -21,7 +21,7 @@
             app:layout_scrollFlags="scroll|enterAlways"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:navigationIconTint="?attr/colorOnSurface"
-            app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+            app:titleTextAppearance="?attr/textAppearanceHeadlineSmall"
             app:titleTextColor="?attr/colorOnSurface" />
 
     </com.google.android.material.appbar.AppBarLayout>

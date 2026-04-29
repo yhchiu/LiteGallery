@@ -375,4 +375,33 @@
     <string name="smb_guest_login">Connect as Guest</string>
     <string name="smb_username_hint">Username</string>
     <string name="smb_password_hint">Password</string>
+
+    <!-- Home -->
+    <string name="home_overview_label">Overview</string>
+    <string name="home_overview_unit">memories</string>
+    <string name="home_stat_photos">Photos</string>
+    <string name="home_stat_videos">Videos</string>
+    <string name="home_stat_folders">Folders</string>
+    <string name="home_stat_size">Size</string>
+    <string name="home_section_folders">Folders</string>
+    <string name="home_sort_recent">Recent</string>
+    <string name="folder_meta_format">%1$s · %2$s</string>
+
+    <!-- Folder View -->
+    <string name="folder_eyebrow">Folder</string>
+    <string name="folder_stat_videos_format">%d videos</string>
+
+    <!-- Media Viewer -->
+    <string name="viewer_position_format">%1$d/%2$d</string>
+
+    <!-- Trash -->
+    <string name="trash_subtitle_format">%1$d items · deleted after %2$d days</string>
+    <string name="trash_subtitle_no_retention_format">%d items</string>
+    <string name="trash_remain_days_format">%dd left</string>
+    <string name="trash_from_label">from %s</string>
+
+    <!-- Settings hero + Offline footer -->
+    <string name="settings_eyebrow">Appearance &amp; more</string>
+    <string name="settings_offline_title">Offline forever</string>
+    <string name="settings_offline_body">No network permission, no trackers, no cloud. Your photos stay here.</string>
 </resources>

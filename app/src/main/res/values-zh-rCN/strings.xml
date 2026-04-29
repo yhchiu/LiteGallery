@@ -374,4 +374,33 @@
     <string name="smb_guest_login">以访客身份连接</string>
     <string name="smb_username_hint">用户名</string>
     <string name="smb_password_hint">密码</string>
+
+    <!-- Home -->
+    <string name="home_overview_label">总览</string>
+    <string name="home_overview_unit">段回忆</string>
+    <string name="home_stat_photos">照片</string>
+    <string name="home_stat_videos">视频</string>
+    <string name="home_stat_folders">文件夹</string>
+    <string name="home_stat_size">大小</string>
+    <string name="home_section_folders">文件夹</string>
+    <string name="home_sort_recent">最近</string>
+    <string name="folder_meta_format">%1$s · %2$s</string>
+
+    <!-- Folder View -->
+    <string name="folder_eyebrow">文件夹</string>
+    <string name="folder_stat_videos_format">%d 个视频</string>
+
+    <!-- Media Viewer -->
+    <string name="viewer_position_format">%1$d/%2$d</string>
+
+    <!-- Trash -->
+    <string name="trash_subtitle_format">%1$d 个项目 · %2$d 天后删除</string>
+    <string name="trash_subtitle_no_retention_format">%d 个项目</string>
+    <string name="trash_remain_days_format">剩 %d 天</string>
+    <string name="trash_from_label">来自 %s</string>
+
+    <!-- Settings hero + Offline footer -->
+    <string name="settings_eyebrow">外观与其他</string>
+    <string name="settings_offline_title">永远离线</string>
+    <string name="settings_offline_body">没有网络权限、没有追踪、没有云端。你的照片只留在设备上。</string>
 </resources>

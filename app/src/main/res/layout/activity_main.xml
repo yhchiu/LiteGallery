@@ -21,7 +21,7 @@
             app:layout_scrollFlags="scroll|enterAlways"
             app:navigationIconTint="?attr/colorOnSurface"
             app:title="@string/app_name"
-            app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+            app:titleTextAppearance="?attr/textAppearanceHeadlineSmall"
             app:titleTextColor="?attr/colorOnSurface" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -81,7 +81,7 @@
             android:layout_marginTop="16dp"
             android:gravity="center"
             android:text="@string/no_media_folders"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
         <TextView
@@ -90,7 +90,7 @@
             android:layout_marginTop="8dp"
             android:gravity="center"
             android:text="@string/tap_to_scan_media"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
     </LinearLayout>
@@ -116,7 +116,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/scanning_for_media"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
     </LinearLayout>

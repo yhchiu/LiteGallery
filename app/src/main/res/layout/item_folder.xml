@@ -62,7 +62,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="?attr/colorOnSurface"
                 tools:text="Camera" />
 
@@ -71,7 +71,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 tools:text="25 items • Updated 2 hours ago" />
 
