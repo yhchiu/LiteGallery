@@ -3,6 +3,7 @@ package org.iurl.litegallery
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
+import android.text.format.Formatter
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -143,8 +144,29 @@ class FolderViewActivity : AppCompatActivity() {
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
             setDisplayShowHomeEnabled(true)
-            title = folderName
+            // Title lives in the hero block below the toolbar, not the toolbar itself.
+            title = ""
         }
+        binding.folderTitleTextView.text = folderName
+        binding.folderStatsTextView.visibility = View.GONE
+    }
+
+    private fun bindFolderStats(items: List<MediaItem>) {
+        if (items.isEmpty()) {
+            binding.folderStatsTextView.visibility = View.GONE
+            return
+        }
+        val parts = mutableListOf(getString(R.string.items_count, items.size))
+        val totalSize = items.sumOf { it.size.coerceAtLeast(0L) }
+        if (totalSize > 0L) {
+            parts.add(Formatter.formatShortFileSize(this, totalSize))
+        }
+        val videoCount = items.count { it.isVideo }
+        if (videoCount > 0) {
+            parts.add(getString(R.string.folder_stat_videos_format, videoCount))
+        }
+        binding.folderStatsTextView.text = parts.joinToString(" · ")
+        binding.folderStatsTextView.visibility = View.VISIBLE
     }
     
     private fun setupRecyclerView() {
@@ -353,6 +375,7 @@ class FolderViewActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
+                    bindFolderStats(mediaItems)
                 } else {
                     // Apply sorting before displaying
                     val sortedItems = sortMediaItems(mediaItems)
@@ -360,6 +383,7 @@ class FolderViewActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.GONE
                     binding.recyclerView.visibility = View.VISIBLE
+                    bindFolderStats(mediaItems)
                 }
             } catch (e: Exception) {
                 binding.progressBar.visibility = View.GONE

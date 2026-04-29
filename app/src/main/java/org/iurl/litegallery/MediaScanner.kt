@@ -17,16 +17,20 @@ class MediaScanner(private val context: Context) {
 
     companion object {
         internal fun buildImageFolderProjection(includeDeferredMetadata: Boolean): Array<String> {
+            // SIZE is always included — it is a cheap MediaStore column and the
+            // Folder View hero card needs it to display total bytes regardless
+            // of view mode. WIDTH/HEIGHT remain deferred since they may require
+            // file reads to populate accurately.
             val projection = mutableListOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.RELATIVE_PATH,
                 MediaStore.Images.Media.DATA,
                 MediaStore.Images.Media.DATE_MODIFIED,
-                MediaStore.Images.Media.MIME_TYPE
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.SIZE
             )
             if (includeDeferredMetadata) {
-                projection.add(MediaStore.Images.Media.SIZE)
                 projection.add(MediaStore.Images.Media.WIDTH)
                 projection.add(MediaStore.Images.Media.HEIGHT)
             }
@@ -43,13 +47,13 @@ class MediaScanner(private val context: Context) {
                 MediaStore.Video.Media.RELATIVE_PATH,
                 MediaStore.Video.Media.DATA,
                 MediaStore.Video.Media.DATE_MODIFIED,
-                MediaStore.Video.Media.MIME_TYPE
+                MediaStore.Video.Media.MIME_TYPE,
+                MediaStore.Video.Media.SIZE
             )
             if (includeVideoDuration) {
                 projection.add(MediaStore.Video.Media.DURATION)
             }
             if (includeDeferredMetadata) {
-                projection.add(MediaStore.Video.Media.SIZE)
                 projection.add(MediaStore.Video.Media.WIDTH)
                 projection.add(MediaStore.Video.Media.HEIGHT)
             }
@@ -428,11 +432,7 @@ class MediaScanner(private val context: Context) {
             val dataColumn = it.getColumnIndex(MediaStore.Images.Media.DATA)
             val dateColumn = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
             val mimeColumn = it.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-            val sizeColumn = if (includeDeferredMetadata) {
-                it.getColumnIndex(MediaStore.Images.Media.SIZE)
-            } else {
-                -1
-            }
+            val sizeColumn = it.getColumnIndex(MediaStore.Images.Media.SIZE)
             val widthColumn = if (includeDeferredMetadata) {
                 it.getColumnIndex(MediaStore.Images.Media.WIDTH)
             } else {
@@ -443,7 +443,7 @@ class MediaScanner(private val context: Context) {
             } else {
                 -1
             }
-            
+
             while (it.moveToNext()) {
                 val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
                 if (isTrashedName(fileName)) continue
@@ -461,27 +461,22 @@ class MediaScanner(private val context: Context) {
                     val file = File(path)
                     if (file.parent != folderPath || isTrashedFile(file)) continue
                 }
-                
+
                 val mediaItem = MediaItem(
                     name = fileName ?: File(path).name,
                     path = path,
                     dateModified = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L,
-                    size = if (includeDeferredMetadata) {
-                        if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
-                    } else {
-                        // Keep folder scan lightweight; load size/resolution only when needed.
-                        0
-                    },
+                    size = if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L,
                     mimeType = if (mimeColumn >= 0) it.getString(mimeColumn) ?: "image/*" else "image/*",
                     width = if (includeDeferredMetadata && widthColumn >= 0) it.getInt(widthColumn).coerceAtLeast(0) else 0,
                     height = if (includeDeferredMetadata && heightColumn >= 0) it.getInt(heightColumn).coerceAtLeast(0) else 0
                 )
-                
+
                 items.add(mediaItem)
             }
         }
     }
-    
+
     private fun scanVideosInFolder(
         folderPath: String,
         items: MutableList<MediaItem>,
@@ -519,11 +514,7 @@ class MediaScanner(private val context: Context) {
             } else {
                 -1
             }
-            val sizeColumn = if (includeDeferredMetadata) {
-                it.getColumnIndex(MediaStore.Video.Media.SIZE)
-            } else {
-                -1
-            }
+            val sizeColumn = it.getColumnIndex(MediaStore.Video.Media.SIZE)
             val widthColumn = if (includeDeferredMetadata) {
                 it.getColumnIndex(MediaStore.Video.Media.WIDTH)
             } else {
@@ -534,7 +525,7 @@ class MediaScanner(private val context: Context) {
             } else {
                 -1
             }
-            
+
             while (it.moveToNext()) {
                 val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
                 if (isTrashedName(fileName)) continue
@@ -552,17 +543,12 @@ class MediaScanner(private val context: Context) {
                     val file = File(path)
                     if (file.parent != folderPath || isTrashedFile(file)) continue
                 }
-                
+
                 val mediaItem = MediaItem(
                     name = fileName ?: File(path).name,
                     path = path,
                     dateModified = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L,
-                    size = if (includeDeferredMetadata) {
-                        if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
-                    } else {
-                        // Keep folder scan lightweight; load size/resolution only when needed.
-                        0
-                    },
+                    size = if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L,
                     mimeType = if (mimeColumn >= 0) it.getString(mimeColumn) ?: "video/*" else "video/*",
                     duration = if (includeVideoDuration && durationColumn >= 0) it.getLong(durationColumn).coerceAtLeast(0L) else 0L,
                     width = if (includeDeferredMetadata && widthColumn >= 0) it.getInt(widthColumn).coerceAtLeast(0) else 0,
