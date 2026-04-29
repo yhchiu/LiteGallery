@@ -4,40 +4,76 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
     tools:context=".TrashBinActivity">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorSurface"
+        android:background="?android:attr/colorBackground"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:titleTextColor="?attr/colorOnSurface" />
+        app:navigationIconTint="?attr/colorOnSurface" />
+
+    <!-- Hero block: serif "Trash" title + subtitle -->
+    <LinearLayout
+        android:id="@+id/heroContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar">
+
+        <TextView
+            android:id="@+id/heroTitleTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/trash_bin_title"
+            android:textAppearance="?attr/textAppearanceHeadlineLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="34sp" />
+
+        <TextView
+            android:id="@+id/heroSubtitleTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:fontFeatureSettings="tnum"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            tools:text="6 items · deleted after 30 days" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/trashScopeNoteTextView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginBottom="6dp"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textColor="?attr/colorOnSurface"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="8dp"
+        android:textAppearance="?attr/textAppearanceLabelSmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
         tools:text="Retention applies to App Trash only. System Trash is managed by Android."
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+        app:layout_constraintTop_toBottomOf="@+id/heroContainer" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:padding="4dp"
+        android:paddingHorizontal="14dp"
+        android:paddingBottom="20dp"
         app:layout_constraintBottom_toTopOf="@+id/selectionActionBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -48,6 +84,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/trash_bin_empty"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="16sp"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -79,6 +117,7 @@
                 android:id="@+id/selectedCountTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold"
                 tools:text="3 selected" />

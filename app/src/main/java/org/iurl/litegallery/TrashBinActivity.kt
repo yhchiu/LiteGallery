@@ -21,7 +21,7 @@ import java.io.File
 class TrashBinActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityTrashBinBinding
-    private lateinit var mediaAdapter: MediaAdapter
+    private lateinit var trashAdapter: TrashAdapter
     private var currentPackKey: String? = null
     private var trashItems: List<MediaItem> = emptyList()
     private var appTrashRecordByUri: Map<String, TrashBinDatabase.TrashRecord> = emptyMap()
@@ -182,7 +182,19 @@ class TrashBinActivity : AppCompatActivity() {
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
             setDisplayShowHomeEnabled(true)
-            title = getString(R.string.trash_bin_title)
+            // Title lives in the hero block, not the toolbar.
+            title = ""
+        }
+        // Initial subtitle render — replaced after loadTrashItems completes.
+        bindHeroSubtitle(itemCount = 0)
+    }
+
+    private fun bindHeroSubtitle(itemCount: Int) {
+        val retentionDays = TrashBinStore.getTrashRetentionDays(this)
+        binding.heroSubtitleTextView.text = if (retentionDays > 0) {
+            getString(R.string.trash_subtitle_format, itemCount, retentionDays)
+        } else {
+            getString(R.string.trash_subtitle_no_retention_format, itemCount)
         }
     }
 
@@ -198,41 +210,70 @@ class TrashBinActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         val appBadge = getString(R.string.trash_source_badge_app)
         val systemBadge = getString(R.string.trash_source_badge_system)
-        mediaAdapter = MediaAdapter(
-            onMediaClick = { mediaItem, _ ->
+        trashAdapter = TrashAdapter(
+            onItemClick = { mediaItem ->
                 if (isSelectionMode) {
                     toggleSelection(mediaItem.path)
                 } else {
                     showTrashItemActions(mediaItem)
                 }
             },
-            onMediaLongClick = { mediaItem, _ ->
+            onItemLongClick = { mediaItem ->
                 if (!isSelectionMode) {
                     enterSelectionMode()
                 }
                 toggleSelection(mediaItem.path)
             },
+            onRestoreClick = { mediaItem ->
+                confirmRestoreItem(mediaItem)
+            },
+            onPermanentDeleteClick = { mediaItem ->
+                confirmDeletePermanently(mediaItem)
+            },
             isItemSelected = { mediaItem ->
                 selectedPaths.contains(mediaItem.path)
             },
-            sourceBadgeLabelProvider = { mediaItem ->
+            getSourceBadgeLabel = { mediaItem ->
                 if (isSystemTrashItem(mediaItem)) systemBadge else appBadge
             },
-            sourceBadgeContentDescriptionProvider = { mediaItem ->
+            getSourceBadgeContentDescription = { mediaItem ->
                 val sourceLabel = if (isSystemTrashItem(mediaItem)) {
                     getString(R.string.trash_source_system)
                 } else {
                     getString(R.string.trash_source_app)
                 }
                 getString(R.string.trash_source_badge_content_description, sourceLabel)
-            }
+            },
+            getRemainDaysLabel = { mediaItem -> remainDaysLabelFor(mediaItem) },
+            getFromLabel = { mediaItem -> fromLabelFor(mediaItem) }
         )
-        mediaAdapter.viewMode = MediaAdapter.ViewMode.GRID
-        
+
         binding.recyclerView.apply {
-            adapter = mediaAdapter
-            layoutManager = GridLayoutManager(this@TrashBinActivity, 3)
+            adapter = trashAdapter
+            layoutManager = GridLayoutManager(this@TrashBinActivity, 2)
         }
+    }
+
+    private fun remainDaysLabelFor(item: MediaItem): String? {
+        if (isSystemTrashItem(item)) return null
+        val record = getAppTrashRecord(item) ?: return null
+        val retentionDays = TrashBinStore.getTrashRetentionDays(this)
+        if (retentionDays <= 0) return null
+        val dayMs = 24L * 60L * 60L * 1000L
+        val expiresAtMs = record.trashedAtMs + retentionDays * dayMs
+        val msLeft = expiresAtMs - System.currentTimeMillis()
+        val daysLeft = ((msLeft + dayMs - 1) / dayMs).toInt().coerceAtLeast(0)
+        return getString(R.string.trash_remain_days_format, daysLeft)
+    }
+
+    private fun fromLabelFor(item: MediaItem): String? {
+        val parentName = if (isSystemTrashItem(item)) {
+            resolveOriginalPathForSystemTrashItem(item)
+        } else {
+            resolveOriginalPathForAppTrashItem(item)
+        }?.let { File(it).parentFile?.name }
+        if (parentName.isNullOrBlank()) return null
+        return getString(R.string.trash_from_label, parentName)
     }
 
     private fun setupSelectionActionBar() {
@@ -271,12 +312,13 @@ class TrashBinActivity : AppCompatActivity() {
                 isSelectionMode = false
             }
 
-            mediaAdapter.submitList(items) {
+            trashAdapter.submitList(items) {
                 if (items.isEmpty()) {
                     showEmptyState()
                 } else {
                     showListState()
                 }
+                bindHeroSubtitle(items.size)
                 updateSelectionUi()
                 invalidateOptionsMenu()
             }
@@ -1424,7 +1466,7 @@ class TrashBinActivity : AppCompatActivity() {
         binding.clearSelectionButton.isEnabled = hasSelection
 
         val changedPaths = (previousSelectionPaths + selectedPaths) - (previousSelectionPaths intersect selectedPaths)
-        mediaAdapter.notifySelectionChanged(changedPaths)
+        trashAdapter.notifySelectionChanged(changedPaths)
         previousSelectionPaths = selectedPaths.toSet()
 
         invalidateOptionsMenu()
