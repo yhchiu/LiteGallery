@@ -53,11 +53,20 @@ class FileSystemScanner(private val context: Context) {
             // Convert to MediaFolder objects
             folders.map { (path, items) ->
                 val folderFile = File(path)
+                val imageCount = items.count { !it.isVideo }
+                val videoCount = items.count { it.isVideo }
+                val totalSize = items.sumOf { it.size.coerceAtLeast(0L) }
+                val latestModified = items.maxOfOrNull { it.dateModified } ?: 0L
+                val newest = items.maxByOrNull { it.dateModified }
                 MediaFolder(
                     name = folderFile.name,
                     path = path,
                     itemCount = items.size,
-                    thumbnail = items.firstOrNull()?.path
+                    thumbnail = newest?.path ?: items.firstOrNull()?.path,
+                    imageCount = imageCount,
+                    videoCount = videoCount,
+                    totalSizeBytes = totalSize,
+                    latestDateModifiedMs = latestModified
                 )
             }.sortedBy { it.name }
         }

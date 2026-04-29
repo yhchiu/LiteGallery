@@ -62,10 +62,14 @@ class MediaScanner(private val context: Context) {
         Environment.getExternalStorageDirectory()?.absolutePath
 
     private data class FolderAggregate(
-        var itemCount: Int = 0,
+        var imageCount: Int = 0,
+        var videoCount: Int = 0,
+        var totalSizeBytes: Long = 0L,
         var thumbnailPath: String? = null,
         var latestDateModifiedMs: Long = Long.MIN_VALUE
-    )
+    ) {
+        val itemCount: Int get() = imageCount + videoCount
+    }
 
     private data class FolderQuery(
         val selection: String,
@@ -89,7 +93,11 @@ class MediaScanner(private val context: Context) {
                     name = folderFile.name,
                     path = path,
                     itemCount = aggregate.itemCount,
-                    thumbnail = aggregate.thumbnailPath
+                    thumbnail = aggregate.thumbnailPath,
+                    imageCount = aggregate.imageCount,
+                    videoCount = aggregate.videoCount,
+                    totalSizeBytes = aggregate.totalSizeBytes,
+                    latestDateModifiedMs = aggregate.latestDateModifiedMs.coerceAtLeast(0L)
                 )
             }.sortedBy { it.name }
         }
@@ -199,9 +207,10 @@ class MediaScanner(private val context: Context) {
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.DATE_MODIFIED
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.SIZE
         )
-        
+
         val cursor: Cursor? = context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
@@ -209,14 +218,15 @@ class MediaScanner(private val context: Context) {
             null,
             null
         )
-        
+
         cursor?.use {
             val idColumn = it.getColumnIndex(MediaStore.Images.Media._ID)
             val nameColumn = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
             val relativePathColumn = it.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
             val dataColumn = it.getColumnIndex(MediaStore.Images.Media.DATA)
             val dateColumn = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
-            
+            val sizeColumn = it.getColumnIndex(MediaStore.Images.Media.SIZE)
+
             while (it.moveToNext()) {
                 val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
                 if (isTrashedName(fileName)) continue
@@ -232,7 +242,8 @@ class MediaScanner(private val context: Context) {
                 val folderPath = deriveFolderPathFromCursor(it, path, relativePathColumn) ?: continue
 
                 val dateModifiedMs = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L
-                updateFolderAggregate(folders, folderPath, path, dateModifiedMs)
+                val sizeBytes = if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
+                updateFolderAggregate(folders, folderPath, path, dateModifiedMs, sizeBytes, isVideo = false)
             }
         }
     }
@@ -243,9 +254,10 @@ class MediaScanner(private val context: Context) {
             MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.RELATIVE_PATH,
             MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.DATE_MODIFIED
+            MediaStore.Video.Media.DATE_MODIFIED,
+            MediaStore.Video.Media.SIZE
         )
-        
+
         val cursor: Cursor? = context.contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             projection,
@@ -253,14 +265,15 @@ class MediaScanner(private val context: Context) {
             null,
             null
         )
-        
+
         cursor?.use {
             val idColumn = it.getColumnIndex(MediaStore.Video.Media._ID)
             val nameColumn = it.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
             val relativePathColumn = it.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
             val dataColumn = it.getColumnIndex(MediaStore.Video.Media.DATA)
             val dateColumn = it.getColumnIndex(MediaStore.Video.Media.DATE_MODIFIED)
-            
+            val sizeColumn = it.getColumnIndex(MediaStore.Video.Media.SIZE)
+
             while (it.moveToNext()) {
                 val fileName = if (nameColumn >= 0) it.getString(nameColumn) else null
                 if (isTrashedName(fileName)) continue
@@ -276,7 +289,8 @@ class MediaScanner(private val context: Context) {
                 val folderPath = deriveFolderPathFromCursor(it, path, relativePathColumn) ?: continue
 
                 val dateModifiedMs = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L
-                updateFolderAggregate(folders, folderPath, path, dateModifiedMs)
+                val sizeBytes = if (sizeColumn >= 0) it.getLong(sizeColumn).coerceAtLeast(0L) else 0L
+                updateFolderAggregate(folders, folderPath, path, dateModifiedMs, sizeBytes, isVideo = true)
             }
         }
     }
@@ -285,10 +299,13 @@ class MediaScanner(private val context: Context) {
         folders: MutableMap<String, FolderAggregate>,
         folderPath: String,
         mediaPath: String,
-        dateModifiedMs: Long
+        dateModifiedMs: Long,
+        sizeBytes: Long,
+        isVideo: Boolean
     ) {
         val aggregate = folders.getOrPut(folderPath) { FolderAggregate() }
-        aggregate.itemCount += 1
+        if (isVideo) aggregate.videoCount += 1 else aggregate.imageCount += 1
+        aggregate.totalSizeBytes += sizeBytes
         if (aggregate.thumbnailPath == null || dateModifiedMs > aggregate.latestDateModifiedMs) {
             aggregate.thumbnailPath = mediaPath
             aggregate.latestDateModifiedMs = dateModifiedMs

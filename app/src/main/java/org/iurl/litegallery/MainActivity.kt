@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
 import org.iurl.litegallery.theme.ThemeVariant
@@ -23,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMainBinding
     private lateinit var folderAdapter: FolderAdapter
+    private lateinit var headerAdapter: HomeOverviewAdapter
     private lateinit var mediaScanner: MediaScanner
     private var permissionsGrantedOnStart = false
     private var isLoadingFolders = false
@@ -165,6 +167,8 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
+        headerAdapter = HomeOverviewAdapter()
+
         folderAdapter = FolderAdapter { folder ->
             if (SmbPath.isSmb(folder.path)) {
                 startActivity(Intent(this, SmbBrowseActivity::class.java))
@@ -176,10 +180,18 @@ class MainActivity : AppCompatActivity() {
                 folderViewLauncher.launch(intent)
             }
         }
-        
+
+        val gridManager = GridLayoutManager(this@MainActivity, GRID_SPAN_COUNT).apply {
+            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    return if (position < headerAdapter.itemCount) GRID_SPAN_COUNT else 1
+                }
+            }
+        }
+
         binding.recyclerView.apply {
-            adapter = folderAdapter
-            layoutManager = GridLayoutManager(this@MainActivity, 1)
+            adapter = ConcatAdapter(headerAdapter, folderAdapter)
+            layoutManager = gridManager
         }
     }
 
@@ -323,6 +335,7 @@ class MainActivity : AppCompatActivity() {
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
                 } else {
+                    headerAdapter.submitStats(buildOverviewStats(scannedFolders))
                     folderAdapter.submitList(folders)
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.GONE
@@ -369,8 +382,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun buildOverviewStats(scannedFolders: List<MediaFolder>): OverviewStats {
+        if (scannedFolders.isEmpty()) return OverviewStats.EMPTY
+        var photos = 0
+        var videos = 0
+        var size = 0L
+        for (folder in scannedFolders) {
+            photos += folder.imageCount
+            videos += folder.videoCount
+            size += folder.totalSizeBytes
+        }
+        return OverviewStats(
+            totalItems = photos + videos,
+            totalPhotos = photos,
+            totalVideos = videos,
+            totalFolders = scannedFolders.size,
+            totalSizeBytes = size
+        )
+    }
+
     companion object {
         private const val REFRESH_THROTTLE_MS = 1_200L
+        private const val GRID_SPAN_COUNT = 2
     }
 
     private fun canUseAdvancedAllFilesAccess(): Boolean {
