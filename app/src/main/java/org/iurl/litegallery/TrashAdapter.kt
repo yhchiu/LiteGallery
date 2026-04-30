@@ -29,6 +29,7 @@ class TrashAdapter(
     private val onRestoreClick: (MediaItem) -> Unit,
     private val onPermanentDeleteClick: (MediaItem) -> Unit,
     private val isItemSelected: (MediaItem) -> Boolean,
+    private val isInSelectionMode: () -> Boolean,
     private val getSourceBadgeLabel: (MediaItem) -> String?,
     private val getSourceBadgeContentDescription: (MediaItem) -> String?,
     private val getRemainDaysLabel: (MediaItem) -> String?,
@@ -121,8 +122,25 @@ class TrashAdapter(
                 onItemLongClick(item)
                 true
             }
-            binding.restoreButton.setOnClickListener { onRestoreClick(item) }
-            binding.permanentDeleteButton.setOnClickListener { onPermanentDeleteClick(item) }
+
+            // While bulk selection mode is active the whole card is treated
+            // as one selection target — tapping Restore or Delete toggles the
+            // item's selection instead of running the action, matching the
+            // user's mental model that the entire card is the selection unit.
+            binding.restoreButton.setOnClickListener {
+                if (isInSelectionMode()) onItemClick(item) else onRestoreClick(item)
+            }
+            binding.restoreButton.setOnLongClickListener {
+                onItemLongClick(item)
+                true
+            }
+            binding.permanentDeleteButton.setOnClickListener {
+                if (isInSelectionMode()) onItemClick(item) else onPermanentDeleteClick(item)
+            }
+            binding.permanentDeleteButton.setOnLongClickListener {
+                onItemLongClick(item)
+                true
+            }
         }
 
         private fun resolveAttrColor(context: android.content.Context, attr: Int): Int {

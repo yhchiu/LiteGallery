@@ -233,6 +233,7 @@ class TrashBinActivity : AppCompatActivity() {
             isItemSelected = { mediaItem ->
                 selectedPaths.contains(mediaItem.path)
             },
+            isInSelectionMode = { isSelectionMode },
             getSourceBadgeLabel = { mediaItem ->
                 if (isSystemTrashItem(mediaItem)) systemBadge else appBadge
             },
