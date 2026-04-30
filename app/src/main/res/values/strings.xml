@@ -401,7 +401,6 @@
     <string name="trash_from_label">from %s</string>
 
     <!-- Settings hero + Offline footer -->
-    <string name="settings_eyebrow">Appearance &amp; more</string>
     <string name="settings_offline_title">Offline forever</string>
     <string name="settings_offline_body">No network permission, no trackers, no cloud. Your photos stay here.</string>
 </resources>

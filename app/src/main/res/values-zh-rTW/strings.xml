@@ -400,7 +400,6 @@
     <string name="trash_from_label">來自 %s</string>
 
     <!-- Settings hero + Offline footer -->
-    <string name="settings_eyebrow">外觀與其他</string>
     <string name="settings_offline_title">永遠離線</string>
     <string name="settings_offline_body">沒有網路權限、沒有追蹤、沒有雲端。你的照片只留在裝置上。</string>
 </resources>

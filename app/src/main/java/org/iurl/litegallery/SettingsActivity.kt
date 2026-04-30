@@ -77,7 +77,8 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
             setDisplayShowHomeEnabled(true)
-            title = getString(R.string.settings_title)
+            // Title lives in the hero block below the toolbar (Phase 5).
+            title = ""
         }
     }
     
