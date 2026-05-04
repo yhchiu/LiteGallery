@@ -42,6 +42,7 @@ class MediaViewerActivity : AppCompatActivity() {
         // Video brightness memory preference keys
         private const val REMEMBER_VIDEO_BRIGHTNESS_KEY = "remember_video_brightness"
         private const val SAVED_VIDEO_BRIGHTNESS_KEY = "saved_video_brightness"
+        private const val STATE_INFO_SHEET_MINIMIZED = "state_info_sheet_minimized"
 
     }
     
@@ -61,6 +62,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private var isZoomed = false
     private var currentPackKey: String? = null
     private var isFrameForwardModeEnabled = false
+    private var isInfoSheetMinimized = false
 
     // Track last swipe direction for rename auto-navigation
     private var lastSwipeDirection = 0 // -1 for left (previous), 1 for right (next), 0 for none
@@ -143,6 +145,7 @@ class MediaViewerActivity : AppCompatActivity() {
         ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        isInfoSheetMinimized = savedInstanceState?.getBoolean(STATE_INFO_SHEET_MINIMIZED) ?: false
 
         // Track current pack so onResume can detect changes from Settings/Picker
         currentPackKey = ThemeHelper.getCurrentPack(this).key
@@ -156,6 +159,11 @@ class MediaViewerActivity : AppCompatActivity() {
 
         // Apply initial filename max lines setting
         applyFilenameMaxLinesSetting()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(STATE_INFO_SHEET_MINIMIZED, isInfoSheetMinimized)
+        super.onSaveInstanceState(outState)
     }
 
     override fun finish() {
@@ -491,6 +499,14 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.expandControlsButton.setOnClickListener {
             toggleAdvancedControls()
         }
+
+        binding.infoSheetHandleButton.setOnClickListener {
+            setInfoSheetMinimized(!isInfoSheetMinimized)
+        }
+
+        binding.infoSheetTrailingExpandButton.setOnClickListener {
+            setInfoSheetMinimized(false)
+        }
         
         // Zoom button
         binding.zoomButton.setOnClickListener {
@@ -543,6 +559,72 @@ class MediaViewerActivity : AppCompatActivity() {
 
         // Update reload button visibility based on current media type
         updateMediaTypeDependentUi(currentPosition)
+        applyInfoSheetMinimizedState()
+    }
+
+    private fun setInfoSheetMinimized(minimized: Boolean) {
+        if (isInfoSheetMinimized == minimized) return
+        isInfoSheetMinimized = minimized
+        applyInfoSheetMinimizedState()
+    }
+
+    private fun applyInfoSheetMinimizedState() {
+        val minimized = isInfoSheetMinimized
+        binding.infoSheetHandleButton.visibility = if (minimized) View.GONE else View.VISIBLE
+        binding.infoSheetTrailingExpandButton.visibility = if (minimized) View.VISIBLE else View.GONE
+        binding.infoSheetDetailsContainer.visibility = if (minimized) View.GONE else View.VISIBLE
+        binding.infoSheetHandleButton.setImageResource(
+            R.drawable.ic_expand_more
+        )
+        binding.infoSheetHandleButton.contentDescription = getString(
+            R.string.minimize_info_sheet
+        )
+        binding.infoSheetTrailingExpandButton.contentDescription = getString(R.string.expand_info_sheet)
+
+        binding.infoSheetContent.setPadding(
+            dp(20),
+            dp(if (minimized) 4 else 0),
+            dp(20),
+            dp(if (minimized) 4 else 10)
+        )
+
+        (binding.infoSheetActionsRow.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let { params ->
+            params.topMargin = dp(if (minimized) 0 else 6)
+            binding.infoSheetActionsRow.layoutParams = params
+        }
+
+        applyInfoSheetActionButtonMode(minimized)
+    }
+
+    private fun applyInfoSheetActionButtonMode(compact: Boolean) {
+        val itemWidth = dp(if (compact) 48 else 64)
+        val itemPadding = dp(if (compact) 2 else 4)
+        val labelVisibility = if (compact) View.GONE else View.VISIBLE
+        val containerPadding = dp(if (compact) 4 else 6)
+
+        binding.actionButtonsContainer.setPadding(0, containerPadding, 0, containerPadding)
+        for (i in 0 until binding.actionButtonsContainer.childCount) {
+            val child = binding.actionButtonsContainer.getChildAt(i)
+            val params = child.layoutParams.apply {
+                width = itemWidth
+            }
+            child.layoutParams = params
+            child.setPadding(itemPadding, itemPadding, itemPadding, itemPadding)
+            setNestedTextViewVisibility(child, labelVisibility)
+        }
+    }
+
+    private fun setNestedTextViewVisibility(view: View, visibility: Int) {
+        if (view is android.widget.TextView) {
+            view.visibility = visibility
+            return
+        }
+
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                setNestedTextViewVisibility(view.getChildAt(i), visibility)
+            }
+        }
     }
 
     private fun updateMediaTypeDependentUi(position: Int = currentPosition) {
@@ -2111,6 +2193,7 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         rebuildExifChips(item)
+        applyInfoSheetMinimizedState()
     }
 
     private fun rebuildExifChips(item: MediaItem) {
@@ -2159,6 +2242,10 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun resolveThemeColor(attr: Int): Int {
         return ThemeColorResolver.resolveColor(this, attr)
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density + 0.5f).toInt()
     }
 
     private fun applyFilenameMaxLinesSetting() {

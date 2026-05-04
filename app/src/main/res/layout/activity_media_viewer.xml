@@ -288,20 +288,29 @@
             app:strokeWidth="0dp">
 
             <LinearLayout
+                android:id="@+id/infoSheetContent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingHorizontal="20dp"
-                android:paddingTop="14dp"
+                android:paddingTop="0dp"
                 android:paddingBottom="10dp">
 
-                <View
-                    android:layout_width="36dp"
-                    android:layout_height="4dp"
+                <ImageButton
+                    android:id="@+id/infoSheetHandleButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="14dp"
-                    android:alpha="0.4"
-                    android:background="@drawable/bg_chip_pill" />
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/minimize_info_sheet"
+                    android:src="@drawable/ic_expand_more"
+                    app:tint="?attr/colorOnSurface" />
+
+                <LinearLayout
+                    android:id="@+id/infoSheetDetailsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -370,10 +379,23 @@
                     android:layout_marginTop="14dp"
                     android:background="?attr/colorOutlineVariant" />
 
-                <HorizontalScrollView
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/infoSheetActionsRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                <HorizontalScrollView
+                    android:id="@+id/sheetActionsScroll"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fadingEdgeLength="24dp"
+                    android:requiresFadingEdge="horizontal"
                     android:scrollbars="none">
 
                     <LinearLayout
@@ -736,6 +758,18 @@
 
                     </LinearLayout>
                 </HorizontalScrollView>
+
+                    <ImageButton
+                        android:id="@+id/infoSheetTrailingExpandButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="4dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/expand_info_sheet"
+                        android:src="@drawable/ic_expand_less"
+                        android:visibility="gone"
+                        app:tint="?attr/colorOnSurface" />
+                </LinearLayout>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

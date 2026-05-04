@@ -91,6 +91,8 @@
     <string name="frame_forward">Frame Forward</string>
     <string name="frame_mode">Frame Mode</string>
     <string name="expand_controls">Expand Controls</string>
+    <string name="expand_info_sheet">Expand info sheet</string>
+    <string name="minimize_info_sheet">Minimize info sheet</string>
     <string name="brightness">Brightness</string>
     <string name="contrast">Contrast</string>
     

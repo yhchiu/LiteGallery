@@ -91,6 +91,8 @@
     <string name="frame_forward">向前一帧</string>
     <string name="frame_mode">逐帧模式</string>
     <string name="expand_controls">展开控件</string>
+    <string name="expand_info_sheet">展开信息面板</string>
+    <string name="minimize_info_sheet">缩小信息面板</string>
     <string name="brightness">亮度</string>
     <string name="contrast">对比度</string>
 

@@ -91,6 +91,8 @@
     <string name="frame_forward">向前一格</string>
     <string name="frame_mode">逐格模式</string>
     <string name="expand_controls">展開控制項</string>
+    <string name="expand_info_sheet">展開資訊面板</string>
+    <string name="minimize_info_sheet">縮小資訊面板</string>
     <string name="brightness">亮度</string>
     <string name="contrast">對比度</string>
 
