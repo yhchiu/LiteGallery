@@ -62,6 +62,7 @@ class TrashBinActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivityTrashBinBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -84,6 +85,7 @@ class TrashBinActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSelectionActionBar()
         setupBackHandler()
+        ThemeHelper.applyRuntimeCustomColors(this)
         loadTrashItems()
     }
     
@@ -99,6 +101,7 @@ class TrashBinActivity : AppCompatActivity() {
             return
         }
         currentPackKey = newPackKey
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
 
         loadTrashItems()
     }
@@ -175,6 +178,13 @@ class TrashBinActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun android.app.AlertDialog.Builder.showThemed(): android.app.AlertDialog {
+        val dialog = create()
+        dialog.show()
+        ThemeHelper.applyRuntimeCustomColors(dialog)
+        return dialog
     }
     
     private fun setupToolbar() {
@@ -628,7 +638,7 @@ class TrashBinActivity : AppCompatActivity() {
                 confirmDeletePermanently(mediaItem)
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
     }
 
     private fun resolveOriginalPathForActionDialog(mediaItem: MediaItem): String? {
@@ -765,7 +775,7 @@ class TrashBinActivity : AppCompatActivity() {
                 restoreSingleLocalItem(record, trashedFile, nonConflictFile, overwriteExisting = false)
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
     }
 
     private fun resolveLocalFileFromReference(reference: String): File? {
@@ -883,7 +893,7 @@ class TrashBinActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
     }
 
     private fun deleteSingleTrashedItem(mediaItem: MediaItem) {
@@ -949,7 +959,7 @@ class TrashBinActivity : AppCompatActivity() {
                 restoreAllItems()
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
     }
 
     private fun restoreSelectedItems() {
@@ -968,7 +978,7 @@ class TrashBinActivity : AppCompatActivity() {
                 emptyTrash()
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
     }
 
     private fun emptyTrash() {
@@ -985,7 +995,7 @@ class TrashBinActivity : AppCompatActivity() {
                 deleteSelectedItems()
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
     }
 
     private fun deleteSelectedItems() {

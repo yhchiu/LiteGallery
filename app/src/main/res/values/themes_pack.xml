@@ -314,4 +314,64 @@
         <item name="android:windowTranslucentNavigation">true</item>
     </style>
 
+    <!-- =========================================================
+         V6 · Custom · Light base (user-chosen colours + font)
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.Custom" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+
+        <item name="colorPrimary">@color/custom_accent</item>
+        <item name="colorOnPrimary">@color/custom_on_accent</item>
+        <item name="colorPrimaryContainer">@color/custom_card</item>
+        <item name="colorOnPrimaryContainer">@color/custom_text</item>
+        <item name="colorSecondary">@color/custom_accent</item>
+        <item name="colorOnSecondary">@color/custom_on_accent</item>
+        <item name="colorSecondaryContainer">@color/custom_surface</item>
+        <item name="colorOnSecondaryContainer">@color/custom_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/custom_card</item>
+        <item name="colorOnSurface">@color/custom_text</item>
+        <item name="colorSurfaceVariant">@color/custom_surface</item>
+        <item name="colorOnSurfaceVariant">@color/custom_dim</item>
+        <item name="colorOutline">@color/custom_line</item>
+        <item name="colorOutlineVariant">@color/custom_faint</item>
+        <item name="android:colorBackground">@color/custom_bg</item>
+        <item name="android:windowBackground">@color/custom_bg</item>
+
+        <item name="android:textColorPrimary">@color/custom_text</item>
+        <item name="android:textColorSecondary">@color/custom_dim</item>
+        <item name="actionMenuTextColor">@color/custom_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Custom.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Custom.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Custom.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Custom.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Custom.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.Custom.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.Custom.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.Custom.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.Custom</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Custom.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.Custom.FullScreen" parent="Theme.LiteGallery.Pack.Custom.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+
 </resources>

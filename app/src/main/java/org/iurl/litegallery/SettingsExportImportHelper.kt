@@ -3,6 +3,7 @@ package org.iurl.litegallery
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
+import org.iurl.litegallery.theme.CustomThemeStore
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.InputStream
@@ -13,7 +14,7 @@ import java.util.*
 class SettingsExportImportHelper(private val context: Context) {
 
     companion object {
-        private const val SETTINGS_VERSION = 1
+        private const val SETTINGS_VERSION = 2
         private const val APP_NAME = "LiteGallery"
         private const val DEFAULT_PREFERENCES_JSON_KEY = "preferences"
         private const val ACTION_BAR_PREFERENCES_JSON_KEY = "action_bar_preferences"
@@ -21,6 +22,7 @@ class SettingsExportImportHelper(private val context: Context) {
         private enum class PreferenceType {
             STRING,
             BOOLEAN,
+            INT,
             FLOAT,
             STRING_SET
         }
@@ -61,15 +63,35 @@ class SettingsExportImportHelper(private val context: Context) {
             "trash_retention_days" to PreferenceType.STRING
         )
 
+        private val CUSTOM_THEME_PREFERENCES_JSON_KEY = "custom_theme_preferences"
+
         private val ACTION_BAR_PREFERENCE_TYPES = mapOf(
             ActionBarPreferences.KEY_ORDER to PreferenceType.STRING,
             ActionBarPreferences.KEY_VISIBLE to PreferenceType.STRING
+        )
+
+        private val CUSTOM_THEME_PREFERENCE_TYPES = mapOf(
+            CustomThemeStore.KEY_BG to PreferenceType.INT,
+            CustomThemeStore.KEY_SURFACE to PreferenceType.INT,
+            CustomThemeStore.KEY_CARD to PreferenceType.INT,
+            CustomThemeStore.KEY_TEXT to PreferenceType.INT,
+            CustomThemeStore.KEY_DIM to PreferenceType.INT,
+            CustomThemeStore.KEY_FAINT to PreferenceType.INT,
+            CustomThemeStore.KEY_LINE to PreferenceType.INT,
+            CustomThemeStore.KEY_ACCENT to PreferenceType.INT,
+            CustomThemeStore.KEY_ON_ACCENT to PreferenceType.INT,
+            CustomThemeStore.KEY_FONT to PreferenceType.STRING,
+            CustomThemeStore.KEY_CORNER to PreferenceType.STRING,
+            CustomThemeStore.KEY_MODE to PreferenceType.STRING,
+            CustomThemeStore.KEY_INITIALIZED to PreferenceType.BOOLEAN
         )
     }
 
     private val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private val actionBarPreferences: SharedPreferences =
         context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
+    private val customThemePreferences: SharedPreferences =
+        context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
 
     /**
      * Generate default export filename
@@ -96,6 +118,10 @@ class SettingsExportImportHelper(private val context: Context) {
                 put(
                     ACTION_BAR_PREFERENCES_JSON_KEY,
                     exportPreferenceObject(actionBarPreferences, ACTION_BAR_PREFERENCE_TYPES)
+                )
+                put(
+                    CUSTOM_THEME_PREFERENCES_JSON_KEY,
+                    exportPreferenceObject(customThemePreferences, CUSTOM_THEME_PREFERENCE_TYPES)
                 )
             }
 
@@ -138,9 +164,20 @@ class SettingsExportImportHelper(private val context: Context) {
                 ACTION_BAR_PREFERENCE_TYPES
             )
 
+            val customThemeJson = settingsJson.optJSONObject(CUSTOM_THEME_PREFERENCES_JSON_KEY)
+            val (customImportedCount, customSkippedCount) = importPreferenceObject(
+                customThemeJson,
+                customThemePreferences,
+                CUSTOM_THEME_PREFERENCE_TYPES,
+                clearBeforeImport = customThemeJson != null
+            )
+            if (customThemeJson != null) {
+                CustomThemeStore.notifyExternalChange()
+            }
+
             Pair(
-                defaultImportedCount + actionBarImportedCount,
-                defaultSkippedCount + actionBarSkippedCount
+                defaultImportedCount + actionBarImportedCount + customImportedCount,
+                defaultSkippedCount + actionBarSkippedCount + customSkippedCount
             )
 
         } catch (e: JSONException) {
@@ -165,8 +202,14 @@ class SettingsExportImportHelper(private val context: Context) {
             when (value) {
                 is String -> preferencesJson.put(key, value)
                 is Boolean -> preferencesJson.put(key, value)
-                is Int -> preferencesJson.put(key, value)
-                is Long -> preferencesJson.put(key, value)
+                is Int -> preferencesJson.put(key, normalizeIntForStorage(key, value))
+                is Long -> {
+                    if (preferenceTypes[key] == PreferenceType.INT) {
+                        preferencesJson.put(key, normalizeIntForStorage(key, value.toInt()))
+                    } else {
+                        preferencesJson.put(key, value)
+                    }
+                }
                 is Float -> preferencesJson.put(key, value)
                 is Set<*> -> {
                     val stringSet = value.filterIsInstance<String>()
@@ -181,11 +224,15 @@ class SettingsExportImportHelper(private val context: Context) {
     private fun importPreferenceObject(
         preferencesJson: JSONObject?,
         preferences: SharedPreferences,
-        preferenceTypes: Map<String, PreferenceType>
+        preferenceTypes: Map<String, PreferenceType>,
+        clearBeforeImport: Boolean = false
     ): Pair<Int, Int> {
         if (preferencesJson == null) return Pair(0, 0)
 
         val editor = preferences.edit()
+        if (clearBeforeImport) {
+            editor.clear()
+        }
         var importedCount = 0
         var skippedCount = 0
 
@@ -247,6 +294,16 @@ class SettingsExportImportHelper(private val context: Context) {
                 true
             }
 
+            PreferenceType.INT -> {
+                val normalizedValue = when (value) {
+                    is Number -> value.toInt()
+                    is String -> value.toIntOrNull()
+                    else -> null
+                } ?: return false
+                editor.putInt(key, normalizeIntForStorage(key, normalizedValue))
+                true
+            }
+
             PreferenceType.FLOAT -> {
                 val normalizedValue = when (value) {
                     is Number -> value.toFloat()
@@ -266,6 +323,14 @@ class SettingsExportImportHelper(private val context: Context) {
                 editor.putStringSet(key, stringSet)
                 true
             }
+        }
+    }
+
+    private fun normalizeIntForStorage(key: String, value: Int): Int {
+        return if (CUSTOM_THEME_PREFERENCE_TYPES[key] == PreferenceType.INT) {
+            CustomThemeStore.normalizeColorForStorage(key, value)
+        } else {
+            value
         }
     }
 }

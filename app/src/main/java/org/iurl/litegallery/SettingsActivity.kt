@@ -20,6 +20,7 @@ class SettingsActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -38,6 +39,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         setupToolbar()
+        ThemeHelper.applyRuntimeCustomColors(this)
         
         if (savedInstanceState == null) {
             supportFragmentManager
@@ -60,6 +62,7 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
         currentPackKey = newPackKey
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -93,6 +96,11 @@ class SettingsActivity : AppCompatActivity() {
 
         private val importFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let { importFromUri(it) }
+        }
+
+        override fun onViewCreated(view: android.view.View, savedInstanceState: Bundle?) {
+            super.onViewCreated(view, savedInstanceState)
+            ThemeHelper.applyRuntimeCustomColors(requireActivity())
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -886,6 +894,7 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             dialog.show()
+            ThemeHelper.applyRuntimeCustomColors(dialog)
         }
 
         private fun exportSettings() {

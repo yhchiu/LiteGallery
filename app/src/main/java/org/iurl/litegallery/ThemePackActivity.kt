@@ -1,5 +1,6 @@
 package org.iurl.litegallery
 
+import android.content.Intent
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
@@ -7,12 +8,15 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
+import org.iurl.litegallery.theme.CustomThemeStore
 import org.iurl.litegallery.theme.Mode
-import org.iurl.litegallery.theme.PackResolver
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemePack
 import org.iurl.litegallery.theme.ThemeVariant
 
@@ -20,11 +24,11 @@ import org.iurl.litegallery.theme.ThemeVariant
  * Theme Pack picker — entry point from Settings.
  *
  * Renders in the currently-active pack's style (typography, surfaces, accent
- * all from the pack theme). Lists the 5 packs with capability badges + mini
+ * all from the pack theme). Lists the 6 packs with capability badges + mini
  * preview swatches. Above the list, a Mode segmented control: dual-mode packs
- * (V3/V5) make all three segments tappable; single-mode packs (V1/V2/V4) show
- * unsupported segments with strike-through + faint color and a caption like
- * "Dark-locked by design.".
+ * make all three segments tappable; single-mode packs show unsupported segments
+ * with strike-through + faint color and a caption. The Custom pack shows only
+ * Light/Dark (no Auto).
  *
  * Picking a pack persists it via `ThemeHelper.setPack(...)`, which either lets
  * the system trigger recreate (if night mode changed) or recreates manually.
@@ -38,11 +42,12 @@ class ThemePackActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         setContentView(R.layout.activity_theme_pack)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        findViewById<View>(android.R.id.content).rootView.setOnApplyWindowInsetsListener { view, insets ->
-            val sys = insets.getInsets(android.view.WindowInsets.Type.systemBars())
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById<View>(android.R.id.content).rootView) { view, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(0, sys.top, 0, sys.bottom)
             insets
         }
@@ -52,17 +57,17 @@ class ThemePackActivity : AppCompatActivity() {
         setupToolbar()
         renderModeSegment()
         renderPackList()
+        ThemeHelper.applyRuntimeCustomColors(this)
     }
 
     override fun onResume() {
         super.onResume()
-        // If user changed pack from somewhere else (unlikely here, but defensive)
-        // rerender. The pack-change path inside this activity calls recreate()
-        // explicitly via ThemeHelper.setPack so that's already handled.
         val active = ThemeHelper.getCurrentPack(this).key
         if (active != currentPackKey) {
             recreate()
+            return
         }
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
     }
 
     private fun setupToolbar() {
@@ -71,29 +76,42 @@ class ThemePackActivity : AppCompatActivity() {
     }
 
     /**
-     * Render the Auto/Light/Dark segmented control. Segments unsupported by the
-     * current pack get faint color + strike-through; the active segment is filled
-     * with the primary accent.
+     * Render the Auto/Light/Dark segmented control. For the Custom pack,
+     * Auto is always disabled since it only supports explicit Light/Dark.
      */
     private fun renderModeSegment() {
         val pack = ThemeHelper.getCurrentPack(this)
         val themePref = ThemeHelper.getCurrentTheme(this)
-        val effectiveMode = PackResolver.resolveEffectiveMode(pack, themePref, ThemeHelper.isSystemDark(this))
+        val selectedMode = selectedModeFor(pack, themePref)
 
         val auto = findViewById<TextView>(R.id.mode_auto)
         val light = findViewById<TextView>(R.id.mode_light)
         val dark = findViewById<TextView>(R.id.mode_dark)
         val caption = findViewById<TextView>(R.id.mode_caption)
 
-        val segments = listOf(Mode.AUTO to auto, Mode.LIGHT to light, Mode.DARK to dark)
-        for ((mode, view) in segments) {
-            configureSegment(view, mode, pack, themePref, effectiveMode)
+        val supportedModes = if (pack.isCustom) {
+            listOf(Mode.LIGHT, Mode.DARK)
+        } else {
+            pack.supportedModes
         }
 
-        caption.text = when {
-            pack.isDarkOnly -> getString(R.string.pack_caption_dark_only)
-            pack.isLightOnly -> getString(R.string.pack_caption_light_only)
-            else -> getString(R.string.pack_caption_dual)
+        val segments = listOf(Mode.AUTO to auto, Mode.LIGHT to light, Mode.DARK to dark)
+        for ((mode, view) in segments) {
+            configureSegment(view, mode, pack, selectedMode, supportedModes)
+        }
+
+        if (pack.isCustom) {
+            val customMode = CustomThemeStore.getMode(this)
+            caption.text = if (customMode == CustomThemeStore.MODE_DARK)
+                getString(R.string.pack_caption_dark_only)
+            else
+                getString(R.string.pack_caption_light_only)
+        } else {
+            caption.text = when {
+                pack.isDarkOnly -> getString(R.string.pack_caption_dark_only)
+                pack.isLightOnly -> getString(R.string.pack_caption_light_only)
+                else -> getString(R.string.pack_caption_dual)
+            }
         }
     }
 
@@ -101,15 +119,11 @@ class ThemePackActivity : AppCompatActivity() {
         view: TextView,
         mode: Mode,
         pack: ThemePack,
-        themePref: String,
-        effectiveMode: Mode,
+        selectedMode: Mode,
+        supportedModes: List<Mode>,
     ) {
-        val supported = pack.supportedModes.contains(mode)
-        val isSelected = supported && when (mode) {
-            Mode.AUTO -> themePref == ThemeHelper.THEME_AUTO && pack.isDualMode
-            Mode.LIGHT -> effectiveMode == Mode.LIGHT && (pack.isLightOnly || (pack.isDualMode && themePref == ThemeHelper.THEME_LIGHT))
-            Mode.DARK -> effectiveMode == Mode.DARK && (pack.isDarkOnly || (pack.isDualMode && themePref == ThemeHelper.THEME_DARK))
-        }
+        val supported = supportedModes.contains(mode)
+        val isSelected = supported && selectedMode == mode
 
         // Reset paint flags first
         view.paintFlags = view.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
@@ -138,30 +152,47 @@ class ThemePackActivity : AppCompatActivity() {
 
         view.setOnClickListener {
             if (!supported) return@setOnClickListener
-            // Dual-mode packs: switching segment changes the user's mode preference.
-            // Single-mode packs (Light-only or Dark-only): the only supported segment is
-            // already selected — clicking it is a no-op.
-            if (pack.isSingleMode) return@setOnClickListener
+            if (!pack.isCustom && pack.isSingleMode) return@setOnClickListener
             ThemeHelper.setModePreference(this, mode)
-            // setDefaultNightMode triggers recreate when the mode actually changes;
-            // for the AUTO->LIGHT->DARK same-resolved-mode case we still want the
-            // segment highlight to update.
             renderModeSegment()
+            ThemeHelper.applyRuntimeCustomColors(this)
         }
     }
 
     private fun renderPackList() {
         val recycler = findViewById<RecyclerView>(R.id.pack_list)
         recycler.layoutManager = LinearLayoutManager(this)
-        recycler.adapter = ThemePackAdapter(
+        val adapter = ThemePackAdapter(
             packs = ThemePack.all(),
             activeKey = currentPackKey,
             onPickPack = { pack -> onPickPack(pack) },
         )
+        recycler.adapter = adapter
+
+        // Auto-scroll to the active pack after layout and state restoration
+        val activePos = adapter.activePosition()
+        if (activePos >= 0) {
+            recycler.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    recycler.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    (recycler.layoutManager as? LinearLayoutManager)
+                        ?.scrollToPositionWithOffset(activePos, (48 * resources.displayMetrics.density).toInt())
+                }
+            })
+        }
     }
 
     private fun onPickPack(pack: ThemePack) {
         if (pack.key == currentPackKey) return
+
+        // First time selecting Custom: seed the store with the CURRENT pack's
+        // resolved colours, font and corner radius so the user starts from
+        // something familiar rather than a blank slate.
+        if (pack.isCustom && !CustomThemeStore.isInitialized(this)) {
+            val currentPack = ThemeHelper.getCurrentPack(this)
+            CustomThemeStore.initializeFromPack(this, currentPack)
+        }
+
         ThemeHelper.setPack(this, pack)
     }
 
@@ -169,12 +200,17 @@ class ThemePackActivity : AppCompatActivity() {
      * Resolve a theme attribute to a color int.
      */
     private fun getThemeColor(attr: Int): Int {
-        val typedValue = android.util.TypedValue()
-        theme.resolveAttribute(attr, typedValue, true)
-        return if (typedValue.resourceId != 0) {
-            ContextCompat.getColor(this, typedValue.resourceId)
-        } else {
-            typedValue.data
+        return ThemeColorResolver.resolveColor(this, attr)
+    }
+
+    private fun selectedModeFor(pack: ThemePack, themePref: String): Mode {
+        if (pack.isCustom) {
+            return when (CustomThemeStore.getMode(this)) {
+                CustomThemeStore.MODE_DARK -> Mode.DARK
+                else -> Mode.LIGHT
+            }
         }
+        if (pack.isSingleMode) return pack.supportedModes.first()
+        return Mode.fromPrefValue(themePref)
     }
 }

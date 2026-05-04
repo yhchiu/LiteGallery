@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.iurl.litegallery.databinding.ActivitySmbBrowseBinding
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 
 /**
@@ -45,6 +46,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivitySmbBrowseBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -67,6 +69,7 @@ class SmbBrowseActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSavedServers()
         setupSwipeRefresh()
+        ThemeHelper.applyRuntimeCustomColors(this)
 
         // Handle intent
         val intentPath = intent.getStringExtra(EXTRA_SMB_PATH)
@@ -85,6 +88,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             return
         }
         currentPackKey = newPackKey
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -142,10 +146,9 @@ class SmbBrowseActivity : AppCompatActivity() {
             }
         }
         
-        // Match the swipe refresh colors with the app's theme
-        val typedValue = android.util.TypedValue()
-        theme.resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)
-        binding.swipeRefreshLayout.setColorSchemeColors(typedValue.data)
+        binding.swipeRefreshLayout.setColorSchemeColors(
+            ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),
+        )
     }
 
     private fun setupAddressBar() {

@@ -86,6 +86,15 @@ enum class ThemePack(
         swatchBg = R.color.pack_brutalist_bg,
         swatchText = R.color.pack_brutalist_text,
         swatchAccent = R.color.pack_brutalist_accent,
+    ),
+    CUSTOM(
+        key = "custom",
+        nameRes = R.string.pack_custom_name,
+        subtitleRes = R.string.pack_custom_sub,
+        supportedModes = listOf(Mode.LIGHT, Mode.DARK),
+        swatchBg = R.color.custom_bg,
+        swatchText = R.color.custom_text,
+        swatchAccent = R.color.custom_accent,
     );
 
     val isDualMode: Boolean
@@ -102,6 +111,23 @@ enum class ThemePack(
     val isLightOnly: Boolean
         get() = isSingleMode && supportedModes[0] == Mode.LIGHT
 
+    /** True if this is the user-customisable pack. */
+    val isCustom: Boolean
+        get() = this == CUSTOM
+
+    /**
+     * For the Custom pack, the user picks a single mode (light or dark)
+     * stored in [CustomThemeStore]. This returns a single-element list.
+     * For built-in packs, returns [supportedModes] unchanged.
+     */
+    fun getEffectiveSupportedModes(context: android.content.Context): List<Mode> {
+        if (!isCustom) return supportedModes
+        return when (CustomThemeStore.getMode(context)) {
+            CustomThemeStore.MODE_DARK -> listOf(Mode.DARK)
+            else -> listOf(Mode.LIGHT)
+        }
+    }
+
     companion object {
         const val DEFAULT_KEY = "warm_paper"
 
@@ -109,6 +135,9 @@ enum class ThemePack(
             values().firstOrNull { it.key == key } ?: WARM_PAPER
 
         fun all(): List<ThemePack> = values().toList()
+
+        /** All built-in (non-custom) packs. */
+        fun builtIn(): List<ThemePack> = values().filter { !it.isCustom }
     }
 }
 

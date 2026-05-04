@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -85,6 +86,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setSupportActionBar(binding.toolbar)
+        ThemeHelper.applyRuntimeCustomColors(this)
         
         // Track current pack so onResume can detect changes from Settings/Picker
         currentPackKey = ThemeHelper.getCurrentPack(this).key
@@ -110,7 +112,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
         currentPackKey = newPackKey
-        
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+
         // Check permissions again when returning from settings
         if (!hasStoragePermissions()) {
             // If permissions were granted on start but now failing, try once more after a delay

@@ -2,16 +2,15 @@ package org.iurl.litegallery
 
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
-import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import org.iurl.litegallery.databinding.ItemTrashBinding
+import org.iurl.litegallery.theme.ThemeColorResolver
 
 /**
  * Card-grid adapter for the Trash Bin (Phase 4).
@@ -144,10 +143,7 @@ class TrashAdapter(
         }
 
         private fun resolveAttrColor(context: android.content.Context, attr: Int): Int {
-            val tv = TypedValue()
-            return if (context.theme.resolveAttribute(attr, tv, true)) {
-                if (tv.resourceId != 0) ContextCompat.getColor(context, tv.resourceId) else tv.data
-            } else 0
+            return ThemeColorResolver.resolveColor(context, attr)
         }
     }
 

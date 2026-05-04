@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.documentfile.provider.DocumentFile
 import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -139,6 +140,7 @@ class MediaViewerActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.FullScreen)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -148,6 +150,7 @@ class MediaViewerActivity : AppCompatActivity() {
         setupFullScreen()
         setupViewPager()
         setupUI()
+        ThemeHelper.applyRuntimeCustomColors(this)
         loadMedia()
         sourceFolderPath = intent.getStringExtra(EXTRA_FOLDER_PATH)
 
@@ -180,7 +183,8 @@ class MediaViewerActivity : AppCompatActivity() {
             return
         }
         currentPackKey = newPackKey
-        
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+
         // Re-apply action bar customization in case user changed settings
         applyActionBarCustomization()
 
@@ -2154,10 +2158,7 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun resolveThemeColor(attr: Int): Int {
-        val tv = android.util.TypedValue()
-        return if (theme.resolveAttribute(attr, tv, true)) {
-            if (tv.resourceId != 0) ContextCompat.getColor(this, tv.resourceId) else tv.data
-        } else 0
+        return ThemeColorResolver.resolveColor(this, attr)
     }
 
     private fun applyFilenameMaxLinesSetting() {
@@ -3003,9 +3004,11 @@ class MediaViewerActivity : AppCompatActivity() {
                 
                 if (option.isHeader || option.isSeparator) {
                     // Use theme's secondary text color for headers and separators
-                    val typedValue = android.util.TypedValue()
-                    val resolved = context.theme.resolveAttribute(android.R.attr.textColorSecondary, typedValue, true)
-                    val color = if (resolved) typedValue.data else android.graphics.Color.GRAY
+                    val color = ThemeColorResolver.resolveColor(
+                        context,
+                        android.R.attr.textColorSecondary,
+                        android.graphics.Color.GRAY,
+                    )
                     textView.setTextColor(color)
                     textView.setTypeface(null, android.graphics.Typeface.BOLD)
                     holder.itemView.isClickable = false
@@ -3014,9 +3017,11 @@ class MediaViewerActivity : AppCompatActivity() {
                     android.util.Log.d("RenameDialog", "Set header/separator color: $color")
                 } else {
                     // Use theme's primary text color for regular items
-                    val typedValue = android.util.TypedValue()
-                    val resolved = context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
-                    val color = if (resolved) typedValue.data else android.graphics.Color.BLACK
+                    val color = ThemeColorResolver.resolveColor(
+                        context,
+                        android.R.attr.textColorPrimary,
+                        android.graphics.Color.BLACK,
+                    )
                     textView.setTextColor(color)
                     textView.setTypeface(null, android.graphics.Typeface.NORMAL)
                     holder.itemView.isClickable = true
@@ -3415,49 +3420,33 @@ class MediaViewerActivity : AppCompatActivity() {
                     android.view.Gravity.CENTER
                 )
 
-                // Use theme-aware colors with fallbacks
-                val typedValue = android.util.TypedValue()
-                val theme = this@MediaViewerActivity.theme
-
-                // Try to get Material Design colors, with fallbacks
-                var backgroundColor = android.graphics.Color.parseColor("#E0000000") // Semi-transparent black fallback
-                var textColor = android.graphics.Color.WHITE // White text fallback
-
                 // Check if we're in dark mode for better fallback
                 val isDarkMode = (resources.configuration.uiMode and
                     android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
                     android.content.res.Configuration.UI_MODE_NIGHT_YES
 
-                // Try Material Design surface color
-                if (theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true)) {
-                    backgroundColor = typedValue.data
-                    // Make background semi-transparent for better overlay effect
-                    backgroundColor = (backgroundColor and 0x00FFFFFF) or 0xE0000000.toInt()
-                } else if (theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)) {
-                    backgroundColor = typedValue.data
-                    backgroundColor = (backgroundColor and 0x00FFFFFF) or 0xE0000000.toInt()
+                val fallbackBackground = if (isDarkMode) {
+                    android.graphics.Color.parseColor("#424242")
                 } else {
-                    // Use mode-aware fallback colors
-                    backgroundColor = if (isDarkMode) {
-                        android.graphics.Color.parseColor("#E0424242") // Semi-transparent dark gray
-                    } else {
-                        android.graphics.Color.parseColor("#E0F5F5F5") // Semi-transparent light gray
-                    }
+                    android.graphics.Color.parseColor("#F5F5F5")
                 }
+                val backgroundBase = ThemeColorResolver.resolveColor(
+                    this@MediaViewerActivity,
+                    com.google.android.material.R.attr.colorSurface,
+                    fallbackBackground,
+                )
+                val backgroundColor = (backgroundBase and 0x00FFFFFF) or 0xE0000000.toInt()
 
-                // Try Material Design on-surface color
-                if (theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)) {
-                    textColor = typedValue.data
-                } else if (theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)) {
-                    textColor = typedValue.data
+                val fallbackText = if (isDarkMode) {
+                    android.graphics.Color.WHITE
                 } else {
-                    // Use mode-aware fallback text colors
-                    textColor = if (isDarkMode) {
-                        android.graphics.Color.WHITE
-                    } else {
-                        android.graphics.Color.BLACK
-                    }
+                    android.graphics.Color.BLACK
                 }
+                val textColor = ThemeColorResolver.resolveColor(
+                    this@MediaViewerActivity,
+                    com.google.android.material.R.attr.colorOnSurface,
+                    fallbackText,
+                )
 
                 // Create rounded background drawable with theme colors
                 val backgroundDrawable = android.graphics.drawable.GradientDrawable().apply {

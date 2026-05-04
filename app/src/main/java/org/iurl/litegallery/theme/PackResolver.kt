@@ -21,6 +21,8 @@ object PackResolver {
      * preference, falling back to FOLLOW_SYSTEM for "auto".
      */
     fun resolveNightMode(pack: ThemePack, themePref: String): Int {
+        // Custom pack: mode is controlled by CustomThemeStore, not the global pref.
+        // This is handled by the caller which passes the correct pref for Custom.
         if (pack.isSingleMode) {
             return when (pack.supportedModes[0]) {
                 Mode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
@@ -33,6 +35,19 @@ object PackResolver {
             "dark" -> AppCompatDelegate.MODE_NIGHT_YES
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
+    }
+
+    /**
+     * Overload that resolves Custom pack mode from [CustomThemeStore].
+     */
+    fun resolveNightMode(pack: ThemePack, themePref: String, context: android.content.Context): Int {
+        if (pack.isCustom) {
+            return when (CustomThemeStore.getMode(context)) {
+                CustomThemeStore.MODE_DARK -> AppCompatDelegate.MODE_NIGHT_YES
+                else -> AppCompatDelegate.MODE_NIGHT_NO
+            }
+        }
+        return resolveNightMode(pack, themePref)
     }
 
     /**
@@ -74,6 +89,10 @@ object PackResolver {
         ThemePack.BRUTALIST -> when (variant) {
             ThemeVariant.NoActionBar -> R.style.Theme_LiteGallery_Pack_Brutalist_NoActionBar
             ThemeVariant.FullScreen -> R.style.Theme_LiteGallery_Pack_Brutalist_FullScreen
+        }
+        ThemePack.CUSTOM -> when (variant) {
+            ThemeVariant.NoActionBar -> R.style.Theme_LiteGallery_Pack_Custom_NoActionBar
+            ThemeVariant.FullScreen -> R.style.Theme_LiteGallery_Pack_Custom_FullScreen
         }
     }
 }

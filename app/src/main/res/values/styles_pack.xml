@@ -244,4 +244,120 @@
         <item name="preferenceCategoryTitleTextColor">@color/pack_brutalist_accent</item>
     </style>
 
+    <!-- ============================================================
+         Custom Pack — Shape, TextAppearance, PreferenceOverlay
+         ============================================================ -->
+
+    <style name="ShapeAppearance.LiteGallery.Pack.Custom.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">8dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Custom.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.Custom.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <!-- Text appearances — deliberately omit fontFamily so that the font overlay
+         applied in ThemeHelper can set it globally. -->
+    <style name="TextAppearance.LiteGallery.Pack.Custom.Display" parent="TextAppearance.Material3.HeadlineLarge" />
+    <style name="TextAppearance.LiteGallery.Pack.Custom.Headline" parent="TextAppearance.Material3.HeadlineMedium" />
+    <style name="TextAppearance.LiteGallery.Pack.Custom.Title" parent="TextAppearance.Material3.TitleMedium" />
+    <style name="TextAppearance.LiteGallery.Pack.Custom.Body" parent="TextAppearance.Material3.BodyMedium" />
+    <style name="TextAppearance.LiteGallery.Pack.Custom.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <style name="PreferenceThemeOverlay.LiteGallery.Custom" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/custom_text</item>
+        <item name="android:textColorSecondary">@color/custom_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/custom_accent</item>
+    </style>
+
+    <!-- ============================================================
+         Font overlay styles — applied via theme.applyStyle() at runtime.
+         Each one overrides the theme-level fontFamily plus all
+         Custom text-appearance fontFamilies in one shot.
+         ============================================================ -->
+
+    <style name="ThemeOverlay.Custom.Font.SansSerif" parent="">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+    </style>
+    <style name="ThemeOverlay.Custom.Font.Fraunces" parent="">
+        <item name="android:fontFamily">@font/fraunces</item>
+        <item name="fontFamily">@font/fraunces</item>
+    </style>
+    <style name="ThemeOverlay.Custom.Font.Cormorant" parent="">
+        <item name="android:fontFamily">@font/cormorant_garamond</item>
+        <item name="fontFamily">@font/cormorant_garamond</item>
+    </style>
+    <style name="ThemeOverlay.Custom.Font.JetBrainsMono" parent="">
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
+        <item name="fontFamily">@font/jetbrains_mono</item>
+    </style>
+    <style name="ThemeOverlay.Custom.Font.ArchivoBlack" parent="">
+        <item name="android:fontFamily">@font/archivo_black</item>
+        <item name="fontFamily">@font/archivo_black</item>
+    </style>
+
+    <!-- ============================================================
+         Corner-radius overlay styles — applied via theme.applyStyle()
+         ============================================================ -->
+
+    <style name="ThemeOverlay.Custom.Corner.None" parent="">
+        <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.None</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.None</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.None</item>
+    </style>
+    <style name="ShapeOverlay.Custom.None" parent="">
+        <item name="cornerSize">0dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Custom.Corner.Small" parent="">
+        <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.Small.S</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.Small.M</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.Small.L</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Small.S" parent="">
+        <item name="cornerSize">2dp</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Small.M" parent="">
+        <item name="cornerSize">4dp</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Small.L" parent="">
+        <item name="cornerSize">4dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Custom.Corner.Medium" parent="">
+        <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.Medium.S</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.Medium.M</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.Medium.L</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Medium.S" parent="">
+        <item name="cornerSize">8dp</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Medium.M" parent="">
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Medium.L" parent="">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Custom.Corner.Large" parent="">
+        <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.Large.S</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.Large.M</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.Large.L</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Large.S" parent="">
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Large.M" parent="">
+        <item name="cornerSize">18dp</item>
+    </style>
+    <style name="ShapeOverlay.Custom.Large.L" parent="">
+        <item name="cornerSize">28dp</item>
+    </style>
+
 </resources>

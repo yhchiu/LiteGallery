@@ -6,10 +6,13 @@ import androidx.test.core.app.ApplicationProvider
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.iurl.litegallery.theme.CustomThemeStore
+import org.iurl.litegallery.theme.ThemePack
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.ByteArrayInputStream
@@ -69,6 +72,24 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
+    fun exportSettings_includesThemePackPreferences() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit()
+            .putString("theme_pack_preference", ThemePack.BRUTALIST.key)
+            .putString("theme_preference", "dark")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("preferences")
+        assertEquals(ThemePack.BRUTALIST.key, preferences.getString("theme_pack_preference"))
+        assertEquals("dark", preferences.getString("theme_preference"))
+    }
+
+    @Test
     fun exportSettings_includesCustomizedActionBarPreferences() {
         val prefs = context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
@@ -84,6 +105,36 @@ class SettingsExportImportHelperTest {
         val preferences = root.getJSONObject("action_bar_preferences")
         assertEquals("rename,delete,properties", preferences.getString(ActionBarPreferences.KEY_ORDER))
         assertEquals("delete,properties", preferences.getString(ActionBarPreferences.KEY_VISIBLE))
+    }
+
+    @Test
+    fun exportSettings_includesTypedCustomThemePreferences() {
+        val customBg = 0xff102030.toInt()
+        val customAccent = 0xff405060.toInt()
+        CustomThemeStore.setColor(context, CustomThemeStore.KEY_BG, customBg)
+        CustomThemeStore.setColor(context, CustomThemeStore.KEY_ACCENT, customAccent)
+        CustomThemeStore.setFont(context, CustomThemeStore.FONT_CORMORANT)
+        CustomThemeStore.setCorner(context, CustomThemeStore.CORNER_LARGE)
+        CustomThemeStore.setMode(context, CustomThemeStore.MODE_DARK)
+        context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(CustomThemeStore.KEY_INITIALIZED, true)
+            .putString("custom_unknown", "skip_me")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("custom_theme_preferences")
+        assertEquals(customBg, preferences.getInt(CustomThemeStore.KEY_BG))
+        assertEquals(customAccent, preferences.getInt(CustomThemeStore.KEY_ACCENT))
+        assertEquals(CustomThemeStore.FONT_CORMORANT, preferences.getString(CustomThemeStore.KEY_FONT))
+        assertEquals(CustomThemeStore.CORNER_LARGE, preferences.getString(CustomThemeStore.KEY_CORNER))
+        assertEquals(CustomThemeStore.MODE_DARK, preferences.getString(CustomThemeStore.KEY_MODE))
+        assertTrue(preferences.getBoolean(CustomThemeStore.KEY_INITIALIZED))
+        assertFalse(preferences.has("custom_unknown"))
     }
 
     @Test
@@ -131,6 +182,29 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
+    fun importSettings_restoresThemePackPreferences() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("theme_pack_preference", ThemePack.CUSTOM.key)
+                put("theme_preference", "light")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertEquals(ThemePack.CUSTOM.key, prefs.getString("theme_pack_preference", null))
+        assertEquals("light", prefs.getString("theme_preference", null))
+    }
+
+    @Test
     fun importSettings_restoresCustomizedActionBarPreferences() {
         val settingsJson = JSONObject().apply {
             put("app_name", "LiteGallery")
@@ -152,6 +226,99 @@ class SettingsExportImportHelperTest {
         val prefs = context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
         assertEquals("rename,delete,properties", prefs.getString(ActionBarPreferences.KEY_ORDER, null))
         assertEquals("delete,properties", prefs.getString(ActionBarPreferences.KEY_VISIBLE, null))
+    }
+
+    @Test
+    fun importSettings_restoresTypedCustomThemePreferencesAndBumpsGeneration() {
+        val customBg = 0xff223344.toInt()
+        val customAccent = 0xff556677.toInt()
+        val customOnAccent = 0xfff0f1f2.toInt()
+        val generationBefore = CustomThemeStore.getGeneration()
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("theme_pack_preference", ThemePack.CUSTOM.key)
+            })
+            put("custom_theme_preferences", JSONObject().apply {
+                put(CustomThemeStore.KEY_BG, customBg)
+                put(CustomThemeStore.KEY_ACCENT, customAccent)
+                put(CustomThemeStore.KEY_ON_ACCENT, customOnAccent)
+                put(CustomThemeStore.KEY_FONT, CustomThemeStore.FONT_ARCHIVO_BLACK)
+                put(CustomThemeStore.KEY_CORNER, CustomThemeStore.CORNER_NONE)
+                put(CustomThemeStore.KEY_MODE, CustomThemeStore.MODE_DARK)
+                put(CustomThemeStore.KEY_INITIALIZED, true)
+                put("custom_unknown", "skip_me")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(8, importedCount)
+        assertEquals(1, skippedCount)
+
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertEquals(ThemePack.CUSTOM.key, defaultPrefs.getString("theme_pack_preference", null))
+        assertEquals(customBg, CustomThemeStore.getColor(context, CustomThemeStore.KEY_BG))
+        assertEquals(customAccent, CustomThemeStore.getColor(context, CustomThemeStore.KEY_ACCENT))
+        assertEquals(customOnAccent, CustomThemeStore.getColor(context, CustomThemeStore.KEY_ON_ACCENT))
+        assertEquals(CustomThemeStore.FONT_ARCHIVO_BLACK, CustomThemeStore.getFont(context))
+        assertEquals(CustomThemeStore.CORNER_NONE, CustomThemeStore.getCorner(context))
+        assertEquals(CustomThemeStore.MODE_DARK, CustomThemeStore.getMode(context))
+        assertTrue(CustomThemeStore.isInitialized(context))
+        assertTrue(CustomThemeStore.getGeneration() > generationBefore)
+        assertTrue(
+            context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
+                .all[CustomThemeStore.KEY_BG] is Int
+        )
+    }
+
+    @Test
+    fun importSettings_normalizesEditableCustomColorsToOpaqueRgb() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject())
+            put("custom_theme_preferences", JSONObject().apply {
+                put(CustomThemeStore.KEY_BG, 0x40112233)
+                put(CustomThemeStore.KEY_LINE, 0x40112233)
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+        assertEquals(0xff112233.toInt(), CustomThemeStore.getColor(context, CustomThemeStore.KEY_BG))
+        assertEquals(0x40112233, CustomThemeStore.getColor(context, CustomThemeStore.KEY_LINE))
+    }
+
+    @Test
+    fun importSettings_emptyCustomThemePreferencesClearsCustomStoreAndBumpsGeneration() {
+        CustomThemeStore.setColor(context, CustomThemeStore.KEY_BG, 0xff010203.toInt())
+        val generationBefore = CustomThemeStore.getGeneration()
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject())
+            put("custom_theme_preferences", JSONObject())
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(0, importedCount)
+        assertEquals(0, skippedCount)
+        assertFalse(
+            context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
+                .contains(CustomThemeStore.KEY_BG)
+        )
+        assertTrue(CustomThemeStore.getGeneration() > generationBefore)
     }
 
     @Test
@@ -205,6 +372,10 @@ class SettingsExportImportHelperTest {
             .clear()
             .commit()
         context.getSharedPreferences(ActionBarPreferences.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+        context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .clear()
             .commit()

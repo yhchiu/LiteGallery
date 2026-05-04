@@ -88,6 +88,13 @@
             android:parentActivityName=".SettingsActivity"
             android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar" />
 
+        <activity
+            android:name=".CustomThemeEditorActivity"
+            android:exported="false"
+            android:label="@string/custom_theme_editor_title"
+            android:parentActivityName=".ThemePackActivity"
+            android:theme="@style/Theme.LiteGallery.Pack.WarmPaper.NoActionBar" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

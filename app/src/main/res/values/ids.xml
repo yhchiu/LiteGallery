@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="tag_custom_theme_child_listener" type="id" />
+    <item name="tag_custom_theme_skip_self" type="id" />
+    <item name="tag_custom_theme_applied_generation" type="id" />
+</resources>

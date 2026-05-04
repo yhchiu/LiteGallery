@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Night-qualified placeholders with the same IDs as values/colors_custom.xml.
+        Runtime custom colours still come from CustomThemeStore.
+    -->
+    <color name="custom_bg">#1a1612</color>
+    <color name="custom_surface">#231d17</color>
+    <color name="custom_card">#2a2218</color>
+    <color name="custom_text">#ede3d0</color>
+    <color name="custom_dim">#8cede3d0</color>
+    <color name="custom_faint">#38ede3d0</color>
+    <color name="custom_line">#15ede3d0</color>
+    <color name="custom_accent">#d97350</color>
+    <color name="custom_on_accent">#ffffff</color>
+</resources>

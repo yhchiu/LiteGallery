@@ -69,6 +69,7 @@ class FolderViewActivity : AppCompatActivity() {
         ThemeHelper.applyPackTheme(this, ThemeVariant.NoActionBar)
 
         super.onCreate(savedInstanceState)
+        ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivityFolderViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -97,6 +98,7 @@ class FolderViewActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupSwipeRefresh()
+        ThemeHelper.applyRuntimeCustomColors(this)
 
         mediaScanner = MediaScanner(this)
         loadMediaItems()
@@ -114,8 +116,9 @@ class FolderViewActivity : AppCompatActivity() {
             return
         }
         currentPackKey = newPackKey
+        if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
     }
-    
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.folder_view_menu, menu)
         return true

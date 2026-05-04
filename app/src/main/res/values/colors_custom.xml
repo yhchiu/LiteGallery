@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Placeholder colour values for the Custom theme pack.
+        The user's arbitrary colours live in CustomThemeStore and are applied
+        by the runtime palette layer after view inflation. These XML colours
+        keep the base Material theme valid and give the applier stable default
+        tokens to map from.
+    -->
+    <color name="custom_bg">#f4efe6</color>
+    <color name="custom_surface">#ebe4d7</color>
+    <color name="custom_card">#ffffff</color>
+    <color name="custom_text">#2a2621</color>
+    <color name="custom_dim">#9e2a2621</color>
+    <color name="custom_faint">#472a2621</color>
+    <color name="custom_line">#1a2a2621</color>
+    <color name="custom_accent">#c96442</color>
+    <color name="custom_on_accent">#ffffff</color>
+</resources>

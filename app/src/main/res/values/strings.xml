@@ -313,7 +313,7 @@
     <string name="export_failed">Failed to export settings</string>
     <string name="import_failed">Failed to import settings</string>
     <string name="invalid_settings_file">Invalid settings file</string>
-    <string name="settings_imported_count">Imported %d settings, skipped %d incompatible settings</string>
+    <string name="settings_imported_count">Imported %1$d settings, skipped %2$d incompatible settings</string>
 
     <!-- Empty and Loading States -->
     <string name="tap_to_scan_media">Tap to scan for media files</string>
@@ -403,4 +403,53 @@
     <!-- Settings hero + Offline footer -->
     <string name="settings_offline_title">Offline forever</string>
     <string name="settings_offline_body">No network permission, no trackers, no cloud. Your photos stay here.</string>
+
+    <!-- Custom theme pack -->
+    <string name="pack_custom_name">Custom</string>
+    <string name="pack_custom_sub">Your colors, your style</string>
+    <string name="custom_theme_customize">Customize Theme…</string>
+    <string name="custom_theme_editor_title">Custom Theme</string>
+    <string name="custom_color_bg">Background</string>
+    <string name="custom_color_surface">Surface</string>
+    <string name="custom_color_card">Card</string>
+    <string name="custom_color_text">Text</string>
+    <string name="custom_color_dim">Secondary text</string>
+    <string name="custom_color_accent">Accent</string>
+    <string name="custom_color_on_accent">On accent</string>
+    <string name="custom_font_label">Font</string>
+    <string name="custom_font_sans_serif">Sans-serif (Default)</string>
+    <string name="custom_font_fraunces">Fraunces</string>
+    <string name="custom_font_cormorant">Cormorant Garamond</string>
+    <string name="custom_font_jetbrains">JetBrains Mono</string>
+    <string name="custom_font_archivo">Archivo Black</string>
+    <string name="custom_corner_label">Corner radius</string>
+    <string name="custom_corner_none">None</string>
+    <string name="custom_corner_small">Small</string>
+    <string name="custom_corner_medium">Medium</string>
+    <string name="custom_corner_large">Large</string>
+    <string name="custom_section_colors">Colors</string>
+    <string name="custom_section_typography">Typography</string>
+    <string name="custom_section_shape">Shape</string>
+    <string name="custom_section_preview">Preview</string>
+    <string name="custom_reset">Reset to defaults</string>
+    <string name="custom_reset_confirm">Reset custom theme to defaults?</string>
+    <string name="custom_preview_headline">Headline</string>
+    <string name="custom_preview_body">This is how body text will appear with your custom theme settings.</string>
+    <string name="custom_color_dialog_title">Enter color</string>
+    <string name="custom_color_dialog_hint">#RRGGBB</string>
+    <string name="custom_color_invalid">Invalid color code</string>
+    <string name="custom_mode_light">Light</string>
+    <string name="custom_mode_dark">Dark</string>
+    <string name="custom_reset_from_builtin">Reset from built-in theme…</string>
+    <string name="custom_reset_from_mode_title">%1$s — pick mode</string>
+    <string name="custom_reset_from_confirm">Reset all custom theme settings from %1$s (%2$s)?</string>
+
+    <!-- Custom theme contrast safeguards (Stage 1) -->
+    <string name="custom_contrast_aaa">AAA</string>
+    <string name="custom_contrast_aa">AA</string>
+    <string name="custom_contrast_low">Low</string>
+    <string name="custom_contrast_warning">Low contrast</string>
+    <string name="custom_preview_main_screen">Main screen</string>
+    <string name="custom_preview_card_label">Card</string>
+    <string name="custom_preview_button">Action button</string>
 </resources>

@@ -313,7 +313,7 @@
     <string name="export_failed">设置导出失败</string>
     <string name="import_failed">设置导入失败</string>
     <string name="invalid_settings_file">无效的设置文件</string>
-    <string name="settings_imported_count">已导入 %d 个设置，跳过 %d 个不兼容设置</string>
+    <string name="settings_imported_count">已导入 %1$d 个设置，跳过 %2$d 个不兼容设置</string>
 
     <!-- Empty and Loading States -->
     <string name="tap_to_scan_media">点击扫描媒体文件</string>
@@ -402,4 +402,53 @@
     <!-- Settings hero + Offline footer -->
     <string name="settings_offline_title">永远离线</string>
     <string name="settings_offline_body">没有网络权限、没有追踪、没有云端。你的照片只留在设备上。</string>
+
+    <!-- Custom theme pack -->
+    <string name="pack_custom_name">自定义</string>
+    <string name="pack_custom_sub">自选颜色、字体与风格</string>
+    <string name="custom_theme_customize">自定义主题…</string>
+    <string name="custom_theme_editor_title">自定义主题</string>
+    <string name="custom_color_bg">背景</string>
+    <string name="custom_color_surface">表面</string>
+    <string name="custom_color_card">卡片</string>
+    <string name="custom_color_text">文字</string>
+    <string name="custom_color_dim">次要文字</string>
+    <string name="custom_color_accent">强调色</string>
+    <string name="custom_color_on_accent">强调色上文字</string>
+    <string name="custom_font_label">字体</string>
+    <string name="custom_font_sans_serif">无衬线（默认）</string>
+    <string name="custom_font_fraunces">Fraunces</string>
+    <string name="custom_font_cormorant">Cormorant Garamond</string>
+    <string name="custom_font_jetbrains">JetBrains Mono</string>
+    <string name="custom_font_archivo">Archivo Black</string>
+    <string name="custom_corner_label">圆角大小</string>
+    <string name="custom_corner_none">无</string>
+    <string name="custom_corner_small">小</string>
+    <string name="custom_corner_medium">中</string>
+    <string name="custom_corner_large">大</string>
+    <string name="custom_section_colors">颜色</string>
+    <string name="custom_section_typography">字体</string>
+    <string name="custom_section_shape">形状</string>
+    <string name="custom_section_preview">预览</string>
+    <string name="custom_reset">重置为默认值</string>
+    <string name="custom_reset_confirm">要将自定义主题重置为默认值吗？</string>
+    <string name="custom_preview_headline">标题</string>
+    <string name="custom_preview_body">这是您自定义主题设置下正文的呈现效果。</string>
+    <string name="custom_color_dialog_title">输入颜色</string>
+    <string name="custom_color_dialog_hint">#RRGGBB</string>
+    <string name="custom_color_invalid">无效的颜色码</string>
+    <string name="custom_mode_light">浅色</string>
+    <string name="custom_mode_dark">深色</string>
+    <string name="custom_reset_from_builtin">从内建主题重置…</string>
+    <string name="custom_reset_from_mode_title">%1$s — 选择模式</string>
+    <string name="custom_reset_from_confirm">要将自定义主题重置为 %1$s（%2$s）的设置吗？</string>
+
+    <!-- Custom theme contrast safeguards (Stage 1) -->
+    <string name="custom_contrast_aaa">AAA</string>
+    <string name="custom_contrast_aa">AA</string>
+    <string name="custom_contrast_low">对比低</string>
+    <string name="custom_contrast_warning">对比不足</string>
+    <string name="custom_preview_main_screen">主画面</string>
+    <string name="custom_preview_card_label">卡片</string>
+    <string name="custom_preview_button">动作按钮</string>
 </resources>
