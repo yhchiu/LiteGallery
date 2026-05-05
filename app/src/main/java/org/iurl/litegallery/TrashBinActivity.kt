@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.iurl.litegallery.databinding.ActivityTrashBinBinding
+import org.iurl.litegallery.theme.CustomThemeApplier
 import org.iurl.litegallery.theme.ThemeVariant
 import java.io.File
 
@@ -288,6 +289,7 @@ class TrashBinActivity : AppCompatActivity() {
     }
 
     private fun setupSelectionActionBar() {
+        CustomThemeApplier.applyPrimaryAction(binding.deleteSelectedButton)
         binding.restoreSelectedButton.setOnClickListener {
             restoreSelectedItems()
         }

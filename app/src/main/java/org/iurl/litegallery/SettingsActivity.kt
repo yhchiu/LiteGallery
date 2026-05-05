@@ -201,6 +201,29 @@ class SettingsActivity : AppCompatActivity() {
             updateAdvancedStorageAccessSummary()
             updateExternalFolderGrantSummary()
         }
+
+        override fun onDisplayPreferenceDialog(preference: androidx.preference.Preference) {
+            super.onDisplayPreferenceDialog(preference)
+            parentFragmentManager.executePendingTransactions()
+            applyRuntimeCustomColorsToPreferenceDialog()
+            view?.post { applyRuntimeCustomColorsToPreferenceDialog() }
+        }
+
+        private fun applyRuntimeCustomColorsToPreferenceDialog() {
+            val dialog = (
+                parentFragmentManager.findFragmentByTag(PREFERENCE_DIALOG_FRAGMENT_TAG)
+                    as? androidx.fragment.app.DialogFragment
+                )?.dialog ?: return
+            applyRuntimeCustomColors(dialog)
+            dialog.window?.decorView?.post { applyRuntimeCustomColors(dialog) }
+        }
+
+        private fun applyRuntimeCustomColors(dialog: android.app.Dialog) {
+            when (dialog) {
+                is android.app.AlertDialog -> ThemeHelper.applyRuntimeCustomColors(dialog)
+                is androidx.appcompat.app.AlertDialog -> ThemeHelper.applyRuntimeCustomColors(dialog)
+            }
+        }
         
         private fun updateThemeSummary() {
             val packPreference = findPreference<androidx.preference.Preference>("theme_pack") ?: return
@@ -529,7 +552,7 @@ class SettingsActivity : AppCompatActivity() {
                 .setTitle(R.string.manage_external_folder_grants_dialog_title)
                 .setView(dialogView)
                 .setPositiveButton(R.string.close, null)
-                .show()
+                .showThemed()
         }
 
         private fun showResetExternalFolderGrantsConfirmation() {
@@ -547,7 +570,7 @@ class SettingsActivity : AppCompatActivity() {
                 .setPositiveButton(R.string.ok) { _, _ ->
                     resetExternalFolderGrants()
                 }
-                .show()
+                .showThemed()
         }
 
         private fun isExternalFolderAccessPromptEnabled(): Boolean {
@@ -969,6 +992,17 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun showToast(message: String) {
             android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_LONG).show()
+        }
+
+        private fun android.app.AlertDialog.Builder.showThemed(): android.app.AlertDialog {
+            val dialog = create()
+            dialog.show()
+            ThemeHelper.applyRuntimeCustomColors(dialog)
+            return dialog
+        }
+
+        private companion object {
+            private const val PREFERENCE_DIALOG_FRAGMENT_TAG = "androidx.preference.PreferenceFragment.DIALOG"
         }
     }
 }

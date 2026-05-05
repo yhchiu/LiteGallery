@@ -2,12 +2,15 @@ package org.iurl.litegallery.theme
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
+import android.content.DialogInterface
 import android.content.res.ColorStateList
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.CheckedTextView
 import android.widget.CompoundButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -38,6 +41,14 @@ object CustomThemeApplier {
     }
 
     fun apply(dialog: AlertDialog) {
+        applyDialog(dialog) { which -> dialog.getButton(which) }
+    }
+
+    fun apply(dialog: androidx.appcompat.app.AlertDialog) {
+        applyDialog(dialog) { which -> dialog.getButton(which) }
+    }
+
+    private fun applyDialog(dialog: Dialog, buttonFor: (Int) -> Button?) {
         val palette = ThemeColorResolver.customPaletteOrNull(dialog.context) ?: return
         val defaults = CustomThemePalette.resourcePlaceholders(dialog.context)
         val generation = CustomThemeStore.getGeneration()
@@ -49,9 +60,9 @@ object CustomThemeApplier {
                 cornerRadius = radius
             },
         )
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(palette.accent)
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(palette.accent)
-        dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setTextColor(palette.accent)
+        buttonFor(DialogInterface.BUTTON_POSITIVE)?.setTextColor(palette.accent)
+        buttonFor(DialogInterface.BUTTON_NEGATIVE)?.setTextColor(palette.accent)
+        buttonFor(DialogInterface.BUTTON_NEUTRAL)?.setTextColor(palette.accent)
 
         val decor = dialog.window?.decorView ?: return
         applyToDialogView(decor, palette, defaults, generation)
@@ -118,7 +129,13 @@ object CustomThemeApplier {
         if (!skipSelf && !alreadyApplied) {
             applyBackground(view, palette, defaults)
             when (view) {
+                is MaterialButton -> applyButton(view, palette, defaults)
                 is Button -> view.setTextColor(palette.accent)
+                is CheckedTextView -> {
+                    view.checkMarkTintList = controlTint(palette)
+                    view.compoundDrawableTintList = controlTint(palette)
+                    view.setTextColor(palette.text)
+                }
                 is SwitchCompat -> applySwitch(view, palette, defaults)
                 is CompoundButton -> {
                     applyCompoundButton(view, palette, defaults)
@@ -271,6 +288,7 @@ object CustomThemeApplier {
         defaults.text -> palette.text
         defaults.dim -> palette.dim
         defaults.accent -> palette.accent
+        defaults.onAccent -> palette.onAccent
         else -> null
     }
 
@@ -284,6 +302,7 @@ object CustomThemeApplier {
             defaults.text -> palette.text
             defaults.dim -> palette.dim
             defaults.accent -> palette.accent
+            defaults.onAccent -> palette.onAccent
             else -> null
         }
     }

@@ -704,7 +704,7 @@ class MediaViewerActivity : AppCompatActivity() {
             }
         }
 
-        dialog.show()
+        dialog.showThemed()
     }
 
     private fun shouldMoveToTrashByDefault(): Boolean {
@@ -1327,7 +1327,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 }
             }
             .setPositiveButton(R.string.ok, null)
-            .show()
+            .showThemed()
     }
 
     private fun formatSize(bytes: Long): String {
@@ -1621,7 +1621,7 @@ class MediaViewerActivity : AppCompatActivity() {
             }
         }
 
-        dialog.show()
+        dialog.showThemed()
     }
 
     private data class ExpectedFolderPathInfo(
@@ -1852,7 +1852,7 @@ class MediaViewerActivity : AppCompatActivity() {
             }
         }
 
-        dialog.show()
+        dialog.showThemed()
     }
 
     private fun showExternalFolderAccessCancelledToast() {
@@ -2667,7 +2667,7 @@ class MediaViewerActivity : AppCompatActivity() {
         }
         
         // Show dialog
-        dialog.show()
+        dialog.showThemed()
         
         // Handle OK button manually to prevent auto-dismiss
         dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -3254,7 +3254,7 @@ class MediaViewerActivity : AppCompatActivity() {
                             refresh()
                         }
                     }
-                    .show()
+                    .showThemed()
             }
         })
         itemTouchHelper.attachToRecyclerView(recyclerView)
@@ -3287,7 +3287,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
         closeButton.setOnClickListener { dialog.dismiss() }
         activeDialog = dialog
-        dialog.show()
+        dialog.showThemed()
     }
     
     private fun showPrefixSuffixDialog(editText: android.widget.EditText, originalName: String, isPrefix: Boolean, existingItems: List<String>) {
@@ -3340,7 +3340,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
             
         input.requestFocus()
     }
@@ -3595,6 +3595,17 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun hideValueDisplay() {
         valueDisplayView?.visibility = android.view.View.GONE
         hideValueDisplayRunnable?.let { valueDisplayHandler.removeCallbacks(it) }
+    }
+
+    private fun android.app.AlertDialog.Builder.showThemed(): android.app.AlertDialog {
+        val dialog = create()
+        dialog.showThemed()
+        return dialog
+    }
+
+    private fun android.app.AlertDialog.showThemed() {
+        show()
+        ThemeHelper.applyRuntimeCustomColors(this)
     }
 
     private fun showMediaViewerMenu(anchorView: android.view.View) {

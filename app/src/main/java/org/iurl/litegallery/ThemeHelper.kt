@@ -159,6 +159,10 @@ object ThemeHelper {
         CustomThemeApplier.apply(dialog)
     }
 
+    fun applyRuntimeCustomColors(dialog: androidx.appcompat.app.AlertDialog) {
+        CustomThemeApplier.apply(dialog)
+    }
+
     /**
      * Record the current [CustomThemeStore] generation in the activity's
      * intent so [checkAndRecreateForCustomThemeChange] can later detect

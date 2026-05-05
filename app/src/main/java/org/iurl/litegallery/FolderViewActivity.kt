@@ -306,7 +306,14 @@ class FolderViewActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showThemed()
+    }
+
+    private fun android.app.AlertDialog.Builder.showThemed(): android.app.AlertDialog {
+        val dialog = create()
+        dialog.show()
+        ThemeHelper.applyRuntimeCustomColors(dialog)
+        return dialog
     }
 
     private fun applySorting() {
