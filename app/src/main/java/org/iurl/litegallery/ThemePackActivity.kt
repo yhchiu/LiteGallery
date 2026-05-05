@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
@@ -160,6 +161,7 @@ class ThemePackActivity : AppCompatActivity() {
     }
 
     private fun renderPackList() {
+        val scrollView = findViewById<NestedScrollView>(R.id.theme_pack_scroll)
         val recycler = findViewById<RecyclerView>(R.id.pack_list)
         recycler.layoutManager = LinearLayoutManager(this)
         val adapter = ThemePackAdapter(
@@ -175,11 +177,21 @@ class ThemePackActivity : AppCompatActivity() {
             recycler.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
                     recycler.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                    (recycler.layoutManager as? LinearLayoutManager)
-                        ?.scrollToPositionWithOffset(activePos, (48 * resources.displayMetrics.density).toInt())
+                    scrollView.post { scrollToActivePack(scrollView, recycler, activePos) }
                 }
             })
         }
+    }
+
+    private fun scrollToActivePack(
+        scrollView: NestedScrollView,
+        recycler: RecyclerView,
+        activePos: Int,
+    ) {
+        val targetView = recycler.layoutManager?.findViewByPosition(activePos) ?: return
+        val offset = (48 * resources.displayMetrics.density).toInt()
+        val targetTop = recycler.top + targetView.top - offset
+        scrollView.scrollTo(0, targetTop.coerceAtLeast(0))
     }
 
     private fun onPickPack(pack: ThemePack) {
