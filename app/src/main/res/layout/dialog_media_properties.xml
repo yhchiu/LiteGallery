@@ -139,8 +139,7 @@
             android:layout_marginTop="8dp"
             android:text="@string/copy_path"
             android:textColor="?attr/colorOnPrimary"
-            app:backgroundTint="?attr/colorPrimary"
-            app:cornerRadius="8dp" />
+            app:backgroundTint="?attr/colorPrimary" />
 
     </LinearLayout>
 

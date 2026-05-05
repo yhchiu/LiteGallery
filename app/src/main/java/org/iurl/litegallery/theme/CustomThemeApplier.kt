@@ -75,6 +75,9 @@ object CustomThemeApplier {
         button.setTextColor(palette.onAccent)
         button.iconTint = ColorStateList.valueOf(palette.onAccent)
         button.rippleColor = ColorStateList.valueOf(palette.onAccent.withAlpha(0x33))
+        button.shapeAppearanceModel = button.shapeAppearanceModel.toBuilder()
+            .setAllCornerSizes(customCornerSmallRadius(button.context))
+            .build()
     }
 
     private fun applyToView(
@@ -353,6 +356,16 @@ object CustomThemeApplier {
             palette.dim.withAlpha(0x44),
         ),
     )
+
+    private fun customCornerSmallRadius(context: android.content.Context): Float {
+        val density = context.resources.displayMetrics.density
+        return when (CustomThemeStore.getCorner(context)) {
+            CustomThemeStore.CORNER_NONE -> 0f
+            CustomThemeStore.CORNER_SMALL -> 2f * density
+            CustomThemeStore.CORNER_LARGE -> 12f * density
+            else -> 8f * density
+        }
+    }
 
     private fun Int.withAlpha(alpha: Int): Int =
         (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)

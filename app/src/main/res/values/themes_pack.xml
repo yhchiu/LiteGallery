@@ -47,6 +47,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Small</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Medium</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.WarmPaper.Large</item>
 
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Display</item>
         <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.WarmPaper.Headline</item>
@@ -109,6 +112,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Small</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Medium</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.Editorial.Large</item>
 
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Editorial.Display</item>
         <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Editorial.Headline</item>
@@ -169,6 +175,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Small</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Medium</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.Monolith.Large</item>
 
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Monolith.Display</item>
         <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Monolith.Headline</item>
@@ -228,6 +237,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Prism.Small</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Prism.Medium</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Prism.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.Prism.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.Prism.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.Prism.Large</item>
 
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Prism.Display</item>
         <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Prism.Headline</item>
@@ -288,6 +300,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Small</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Medium</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.Brutalist.Large</item>
 
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Brutalist.Display</item>
         <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Brutalist.Headline</item>
@@ -350,6 +365,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.Custom.Small</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.Custom.Medium</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.Custom.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.Custom.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.Custom.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.Custom.Large</item>
 
         <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.Custom.Display</item>
         <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.Custom.Headline</item>

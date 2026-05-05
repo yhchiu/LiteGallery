@@ -310,6 +310,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.None</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.None</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.None</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeOverlay.Custom.None</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeOverlay.Custom.None</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeOverlay.Custom.None</item>
     </style>
     <style name="ShapeOverlay.Custom.None" parent="">
         <item name="cornerSize">0dp</item>
@@ -319,6 +322,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.Small.S</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.Small.M</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.Small.L</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeOverlay.Custom.Small.S</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeOverlay.Custom.Small.M</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeOverlay.Custom.Small.L</item>
     </style>
     <style name="ShapeOverlay.Custom.Small.S" parent="">
         <item name="cornerSize">2dp</item>
@@ -334,6 +340,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.Medium.S</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.Medium.M</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.Medium.L</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeOverlay.Custom.Medium.S</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeOverlay.Custom.Medium.M</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeOverlay.Custom.Medium.L</item>
     </style>
     <style name="ShapeOverlay.Custom.Medium.S" parent="">
         <item name="cornerSize">8dp</item>
@@ -349,6 +358,9 @@
         <item name="shapeAppearanceCornerSmall">@style/ShapeOverlay.Custom.Large.S</item>
         <item name="shapeAppearanceCornerMedium">@style/ShapeOverlay.Custom.Large.M</item>
         <item name="shapeAppearanceCornerLarge">@style/ShapeOverlay.Custom.Large.L</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeOverlay.Custom.Large.S</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeOverlay.Custom.Large.M</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeOverlay.Custom.Large.L</item>
     </style>
     <style name="ShapeOverlay.Custom.Large.S" parent="">
         <item name="cornerSize">12dp</item>

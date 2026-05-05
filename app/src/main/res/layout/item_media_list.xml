@@ -12,12 +12,13 @@
         android:layout_width="48dp"
         android:layout_height="48dp">
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/thumbnailImageView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:background="@color/surface" />
+            android:background="@color/surface"
+            app:shapeAppearance="?attr/shapeAppearanceMediumComponent" />
 
         <ImageView
             android:id="@+id/playIcon"

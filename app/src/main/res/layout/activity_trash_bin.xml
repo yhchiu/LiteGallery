@@ -161,7 +161,6 @@
                     android:text="@string/restore"
                     android:textColor="?attr/colorOnSurface"
                     app:backgroundTint="?attr/colorSurfaceVariant"
-                    app:cornerRadius="8dp"
                     app:elevation="0dp"
                     app:strokeWidth="0dp" />
 
@@ -175,7 +174,6 @@
                     android:text="@string/delete"
                     android:textColor="?attr/colorOnPrimary"
                     app:backgroundTint="?attr/colorPrimary"
-                    app:cornerRadius="8dp"
                     app:elevation="0dp"
                     app:strokeWidth="0dp" />
 

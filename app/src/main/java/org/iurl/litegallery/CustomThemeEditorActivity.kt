@@ -222,7 +222,7 @@ class CustomThemeEditorActivity : AppCompatActivity() {
             setPadding((16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt())
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 12 * dp
+                cornerRadius = customCornerMediumRadius()
             }
         }
         val bgLabel = TextView(this).apply {
@@ -286,7 +286,7 @@ class CustomThemeEditorActivity : AppCompatActivity() {
             layoutParams = lp
         }
         previewCard = MaterialCardView(this).apply {
-            radius = 12 * dp
+            radius = customCornerMediumRadius()
             cardElevation = 0f
             strokeWidth = (1 * dp).toInt()
         }
@@ -371,7 +371,7 @@ class CustomThemeEditorActivity : AppCompatActivity() {
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 12 * dp
+                cornerRadius = customCornerSmallRadius()
             }
         }
         btnFrame.addView(
@@ -421,17 +421,21 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         val accent = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ACCENT)
         val onAccent = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ON_ACCENT)
         val line = CustomThemeStore.getColor(this, CustomThemeStore.KEY_LINE)
+        val mediumRadius = customCornerMediumRadius()
+        val smallRadius = customCornerSmallRadius()
 
         // BG (main screen) section
         (previewBgSection.background as? GradientDrawable)?.apply {
             setColor(bg)
             setStroke((1 * dp).toInt(), line)
+            cornerRadius = mediumRadius
         }
         previewBgHeadline.setTextColor(text)
         previewBgBody.setTextColor(dim)
         previewBgWarning.visibility = warnVisibility(text, bg)
 
         // Card section
+        previewCard.radius = mediumRadius
         previewCard.setCardBackgroundColor(card)
         previewCard.strokeColor = line
         previewHeadline.setTextColor(text)
@@ -440,7 +444,10 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         previewCardWarning.visibility = warnVisibility(text, card)
 
         // Accent button section
-        (previewButton.background as? GradientDrawable)?.setColor(accent)
+        (previewButton.background as? GradientDrawable)?.apply {
+            setColor(accent)
+            cornerRadius = smallRadius
+        }
         previewButton.setTextColor(onAccent)
         previewButtonWarning.visibility = warnVisibility(onAccent, accent)
 
@@ -453,6 +460,20 @@ class CustomThemeEditorActivity : AppCompatActivity() {
 
     private fun warnVisibility(fg: Int, bg: Int): Int =
         if (ContrastUtils.grade(ContrastUtils.ratio(fg, bg)) == ContrastUtils.Grade.FAIL) View.VISIBLE else View.GONE
+
+    private fun customCornerSmallRadius(): Float = when (CustomThemeStore.getCorner(this)) {
+        CustomThemeStore.CORNER_NONE -> 0f
+        CustomThemeStore.CORNER_SMALL -> 2f * dp
+        CustomThemeStore.CORNER_LARGE -> 12f * dp
+        else -> 8f * dp
+    }
+
+    private fun customCornerMediumRadius(): Float = when (CustomThemeStore.getCorner(this)) {
+        CustomThemeStore.CORNER_NONE -> 0f
+        CustomThemeStore.CORNER_SMALL -> 4f * dp
+        CustomThemeStore.CORNER_LARGE -> 18f * dp
+        else -> 12f * dp
+    }
 
     // ── Color row ───────────────────────────────────────────────────
 
