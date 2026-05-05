@@ -79,6 +79,97 @@ cd LiteGallery
 ```
 The APK will be generated in `app/build/outputs/apk/release/`
 
+## Testing and Coverage
+
+LiteGallery currently uses JVM unit tests under `app/src/test` for pure Kotlin/Java logic and Robolectric-backed Android tests. There are no committed instrumentation tests under `app/src/androidTest` yet.
+
+### Run all unit tests
+
+On Windows PowerShell:
+```powershell
+.\gradlew.bat testDebugUnitTest
+```
+
+On macOS/Linux:
+```bash
+./gradlew testDebugUnitTest
+```
+
+The HTML test report is generated at:
+```text
+app/build/reports/tests/testDebugUnitTest/index.html
+```
+
+Raw JUnit XML files are generated at:
+```text
+app/build/test-results/testDebugUnitTest/
+```
+
+### Run a single test class or method
+
+Windows PowerShell examples:
+```powershell
+.\gradlew.bat testDebugUnitTest --tests org.iurl.litegallery.SmbPathTest
+.\gradlew.bat testDebugUnitTest --tests "org.iurl.litegallery.MediaUriPathResolverTest.resolveRealPath_returnsFilePathForFileScheme"
+```
+
+macOS/Linux examples:
+```bash
+./gradlew testDebugUnitTest --tests org.iurl.litegallery.SmbPathTest
+./gradlew testDebugUnitTest --tests "org.iurl.litegallery.MediaUriPathResolverTest.resolveRealPath_returnsFilePathForFileScheme"
+```
+
+### Generate the JaCoCo coverage report
+
+On Windows PowerShell:
+```powershell
+.\gradlew.bat jacocoTestDebugUnitTestReport
+```
+
+On macOS/Linux:
+```bash
+./gradlew jacocoTestDebugUnitTestReport
+```
+
+Coverage outputs:
+```text
+app/build/reports/jacoco/jacocoTestDebugUnitTestReport/html/index.html
+app/build/reports/jacoco/jacocoTestDebugUnitTestReport/jacocoTestDebugUnitTestReport.xml
+```
+
+The HTML report is best for local inspection. The XML report is intended for CI systems or coverage dashboards.
+
+### Current unit test focus
+
+The current JVM test suite covers:
+- Settings export/import behavior
+- Custom theme color resolution and theme helpers
+- MediaStore projection builders and URI path resolution
+- Trash bin persistence and cleanup behavior
+- File-system media scanning helpers
+- SMB path parsing, SMB config persistence, and SMB Glide image detection
+- Locale, playback diagnostics, and basic media model behavior
+
+### Remaining test gaps
+
+These areas need additional coverage:
+- Activity workflows such as media viewer rename/delete/trash, trash restore/delete selection, settings UI summaries, and folder sorting interactions
+- Instrumentation tests for permission flows, Android document/tree URI access, and end-to-end UI behavior on a device or emulator
+- MediaStore delete/trash user-action intent flows, especially scoped storage behavior on recent Android versions
+- SMB runtime I/O tests with fakeable client boundaries or a controlled test server
+- Larger integration tests around external content URIs, SAF tree grants, and fallback scanning
+
+Some of these gaps can be covered with more Robolectric tests, but the larger Activity and SMB runtime areas will be easier to test after small production-code refactors that separate UI code from file, MediaStore, and network boundaries.
+
+### Notes
+
+- Android Gradle Plugin 8.2.2 may warn that it was tested up to `compileSdk = 34` while this project compiles with SDK 36. This warning does not by itself mean the test run failed.
+- If Gradle wrapper cache locking fails on Windows with a `.zip.lck` access error, stop Gradle daemons and retry:
+```powershell
+.\gradlew.bat --stop
+.\gradlew.bat testDebugUnitTest
+```
+
 ## Roadmap
 
 - [ ] Trash bin functionality

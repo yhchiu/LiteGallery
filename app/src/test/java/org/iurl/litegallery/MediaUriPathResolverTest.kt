@@ -51,6 +51,50 @@ class MediaUriPathResolverTest {
     }
 
     @Test
+    fun resolveRealPath_returnsNullWhenContentQueryReturnsNull() {
+        val uri = Uri.parse("content://media/external/images/media/123")
+
+        val resolved = MediaUriPathResolver.resolveRealPath(uri) { null }
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun resolveRealPath_returnsNullWhenContentCursorHasNoRows() {
+        val uri = Uri.parse("content://media/external/images/media/123")
+
+        val resolved = MediaUriPathResolver.resolveRealPath(uri) {
+            MatrixCursor(arrayOf(MediaStore.MediaColumns.DATA))
+        }
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun resolveRealPath_returnsNullWhenDataColumnIsBlank() {
+        val uri = Uri.parse("content://media/external/images/media/123")
+
+        val resolved = MediaUriPathResolver.resolveRealPath(uri) {
+            MatrixCursor(arrayOf(MediaStore.MediaColumns.DATA)).apply {
+                addRow(arrayOf("   "))
+            }
+        }
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun resolveRealPath_returnsNullWhenContentQueryThrows() {
+        val uri = Uri.parse("content://media/external/images/media/123")
+
+        val resolved = MediaUriPathResolver.resolveRealPath(uri) {
+            throw IllegalStateException("provider failure")
+        }
+
+        assertNull(resolved)
+    }
+
+    @Test
     fun resolveRealPath_returnsNullForUnsupportedScheme() {
         val uri = Uri.parse("https://example.com/file.jpg")
 

@@ -8,11 +8,11 @@ import org.junit.Test
 class MediaScannerProjectionTest {
 
     @Test
-    fun imageProjection_lightweightExcludesDeferredMetadataColumns() {
+    fun imageProjection_lightweightIncludesSizeAndExcludesDeferredMetadataColumns() {
         val projection = MediaScanner.buildImageFolderProjection(includeDeferredMetadata = false).toSet()
 
         assertTrue(projection.contains(MediaStore.Images.Media.DATA))
-        assertFalse(projection.contains(MediaStore.Images.Media.SIZE))
+        assertTrue(projection.contains(MediaStore.Images.Media.SIZE))
         assertFalse(projection.contains(MediaStore.Images.Media.WIDTH))
         assertFalse(projection.contains(MediaStore.Images.Media.HEIGHT))
     }
@@ -27,16 +27,42 @@ class MediaScannerProjectionTest {
     }
 
     @Test
-    fun videoProjection_lightweightExcludesDurationAndDeferredMetadataColumns() {
+    fun videoProjection_lightweightIncludesSizeAndExcludesDurationAndDeferredMetadataColumns() {
         val projection = MediaScanner.buildVideoFolderProjection(
             includeDeferredMetadata = false,
             includeVideoDuration = false
         ).toSet()
 
         assertFalse(projection.contains(MediaStore.Video.Media.DURATION))
-        assertFalse(projection.contains(MediaStore.Video.Media.SIZE))
+        assertTrue(projection.contains(MediaStore.Video.Media.SIZE))
         assertFalse(projection.contains(MediaStore.Video.Media.WIDTH))
         assertFalse(projection.contains(MediaStore.Video.Media.HEIGHT))
+    }
+
+    @Test
+    fun videoProjection_durationOnlyIncludesDurationButExcludesDeferredMetadataColumns() {
+        val projection = MediaScanner.buildVideoFolderProjection(
+            includeDeferredMetadata = false,
+            includeVideoDuration = true
+        ).toSet()
+
+        assertTrue(projection.contains(MediaStore.Video.Media.SIZE))
+        assertTrue(projection.contains(MediaStore.Video.Media.DURATION))
+        assertFalse(projection.contains(MediaStore.Video.Media.WIDTH))
+        assertFalse(projection.contains(MediaStore.Video.Media.HEIGHT))
+    }
+
+    @Test
+    fun videoProjection_deferredMetadataOnlyIncludesDimensionsButExcludesDuration() {
+        val projection = MediaScanner.buildVideoFolderProjection(
+            includeDeferredMetadata = true,
+            includeVideoDuration = false
+        ).toSet()
+
+        assertTrue(projection.contains(MediaStore.Video.Media.SIZE))
+        assertFalse(projection.contains(MediaStore.Video.Media.DURATION))
+        assertTrue(projection.contains(MediaStore.Video.Media.WIDTH))
+        assertTrue(projection.contains(MediaStore.Video.Media.HEIGHT))
     }
 
     @Test

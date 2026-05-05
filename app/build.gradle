@@ -1,6 +1,11 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = '0.8.11'
 }
 
 android {
@@ -18,6 +23,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage true
+        }
+
         release {
             minifyEnabled true
             shrinkResources true
@@ -76,4 +85,43 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.12.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+tasks.withType(Test).configureEach {
+    jacoco {
+        includeNoLocationClasses = true
+        excludes = ['jdk.internal.*']
+    }
+}
+
+tasks.register('jacocoTestDebugUnitTestReport', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+
+    def coverageExcludes = [
+            '**/R.class',
+            '**/R$*.class',
+            '**/BuildConfig.*',
+            '**/Manifest*.*',
+            '**/*Test*.*',
+            '**/*Binding.*',
+            '**/*BindingImpl.*',
+            '**/BR.*',
+            'android/**/*.*'
+    ]
+
+    classDirectories.setFrom(files([
+            fileTree(dir: "$buildDir/intermediates/javac/debug/classes", excludes: coverageExcludes),
+            fileTree(dir: "$buildDir/tmp/kotlin-classes/debug", excludes: coverageExcludes)
+    ]))
+    sourceDirectories.setFrom(files("$projectDir/src/main/java"))
+    executionData.setFrom(fileTree(dir: buildDir, includes: [
+            'jacoco/testDebugUnitTest.exec',
+            'outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec'
+    ]))
 }
