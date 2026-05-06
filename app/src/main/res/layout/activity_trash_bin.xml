@@ -19,45 +19,62 @@
         app:navigationIconTint="?attr/colorOnSurface" />
 
     <!-- Hero block: serif "Trash" title + subtitle -->
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/heroContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="8dp"
+        android:layout_marginHorizontal="6dp"
+        android:layout_marginTop="6dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardElevation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar">
+        app:layout_constraintTop_toBottomOf="@+id/toolbar"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp">
 
-        <TextView
-            android:id="@+id/heroTitleTextView"
+        <LinearLayout
+            android:id="@+id/trashHeroInnerLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/trash_bin_title"
-            android:textAppearance="?attr/textAppearanceHeadlineLarge"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="34sp" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
-            android:id="@+id/heroSubtitleTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:fontFeatureSettings="tnum"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp"
-            tools:text="6 items · deleted after 30 days" />
-    </LinearLayout>
+            <TextView
+                android:id="@+id/heroTitleTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/trash_bin_title"
+                android:textAppearance="?attr/textAppearanceHeadlineLarge"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="34sp" />
+
+            <View
+                android:id="@+id/trashHeroDivider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="12dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <TextView
+                android:id="@+id/heroSubtitleTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFeatureSettings="tnum"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="6 items · deleted after 30 days" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/trashScopeNoteTextView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="10dp"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="8dp"
         android:textAppearance="?attr/textAppearanceLabelSmall"
@@ -71,6 +88,7 @@
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginTop="8dp"
         android:clipToPadding="false"
         android:paddingHorizontal="14dp"
         android:paddingBottom="20dp"
