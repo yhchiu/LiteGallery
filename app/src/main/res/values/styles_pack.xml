@@ -99,9 +99,11 @@
     </style>
     <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Body" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Label" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:letterSpacing">0.1</item>
         <item name="android:textAllCaps">true</item>
     </style>
@@ -124,9 +126,11 @@
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Editorial.Body" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Editorial.Label" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:letterSpacing">0.25</item>
         <item name="android:textAllCaps">true</item>
     </style>
@@ -134,16 +138,19 @@
     <!-- ===== Monolith · monospace + tight sans ===== -->
     <style name="TextAppearance.LiteGallery.Pack.Monolith.Display" parent="TextAppearance.Material3.HeadlineLarge">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
         <item name="android:letterSpacing">-0.03</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Monolith.Headline" parent="TextAppearance.Material3.HeadlineMedium">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
         <item name="android:letterSpacing">-0.02</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Monolith.Title" parent="TextAppearance.Material3.TitleMedium">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Monolith.Body" parent="TextAppearance.Material3.BodyMedium">
@@ -160,21 +167,26 @@
     <!-- ===== Prism · sans-serif vivid ===== -->
     <style name="TextAppearance.LiteGallery.Pack.Prism.Display" parent="TextAppearance.Material3.HeadlineLarge">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
         <item name="android:letterSpacing">-0.025</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Prism.Headline" parent="TextAppearance.Material3.HeadlineMedium">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Prism.Title" parent="TextAppearance.Material3.TitleMedium">
         <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">sans-serif-medium</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Prism.Body" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
     </style>
     <style name="TextAppearance.LiteGallery.Pack.Prism.Label" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">sans-serif-medium</item>
         <item name="android:letterSpacing">0.15</item>
         <item name="android:textAllCaps">true</item>
     </style>

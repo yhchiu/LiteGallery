@@ -207,6 +207,7 @@
          ========================================================= -->
     <style name="Theme.LiteGallery.Pack.Prism" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
 
         <item name="colorPrimary">@color/pack_prism_accent</item>
         <item name="colorOnPrimary">@color/pack_prism_on_accent</item>
