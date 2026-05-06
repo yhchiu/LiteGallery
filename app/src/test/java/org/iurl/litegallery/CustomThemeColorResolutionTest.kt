@@ -21,6 +21,8 @@ import org.iurl.litegallery.theme.Mode
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemePack
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -161,6 +163,60 @@ class CustomThemeColorResolutionTest {
     }
 
     @Test
+    fun customGradientStoresOpaqueColorsAndClearsAsAUnit() {
+        CustomThemeStore.setGradient(app, 0x40112233, 0x40445566, 135)
+
+        assertTrue(CustomThemeStore.hasGradient(app))
+        assertEquals(0xff112233.toInt(), CustomThemeStore.getGradientStart(app))
+        assertEquals(0xff445566.toInt(), CustomThemeStore.getGradientEnd(app))
+        assertEquals(135, CustomThemeStore.getGradientAngle(app))
+
+        CustomThemeStore.clearGradient(app)
+
+        assertFalse(CustomThemeStore.hasGradient(app))
+        assertEquals(null, CustomThemeStore.getGradientStart(app))
+        assertEquals(null, CustomThemeStore.getGradientEnd(app))
+        assertEquals(null, CustomThemeStore.getGradientAngle(app))
+    }
+
+    @Test
+    fun hasGradientDoesNotCleanDirtyPartialStateOrBumpGeneration() {
+        val prefs = app.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putInt(CustomThemeStore.KEY_GRADIENT_START, 0xff112233.toInt())
+            .commit()
+        val generationBefore = CustomThemeStore.getGeneration()
+
+        assertFalse(CustomThemeStore.hasGradient(app))
+        assertTrue(prefs.contains(CustomThemeStore.KEY_GRADIENT_START))
+        assertEquals(generationBefore, CustomThemeStore.getGeneration())
+    }
+
+    @Test
+    fun sanitizeGradientCleansDirtyPartialStateAndBumpsGeneration() {
+        val prefs = app.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putInt(CustomThemeStore.KEY_GRADIENT_START, 0xff112233.toInt())
+            .commit()
+        val generationBefore = CustomThemeStore.getGeneration()
+
+        assertTrue(CustomThemeStore.sanitizeGradient(app))
+
+        assertFalse(prefs.contains(CustomThemeStore.KEY_GRADIENT_START))
+        assertTrue(CustomThemeStore.getGeneration() > generationBefore)
+    }
+
+    @Test
+    fun initializeFromPrismCopiesGradientTokens() {
+        CustomThemeStore.initializeFromPack(app, ThemePack.PRISM)
+
+        assertTrue(CustomThemeStore.hasGradient(app))
+        assertEquals(app.getColorCompat(R.color.pack_prism_gradient_start), CustomThemeStore.getGradientStart(app))
+        assertEquals(app.getColorCompat(R.color.pack_prism_gradient_end), CustomThemeStore.getGradientEnd(app))
+        assertEquals(135, CustomThemeStore.getGradientAngle(app))
+    }
+
+    @Test
     fun contrastRatioToleratesTransparentBackgroundInput() {
         val ratio = ContrastUtils.ratio(Color.BLACK, 0x00112233)
 
@@ -232,6 +288,29 @@ class CustomThemeColorResolutionTest {
 
         val actualAccent = (holder.swatchAccent.background as android.graphics.drawable.ColorDrawable).color
         assertEquals(expectedAccent, actualAccent)
+    }
+
+    @Test
+    fun runtimeApplierSkipsTaggedSubtrees() {
+        PreferenceManager.getDefaultSharedPreferences(app).edit()
+            .putString(ThemeHelper.THEME_PACK_PREFERENCE_KEY, ThemePack.CUSTOM.key)
+            .commit()
+        CustomThemeStore.setColor(app, CustomThemeStore.KEY_TEXT, Color.GREEN)
+
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val placeholderText = app.getColorCompat(R.color.custom_text)
+        val textView = TextView(activity).apply {
+            setTextColor(placeholderText)
+        }
+        val skippedContainer = LinearLayout(activity).apply {
+            setTag(R.id.tag_custom_theme_skip_subtree, true)
+            addView(textView)
+        }
+        activity.setContentView(skippedContainer)
+
+        CustomThemeApplier.apply(activity)
+
+        assertEquals(placeholderText, textView.currentTextColor)
     }
 
     @Test

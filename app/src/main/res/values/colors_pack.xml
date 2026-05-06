@@ -44,7 +44,9 @@
     <color name="pack_prism_line">#1af5edff</color>
     <color name="pack_prism_accent">#ff4d9d</color>
     <color name="pack_prism_accent2">#7dffc0</color>
-    <color name="pack_prism_on_accent">#120a1e</color>
+    <color name="pack_prism_on_accent">#ffffff</color>
+    <color name="pack_prism_gradient_start">#ff4d9d</color>
+    <color name="pack_prism_gradient_end">#3d7dff</color>
 
     <!-- ===== Sharp Brutalist · Light (V5) ===== -->
     <color name="pack_brutalist_bg">#e8e6e0</color>

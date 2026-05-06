@@ -18,7 +18,13 @@ data class CustomThemePalette(
     val line: Int,
     val accent: Int,
     val onAccent: Int,
+    val gradientStart: Int?,
+    val gradientEnd: Int?,
+    val gradientAngle: Int?,
 ) {
+    val hasGradient: Boolean
+        get() = gradientStart != null && gradientEnd != null && gradientAngle != null
+
     fun colorForAttr(attr: Int): Int? = when {
         attr.isAnyOf(
             android.R.attr.colorBackground,
@@ -95,6 +101,9 @@ data class CustomThemePalette(
             line = CustomThemeStore.getColor(context, CustomThemeStore.KEY_LINE),
             accent = CustomThemeStore.getColor(context, CustomThemeStore.KEY_ACCENT),
             onAccent = CustomThemeStore.getColor(context, CustomThemeStore.KEY_ON_ACCENT),
+            gradientStart = CustomThemeStore.getGradientStart(context),
+            gradientEnd = CustomThemeStore.getGradientEnd(context),
+            gradientAngle = CustomThemeStore.getGradientAngle(context),
         )
 
         fun resourcePlaceholders(context: Context): CustomThemePalette {
@@ -111,6 +120,9 @@ data class CustomThemePalette(
                 line = base.color(R.color.custom_line),
                 accent = base.color(R.color.custom_accent),
                 onAccent = base.color(R.color.custom_on_accent),
+                gradientStart = null,
+                gradientEnd = null,
+                gradientAngle = null,
             )
         }
 

@@ -433,6 +433,13 @@
     <string name="custom_section_typography">Typography</string>
     <string name="custom_section_shape">Shape</string>
     <string name="custom_section_preview">Preview</string>
+    <string name="custom_section_gradient">Gradient</string>
+    <string name="custom_gradient_start">Start color</string>
+    <string name="custom_gradient_end">End color</string>
+    <string name="custom_gradient_angle">Angle</string>
+    <string name="custom_gradient_clear">Clear gradient</string>
+    <string name="custom_gradient_none">None</string>
+    <string name="custom_gradient_unset">—</string>
     <string name="custom_reset">Reset to defaults</string>
     <string name="custom_reset_confirm">Reset custom theme to defaults?</string>
     <string name="custom_preview_headline">Headline</string>

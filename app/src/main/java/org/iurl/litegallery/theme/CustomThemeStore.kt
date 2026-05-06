@@ -1,6 +1,7 @@
 package org.iurl.litegallery.theme
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Color
 import androidx.core.content.ContextCompat
@@ -34,6 +35,9 @@ object CustomThemeStore {
     const val KEY_CORNER        = "custom_corner"
     const val KEY_MODE          = "custom_mode"
     const val KEY_INITIALIZED   = "custom_initialized"
+    const val KEY_GRADIENT_START = "custom_gradient_start"
+    const val KEY_GRADIENT_END   = "custom_gradient_end"
+    const val KEY_GRADIENT_ANGLE = "custom_gradient_angle"
 
     // ── mode option keys ──────────────────────────────────────────────
     const val MODE_LIGHT = "light"
@@ -103,10 +107,74 @@ object CustomThemeStore {
     }
 
     fun normalizeColorForStorage(key: String, color: Int): Int {
-        return if (COLOR_KEYS.contains(key)) toOpaqueRgb(color) else color
+        return if (COLOR_KEYS.contains(key) || key in GRADIENT_COLOR_KEYS) toOpaqueRgb(color) else color
     }
 
     fun toOpaqueRgb(color: Int): Int = color or 0xFF000000.toInt()
+
+    // ── gradient ───────────────────────────────────────────────────────
+
+    fun getGradientStart(context: Context): Int? =
+        getGradientColor(prefs(context), KEY_GRADIENT_START)
+
+    fun getGradientEnd(context: Context): Int? =
+        getGradientColor(prefs(context), KEY_GRADIENT_END)
+
+    fun getGradientAngle(context: Context): Int? {
+        val angle = readInt(prefs(context).all[KEY_GRADIENT_ANGLE]) ?: return null
+        return angle.takeIf { isValidGradientAngle(it) }
+    }
+
+    fun setGradient(context: Context, start: Int?, end: Int?, angle: Int?) {
+        if (start == null || end == null || angle == null || !isValidGradientAngle(angle)) {
+            clearGradient(context)
+            return
+        }
+        prefs(context).edit()
+            .putInt(KEY_GRADIENT_START, toOpaqueRgb(start))
+            .putInt(KEY_GRADIENT_END, toOpaqueRgb(end))
+            .putInt(KEY_GRADIENT_ANGLE, angle)
+            .apply()
+        bumpGeneration()
+    }
+
+    fun clearGradient(context: Context) {
+        prefs(context).edit()
+            .remove(KEY_GRADIENT_START)
+            .remove(KEY_GRADIENT_END)
+            .remove(KEY_GRADIENT_ANGLE)
+            .apply()
+        bumpGeneration()
+    }
+
+    fun hasGradient(context: Context): Boolean {
+        val preferences = prefs(context)
+        return getGradientColor(preferences, KEY_GRADIENT_START) != null &&
+                getGradientColor(preferences, KEY_GRADIENT_END) != null &&
+                getGradientAngle(context) != null
+    }
+
+    fun sanitizeGradient(context: Context): Boolean {
+        val preferences = prefs(context)
+        val hasAnyGradientKey = GRADIENT_KEYS.any { preferences.contains(it) }
+        if (!hasAnyGradientKey) return false
+
+        val valid = getGradientColor(preferences, KEY_GRADIENT_START) != null &&
+                getGradientColor(preferences, KEY_GRADIENT_END) != null &&
+                (readInt(preferences.all[KEY_GRADIENT_ANGLE])?.let(::isValidGradientAngle) == true)
+        if (valid) return false
+
+        preferences.edit()
+            .remove(KEY_GRADIENT_START)
+            .remove(KEY_GRADIENT_END)
+            .remove(KEY_GRADIENT_ANGLE)
+            .apply()
+        bumpGeneration()
+        return true
+    }
+
+    fun isValidGradientAngle(angle: Int): Boolean =
+        angle in ThemePack.SUPPORTED_GRADIENT_ANGLES
 
     // ── font / corner / mode ───────────────────────────────────────────
 
@@ -170,6 +238,7 @@ object CustomThemeStore {
         editor.putString(KEY_CORNER, packToCornerKey(sourcePack))
         editor.putString(KEY_MODE, packToModeKey(sourcePack, context))
         editor.putBoolean(KEY_INITIALIZED, true)
+        writePackGradient(editor, context, sourcePack)
         editor.apply()
         bumpGeneration()
     }
@@ -179,7 +248,8 @@ object CustomThemeStore {
      * called from the editor's "Reset from built-in" feature.
      */
     fun resetFromPack(context: Context, sourcePack: ThemePack, mode: String) {
-        val colors = resolvePackColors(context.forCustomThemeMode(mode), sourcePack)
+        val modeContext = context.forCustomThemeMode(mode)
+        val colors = resolvePackColors(modeContext, sourcePack)
         val editor = prefs(context).edit()
         editor.clear()
         for ((key, value) in colors) {
@@ -189,6 +259,7 @@ object CustomThemeStore {
         editor.putString(KEY_CORNER, packToCornerKey(sourcePack))
         editor.putString(KEY_MODE, mode)
         editor.putBoolean(KEY_INITIALIZED, true)
+        writePackGradient(editor, modeContext, sourcePack)
         editor.apply()
         bumpGeneration()
     }
@@ -211,6 +282,37 @@ object CustomThemeStore {
         KEY_ACCENT     -> ContextCompat.getColor(context, R.color.pack_warm_paper_accent)
         KEY_ON_ACCENT  -> ContextCompat.getColor(context, R.color.pack_warm_paper_on_accent)
         else           -> Color.MAGENTA
+    }
+
+    private val GRADIENT_COLOR_KEYS = setOf(KEY_GRADIENT_START, KEY_GRADIENT_END)
+    private val GRADIENT_KEYS = listOf(KEY_GRADIENT_START, KEY_GRADIENT_END, KEY_GRADIENT_ANGLE)
+
+    private fun getGradientColor(preferences: SharedPreferences, key: String): Int? {
+        val color = readInt(preferences.all[key]) ?: return null
+        return if (color == 0) null else toOpaqueRgb(color)
+    }
+
+    private fun readInt(value: Any?): Int? = when (value) {
+        is Int -> value
+        is Number -> value.toInt()
+        else -> null
+    }
+
+    private fun writePackGradient(
+        editor: SharedPreferences.Editor,
+        context: Context,
+        sourcePack: ThemePack,
+    ) {
+        if (!sourcePack.hasGradient) {
+            editor.remove(KEY_GRADIENT_START)
+                .remove(KEY_GRADIENT_END)
+                .remove(KEY_GRADIENT_ANGLE)
+            return
+        }
+
+        editor.putInt(KEY_GRADIENT_START, toOpaqueRgb(ContextCompat.getColor(context, sourcePack.gradientStartRes!!)))
+            .putInt(KEY_GRADIENT_END, toOpaqueRgb(ContextCompat.getColor(context, sourcePack.gradientEndRes!!)))
+            .putInt(KEY_GRADIENT_ANGLE, sourcePack.gradientAngle!!)
     }
 
     @Suppress("CyclomaticComplexMethod")

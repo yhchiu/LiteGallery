@@ -8,6 +8,7 @@
 
     <!-- Hero overview card -->
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/heroOverviewCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="6dp"
@@ -19,6 +20,7 @@
         app:strokeWidth="1dp">
 
         <LinearLayout
+            android:id="@+id/heroInnerLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -63,6 +65,7 @@
         </LinearLayout>
 
         <View
+            android:id="@+id/overviewDivider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="12dp"

@@ -80,6 +80,9 @@ class SettingsExportImportHelper(private val context: Context) {
             CustomThemeStore.KEY_LINE to PreferenceType.INT,
             CustomThemeStore.KEY_ACCENT to PreferenceType.INT,
             CustomThemeStore.KEY_ON_ACCENT to PreferenceType.INT,
+            CustomThemeStore.KEY_GRADIENT_START to PreferenceType.INT,
+            CustomThemeStore.KEY_GRADIENT_END to PreferenceType.INT,
+            CustomThemeStore.KEY_GRADIENT_ANGLE to PreferenceType.INT,
             CustomThemeStore.KEY_FONT to PreferenceType.STRING,
             CustomThemeStore.KEY_CORNER to PreferenceType.STRING,
             CustomThemeStore.KEY_MODE to PreferenceType.STRING,
@@ -172,6 +175,7 @@ class SettingsExportImportHelper(private val context: Context) {
                 clearBeforeImport = customThemeJson != null
             )
             if (customThemeJson != null) {
+                CustomThemeStore.sanitizeGradient(context)
                 CustomThemeStore.notifyExternalChange()
             }
 

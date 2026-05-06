@@ -86,6 +86,8 @@ object CustomThemeApplier {
         defaults: CustomThemePalette,
         generation: Int,
     ) {
+        if (view.getTag(R.id.tag_custom_theme_skip_subtree) == true) return
+
         val skipSelf = view.getTag(R.id.tag_custom_theme_skip_self) == true
         val alreadyApplied = view.getTag(R.id.tag_custom_theme_applied_generation) == generation
         if (!skipSelf && !alreadyApplied) {
@@ -127,6 +129,8 @@ object CustomThemeApplier {
         defaults: CustomThemePalette,
         generation: Int,
     ) {
+        if (view.getTag(R.id.tag_custom_theme_skip_subtree) == true) return
+
         val skipSelf = view.getTag(R.id.tag_custom_theme_skip_self) == true
         val alreadyApplied = view.getTag(R.id.tag_custom_theme_applied_generation) == generation
         if (!skipSelf && !alreadyApplied) {

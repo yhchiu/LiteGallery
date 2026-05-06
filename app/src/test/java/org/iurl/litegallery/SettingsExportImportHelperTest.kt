@@ -116,6 +116,7 @@ class SettingsExportImportHelperTest {
         CustomThemeStore.setFont(context, CustomThemeStore.FONT_CORMORANT)
         CustomThemeStore.setCorner(context, CustomThemeStore.CORNER_LARGE)
         CustomThemeStore.setMode(context, CustomThemeStore.MODE_DARK)
+        CustomThemeStore.setGradient(context, 0x40112233, 0x40445566, 135)
         context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(CustomThemeStore.KEY_INITIALIZED, true)
@@ -133,6 +134,9 @@ class SettingsExportImportHelperTest {
         assertEquals(CustomThemeStore.FONT_CORMORANT, preferences.getString(CustomThemeStore.KEY_FONT))
         assertEquals(CustomThemeStore.CORNER_LARGE, preferences.getString(CustomThemeStore.KEY_CORNER))
         assertEquals(CustomThemeStore.MODE_DARK, preferences.getString(CustomThemeStore.KEY_MODE))
+        assertEquals(0xff112233.toInt(), preferences.getInt(CustomThemeStore.KEY_GRADIENT_START))
+        assertEquals(0xff445566.toInt(), preferences.getInt(CustomThemeStore.KEY_GRADIENT_END))
+        assertEquals(135, preferences.getInt(CustomThemeStore.KEY_GRADIENT_ANGLE))
         assertTrue(preferences.getBoolean(CustomThemeStore.KEY_INITIALIZED))
         assertFalse(preferences.has("custom_unknown"))
     }
@@ -245,6 +249,9 @@ class SettingsExportImportHelperTest {
                 put(CustomThemeStore.KEY_BG, customBg)
                 put(CustomThemeStore.KEY_ACCENT, customAccent)
                 put(CustomThemeStore.KEY_ON_ACCENT, customOnAccent)
+                put(CustomThemeStore.KEY_GRADIENT_START, 0x40112233)
+                put(CustomThemeStore.KEY_GRADIENT_END, 0x40445566)
+                put(CustomThemeStore.KEY_GRADIENT_ANGLE, 135)
                 put(CustomThemeStore.KEY_FONT, CustomThemeStore.FONT_ARCHIVO_BLACK)
                 put(CustomThemeStore.KEY_CORNER, CustomThemeStore.CORNER_NONE)
                 put(CustomThemeStore.KEY_MODE, CustomThemeStore.MODE_DARK)
@@ -256,7 +263,7 @@ class SettingsExportImportHelperTest {
         val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
         val (importedCount, skippedCount) = helper.importSettings(inputStream)
 
-        assertEquals(8, importedCount)
+        assertEquals(11, importedCount)
         assertEquals(1, skippedCount)
 
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -267,6 +274,9 @@ class SettingsExportImportHelperTest {
         assertEquals(CustomThemeStore.FONT_ARCHIVO_BLACK, CustomThemeStore.getFont(context))
         assertEquals(CustomThemeStore.CORNER_NONE, CustomThemeStore.getCorner(context))
         assertEquals(CustomThemeStore.MODE_DARK, CustomThemeStore.getMode(context))
+        assertEquals(0xff112233.toInt(), CustomThemeStore.getGradientStart(context))
+        assertEquals(0xff445566.toInt(), CustomThemeStore.getGradientEnd(context))
+        assertEquals(135, CustomThemeStore.getGradientAngle(context))
         assertTrue(CustomThemeStore.isInitialized(context))
         assertTrue(CustomThemeStore.getGeneration() > generationBefore)
         assertTrue(
@@ -295,6 +305,31 @@ class SettingsExportImportHelperTest {
         assertEquals(0, skippedCount)
         assertEquals(0xff112233.toInt(), CustomThemeStore.getColor(context, CustomThemeStore.KEY_BG))
         assertEquals(0x40112233, CustomThemeStore.getColor(context, CustomThemeStore.KEY_LINE))
+    }
+
+    @Test
+    fun importSettingsSanitizesIncompleteCustomGradientPreferences() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject())
+            put("custom_theme_preferences", JSONObject().apply {
+                put(CustomThemeStore.KEY_GRADIENT_START, 0x40112233)
+                put(CustomThemeStore.KEY_GRADIENT_ANGLE, 13)
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+        assertFalse(CustomThemeStore.hasGradient(context))
+
+        val prefs = context.getSharedPreferences(CustomThemeStore.PREFS_NAME, Context.MODE_PRIVATE)
+        assertFalse(prefs.contains(CustomThemeStore.KEY_GRADIENT_START))
+        assertFalse(prefs.contains(CustomThemeStore.KEY_GRADIENT_ANGLE))
     }
 
     @Test

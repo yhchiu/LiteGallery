@@ -41,6 +41,9 @@ enum class ThemePack(
     val swatchBg: Int,
     val swatchText: Int,
     val swatchAccent: Int,
+    val gradientStartRes: Int? = null,
+    val gradientEndRes: Int? = null,
+    val gradientAngle: Int? = null,
 ) {
     WARM_PAPER(
         key = "warm_paper",
@@ -77,6 +80,9 @@ enum class ThemePack(
         swatchBg = R.color.pack_prism_bg,
         swatchText = R.color.pack_prism_text,
         swatchAccent = R.color.pack_prism_accent,
+        gradientStartRes = R.color.pack_prism_gradient_start,
+        gradientEndRes = R.color.pack_prism_gradient_end,
+        gradientAngle = 135,
     ),
     BRUTALIST(
         key = "brutalist",
@@ -115,6 +121,12 @@ enum class ThemePack(
     val isCustom: Boolean
         get() = this == CUSTOM
 
+    val hasGradient: Boolean
+        get() = gradientStartRes != null &&
+                gradientEndRes != null &&
+                gradientAngle != null &&
+                gradientAngle in SUPPORTED_GRADIENT_ANGLES
+
     /**
      * For the Custom pack, the user picks a single mode (light or dark)
      * stored in [CustomThemeStore]. This returns a single-element list.
@@ -130,6 +142,7 @@ enum class ThemePack(
 
     companion object {
         const val DEFAULT_KEY = "warm_paper"
+        val SUPPORTED_GRADIENT_ANGLES = setOf(0, 45, 90, 135, 180, 225, 270, 315)
 
         fun fromKey(key: String?): ThemePack =
             values().firstOrNull { it.key == key } ?: WARM_PAPER

@@ -24,6 +24,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import org.iurl.litegallery.theme.ContrastUtils
 import org.iurl.litegallery.theme.CustomThemeStore
+import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemePack
 import org.iurl.litegallery.theme.ThemeVariant
@@ -81,7 +82,18 @@ class CustomThemeEditorActivity : AppCompatActivity() {
     private lateinit var previewButton: TextView
     private lateinit var previewButtonWarning: TextView
 
+    // ── Preview: Gradient section ─────────────────────────────────────
+    private val previewGradientDrawable = GradientDrawable()
+    private lateinit var previewGradientStrip: View
+    private lateinit var previewGradientAngle: TextView
+    private lateinit var previewGradientWarning: TextView
+
     private val colorSwatches = mutableMapOf<String, View>()
+    private lateinit var gradientStartValueText: TextView
+    private lateinit var gradientEndValueText: TextView
+    private lateinit var gradientAngleValueText: TextView
+    private lateinit var gradientStartSwatch: View
+    private lateinit var gradientEndSwatch: View
     private lateinit var fontValueText: TextView
     private lateinit var cornerValueText: TextView
 
@@ -132,6 +144,19 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         for (key in CustomThemeStore.COLOR_KEYS) {
             addColorRow(content, key)
         }
+
+        // ── Gradient ──────────────────────────────────────────────────
+        addSectionHeader(content, R.string.custom_section_gradient)
+        addGradientColorRow(content, isStart = true)
+        addGradientColorRow(content, isStart = false)
+        gradientAngleValueText = addPickerRow(
+            content,
+            R.string.custom_gradient_angle,
+            formatGradientAngle(CustomThemeStore.getGradientAngle(this)),
+        ) {
+            showGradientAnglePicker()
+        }
+        addGradientClearButton(content)
 
         // ── Font ────────────────────────────────────────────────────
         addSectionHeader(content, R.string.custom_section_typography)
@@ -395,6 +420,72 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         )
         container.addView(btnFrame)
 
+        // ── Gradient section ─────────────────────────────────────────
+        val gradientFrame = FrameLayout(this).apply {
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            lp.topMargin = (10 * dp).toInt()
+            layoutParams = lp
+        }
+        val gradientSection = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((16 * dp).toInt(), (14 * dp).toInt(), (16 * dp).toInt(), (14 * dp).toInt())
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = customCornerMediumRadius()
+            }
+        }
+        val gradientHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val gradientLabel = TextView(this).apply {
+            text = getString(R.string.custom_section_gradient)
+            textSize = 11f
+            isAllCaps = true
+            letterSpacing = 0.08f
+            alpha = 0.6f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        gradientHeader.addView(gradientLabel)
+        previewGradientAngle = TextView(this).apply {
+            textSize = 13f
+        }
+        gradientHeader.addView(previewGradientAngle)
+        gradientSection.addView(gradientHeader)
+        previewGradientStrip = View(this).apply {
+            background = previewGradientDrawable
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (28 * dp).toInt(),
+            )
+            lp.topMargin = (10 * dp).toInt()
+            layoutParams = lp
+        }
+        gradientSection.addView(previewGradientStrip)
+        gradientFrame.addView(
+            gradientSection,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        previewGradientWarning = makeWarningBadge()
+        gradientFrame.addView(
+            previewGradientWarning,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.END
+                marginEnd = (12 * dp).toInt()
+                topMargin = (12 * dp).toInt()
+            },
+        )
+        container.addView(gradientFrame)
+
         parent.addView(container)
     }
 
@@ -420,6 +511,7 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         val dim = CustomThemeStore.getColor(this, CustomThemeStore.KEY_DIM)
         val accent = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ACCENT)
         val onAccent = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ON_ACCENT)
+        val faint = CustomThemeStore.getColor(this, CustomThemeStore.KEY_FAINT)
         val line = CustomThemeStore.getColor(this, CustomThemeStore.KEY_LINE)
         val mediumRadius = customCornerMediumRadius()
         val smallRadius = customCornerSmallRadius()
@@ -451,6 +543,38 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         previewButton.setTextColor(onAccent)
         previewButtonWarning.visibility = warnVisibility(onAccent, accent)
 
+        // Gradient section
+        val gradientStart = CustomThemeStore.getGradientStart(this)
+        val gradientEnd = CustomThemeStore.getGradientEnd(this)
+        val gradientAngle = CustomThemeStore.getGradientAngle(this)
+        val hasGradient = gradientStart != null && gradientEnd != null && gradientAngle != null
+        previewGradientDrawable.apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = smallRadius
+            if (hasGradient) {
+                setOrientation(GradientHelper.angleToOrientation(gradientAngle!!))
+                setColors(intArrayOf(gradientStart!!, gradientEnd!!))
+            } else {
+                setColor(faint)
+            }
+        }
+        previewGradientAngle.text = if (hasGradient) {
+            formatGradientAngle(gradientAngle)
+        } else {
+            getString(R.string.custom_gradient_none)
+        }
+        previewGradientAngle.setTextColor(if (hasGradient) text else dim)
+        previewGradientWarning.visibility = if (hasGradient) {
+            warnVisibility(onAccent, gradientStart!!, gradientEnd!!)
+        } else {
+            View.GONE
+        }
+        gradientStartValueText.text = formatGradientColor(gradientStart)
+        gradientEndValueText.text = formatGradientColor(gradientEnd)
+        gradientAngleValueText.text = formatGradientAngle(gradientAngle)
+        updateGradientSwatch(gradientStartSwatch, gradientStart, line)
+        updateGradientSwatch(gradientEndSwatch, gradientEnd, line)
+
         // update swatch colors
         for ((key, swatch) in colorSwatches) {
             val c = CustomThemeStore.getColor(this, key)
@@ -460,6 +584,13 @@ class CustomThemeEditorActivity : AppCompatActivity() {
 
     private fun warnVisibility(fg: Int, bg: Int): Int =
         if (ContrastUtils.grade(ContrastUtils.ratio(fg, bg)) == ContrastUtils.Grade.FAIL) View.VISIBLE else View.GONE
+
+    private fun warnVisibility(fg: Int, vararg backgrounds: Int): Int =
+        if (backgrounds.any { ContrastUtils.grade(ContrastUtils.ratio(fg, it)) == ContrastUtils.Grade.FAIL }) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
 
     private fun customCornerSmallRadius(): Float = when (CustomThemeStore.getCorner(this)) {
         CustomThemeStore.CORNER_NONE -> 0f
@@ -511,6 +642,77 @@ class CustomThemeEditorActivity : AppCompatActivity() {
         row.addView(swatch)
 
         parent.addView(row)
+    }
+
+    private fun addGradientColorRow(parent: LinearLayout, isStart: Boolean) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((20 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (10 * dp).toInt())
+            isClickable = true
+            isFocusable = true
+            setBackgroundResource(android.R.drawable.list_selector_background)
+            setOnClickListener { showGradientColorDialog(isStart) }
+        }
+
+        val label = TextView(this).apply {
+            text = getString(if (isStart) R.string.custom_gradient_start else R.string.custom_gradient_end)
+            textSize = 15f
+            setTextColor(getThemeAttrColor(android.R.attr.textColorPrimary))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        row.addView(label)
+
+        val value = TextView(this).apply {
+            textSize = 14f
+            setTextColor(getThemeAttrColor(android.R.attr.textColorSecondary))
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            lp.marginEnd = (12 * dp).toInt()
+            layoutParams = lp
+        }
+        row.addView(value)
+
+        val swatchSize = (32 * dp).toInt()
+        val swatch = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 6 * dp
+                setStroke((1 * dp).toInt(), getThemeAttrColor(com.google.android.material.R.attr.colorOutline))
+            }
+            layoutParams = LinearLayout.LayoutParams(swatchSize, swatchSize)
+        }
+        row.addView(swatch)
+
+        if (isStart) {
+            gradientStartValueText = value
+            gradientStartSwatch = swatch
+        } else {
+            gradientEndValueText = value
+            gradientEndSwatch = swatch
+        }
+        parent.addView(row)
+    }
+
+    private fun addGradientClearButton(parent: LinearLayout) {
+        val clearBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = getString(R.string.custom_gradient_clear)
+            setOnClickListener {
+                CustomThemeStore.clearGradient(this@CustomThemeEditorActivity)
+                recreate()
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            lp.topMargin = (4 * dp).toInt()
+            lp.marginStart = (20 * dp).toInt()
+            lp.marginEnd = (20 * dp).toInt()
+            layoutParams = lp
+        }
+        parent.addView(clearBtn)
     }
 
     private fun showColorDialog(key: String) {
@@ -705,6 +907,160 @@ class CustomThemeEditorActivity : AppCompatActivity() {
                 } ?: run {
                     Toast.makeText(this, R.string.custom_color_invalid, Toast.LENGTH_SHORT).show()
                 }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .showThemed()
+    }
+
+    private fun showGradientColorDialog(isStart: Boolean) {
+        val accent = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ACCENT)
+        val currentColor = if (isStart) {
+            CustomThemeStore.getGradientStart(this)
+        } else {
+            CustomThemeStore.getGradientEnd(this)
+        } ?: accent
+        val title = getString(if (isStart) R.string.custom_gradient_start else R.string.custom_gradient_end)
+        var syncingInput = false
+        var syncingSliders = false
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((24 * dp).toInt(), (16 * dp).toInt(), (24 * dp).toInt(), 0)
+        }
+
+        val previewSize = (48 * dp).toInt()
+        val preview = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 8 * dp
+                setColor(currentColor)
+                setStroke((1 * dp).toInt(), Color.GRAY)
+            }
+            layoutParams = LinearLayout.LayoutParams(previewSize, previewSize).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+            }
+        }
+        container.addView(preview)
+
+        val input = EditText(this).apply {
+            setText(formatHexRgb(currentColor))
+            hint = getString(R.string.custom_color_dialog_hint)
+            filters = arrayOf(InputFilter.LengthFilter(7))
+            setSelection(text.length)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            lp.topMargin = (12 * dp).toInt()
+            layoutParams = lp
+        }
+        container.addView(input)
+
+        val redSlider = addRgbSlider(container, "R", Color.red(currentColor))
+        val greenSlider = addRgbSlider(container, "G", Color.green(currentColor))
+        val blueSlider = addRgbSlider(container, "B", Color.blue(currentColor))
+
+        fun updateSliders(color: Int) {
+            syncingSliders = true
+            redSlider.seekBar.progress = Color.red(color)
+            redSlider.value.text = Color.red(color).toString()
+            greenSlider.seekBar.progress = Color.green(color)
+            greenSlider.value.text = Color.green(color).toString()
+            blueSlider.seekBar.progress = Color.blue(color)
+            blueSlider.value.text = Color.blue(color).toString()
+            syncingSliders = false
+        }
+
+        fun updateColor(color: Int, updateInput: Boolean) {
+            val selectedColor = CustomThemeStore.toOpaqueRgb(color)
+            (preview.background as? GradientDrawable)?.setColor(selectedColor)
+            updateSliders(selectedColor)
+            if (updateInput) {
+                syncingInput = true
+                input.setText(formatHexRgb(selectedColor))
+                input.setSelection(input.text.length)
+                syncingInput = false
+            }
+        }
+
+        val sliderListener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                when (seekBar) {
+                    redSlider.seekBar -> redSlider.value.text = progress.toString()
+                    greenSlider.seekBar -> greenSlider.value.text = progress.toString()
+                    blueSlider.seekBar -> blueSlider.value.text = progress.toString()
+                }
+                if (!fromUser || syncingSliders) return
+                updateColor(
+                    Color.rgb(
+                        redSlider.seekBar.progress,
+                        greenSlider.seekBar.progress,
+                        blueSlider.seekBar.progress,
+                    ),
+                    updateInput = true,
+                )
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        }
+        redSlider.seekBar.setOnSeekBarChangeListener(sliderListener)
+        greenSlider.seekBar.setOnSeekBarChangeListener(sliderListener)
+        blueSlider.seekBar.setOnSeekBarChangeListener(sliderListener)
+
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (syncingInput) return
+                val hex = s?.toString()?.trim() ?: return
+                parseHexRgb(hex)?.let { updateColor(it, updateInput = false) }
+            }
+        })
+        updateColor(currentColor, updateInput = false)
+
+        AlertDialog.Builder(this)
+            .setTitle("$title — ${getString(R.string.custom_color_dialog_title)}")
+            .setView(container)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                parseHexRgb(input.text.toString().trim())?.let { color ->
+                    val fallback = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ACCENT)
+                    val start = if (isStart) {
+                        color
+                    } else {
+                        CustomThemeStore.getGradientStart(this) ?: fallback
+                    }
+                    val end = if (isStart) {
+                        CustomThemeStore.getGradientEnd(this) ?: fallback
+                    } else {
+                        color
+                    }
+                    val angle = CustomThemeStore.getGradientAngle(this) ?: DEFAULT_GRADIENT_ANGLE
+                    CustomThemeStore.setGradient(this, start, end, angle)
+                    recreate()
+                } ?: run {
+                    Toast.makeText(this, R.string.custom_color_invalid, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .showThemed()
+    }
+
+    private fun showGradientAnglePicker() {
+        val angles = ThemePack.SUPPORTED_GRADIENT_ANGLES.sorted()
+        val labels = angles.map { formatGradientAngle(it) }.toTypedArray()
+        val currentAngle = CustomThemeStore.getGradientAngle(this) ?: DEFAULT_GRADIENT_ANGLE
+        val current = angles.indexOf(currentAngle).coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.custom_gradient_angle)
+            .setSingleChoiceItems(labels, current) { dialog, which ->
+                val fallback = CustomThemeStore.getColor(this, CustomThemeStore.KEY_ACCENT)
+                val start = CustomThemeStore.getGradientStart(this) ?: fallback
+                val end = CustomThemeStore.getGradientEnd(this) ?: fallback
+                CustomThemeStore.setGradient(this, start, end, angles[which])
+                dialog.dismiss()
+                recreate()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .showThemed()
@@ -913,6 +1269,19 @@ class CustomThemeEditorActivity : AppCompatActivity() {
     private fun formatHexRgb(color: Int): String =
         String.format("#%06X", color and 0xFFFFFF)
 
+    private fun formatGradientColor(color: Int?): String =
+        color?.let(::formatHexRgb) ?: getString(R.string.custom_gradient_unset)
+
+    private fun formatGradientAngle(angle: Int?): String =
+        angle?.let { "$it°" } ?: getString(R.string.custom_gradient_unset)
+
+    private fun updateGradientSwatch(swatch: View, color: Int?, strokeColor: Int) {
+        (swatch.background as? GradientDrawable)?.apply {
+            setColor(color ?: Color.TRANSPARENT)
+            setStroke((1 * dp).toInt(), strokeColor)
+        }
+    }
+
     private fun parseHexRgb(value: String): Int? {
         val raw = value.trim()
         val hex = if (raw.startsWith("#")) raw.drop(1) else raw
@@ -966,5 +1335,9 @@ class CustomThemeEditorActivity : AppCompatActivity() {
 
     private fun getThemeAttrColor(attr: Int): Int {
         return ThemeColorResolver.resolveColor(this, attr)
+    }
+
+    private companion object {
+        const val DEFAULT_GRADIENT_ANGLE = 135
     }
 }

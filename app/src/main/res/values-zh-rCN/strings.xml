@@ -432,6 +432,13 @@
     <string name="custom_section_typography">字体</string>
     <string name="custom_section_shape">形状</string>
     <string name="custom_section_preview">预览</string>
+    <string name="custom_section_gradient">渐层</string>
+    <string name="custom_gradient_start">起始色</string>
+    <string name="custom_gradient_end">结束色</string>
+    <string name="custom_gradient_angle">角度</string>
+    <string name="custom_gradient_clear">清除渐层</string>
+    <string name="custom_gradient_none">无</string>
+    <string name="custom_gradient_unset">—</string>
     <string name="custom_reset">重置为默认值</string>
     <string name="custom_reset_confirm">要将自定义主题重置为默认值吗？</string>
     <string name="custom_preview_headline">标题</string>

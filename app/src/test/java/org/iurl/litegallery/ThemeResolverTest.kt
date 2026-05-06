@@ -68,6 +68,15 @@ class ThemeResolverTest {
     }
 
     @Test
+    fun onlyPrismDeclaresGradientTokens() {
+        assertTrue(ThemePack.PRISM.hasGradient)
+        assertEquals(135, ThemePack.PRISM.gradientAngle)
+
+        val nonPrismPacks = ThemePack.all().filter { it != ThemePack.PRISM }
+        assertTrue(nonPrismPacks.all { !it.hasGradient })
+    }
+
+    @Test
     fun customPackEffectiveModesFollowCustomThemeStoreMode() {
         assertEquals(listOf(Mode.LIGHT), ThemePack.CUSTOM.getEffectiveSupportedModes(context))
 

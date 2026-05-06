@@ -1,12 +1,16 @@
 package org.iurl.litegallery
 
+import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceFragmentCompat
-import android.content.Intent
 import org.iurl.litegallery.databinding.ActivitySettingsBinding
+import org.iurl.litegallery.theme.GradientHelper
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 
 class SettingsActivity : AppCompatActivity() {
@@ -40,6 +44,8 @@ class SettingsActivity : AppCompatActivity() {
 
         setupToolbar()
         ThemeHelper.applyRuntimeCustomColors(this)
+        applySettingsGradientAccent()
+        binding.root.post { applySettingsGradientAccent() }
         
         if (savedInstanceState == null) {
             supportFragmentManager
@@ -63,6 +69,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+        applySettingsGradientAccent()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -84,6 +91,34 @@ class SettingsActivity : AppCompatActivity() {
             title = ""
         }
     }
+
+    private fun applySettingsGradientAccent() {
+        val gradient = GradientHelper.createForCurrentPack(this, binding.offlineFooterCard.radius) ?: return
+        val primary = ThemeColorResolver.resolveColor(
+            this,
+            com.google.android.material.R.attr.colorPrimary,
+            Color.TRANSPARENT,
+        )
+        val onPrimary = ThemeColorResolver.resolveColor(
+            this,
+            com.google.android.material.R.attr.colorOnPrimary,
+            Color.WHITE,
+        )
+
+        binding.offlineFooterCard.setCardBackgroundColor(Color.TRANSPARENT)
+        binding.offlineFooterCard.strokeWidth = 0
+        binding.offlineFooterContent.background = gradient
+        binding.offlineFooterContent.setTag(R.id.tag_custom_theme_skip_subtree, true)
+        binding.settingsOfflineTitle.setTextColor(onPrimary)
+        binding.settingsOfflineBody.setTextColor(onPrimary.withAlpha(0xCC))
+
+        binding.shieldIconCard.setCardBackgroundColor(primary)
+        binding.shieldIconBg.background = null
+        binding.shieldIconImage.imageTintList = ColorStateList.valueOf(onPrimary)
+    }
+
+    private fun Int.withAlpha(alpha: Int): Int =
+        (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
     
     class SettingsFragment : PreferenceFragmentCompat() {
 

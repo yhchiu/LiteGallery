@@ -1,12 +1,16 @@
 package org.iurl.litegallery
 
+import android.graphics.Color
 import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.card.MaterialCardView
 import java.text.NumberFormat
+import org.iurl.litegallery.theme.GradientHelper
+import org.iurl.litegallery.theme.ThemeColorResolver
 
 /**
  * Single-item adapter for the Home screen hero overview (Phase 1).
@@ -40,20 +44,58 @@ class HomeOverviewAdapter : RecyclerView.Adapter<HomeOverviewAdapter.HeaderViewH
     override fun getItemViewType(position: Int): Int = HEADER_VIEW_TYPE
 
     class HeaderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val heroCard: MaterialCardView = itemView.findViewById(R.id.heroOverviewCard)
+        private val heroInnerLayout: ViewGroup = itemView.findViewById(R.id.heroInnerLayout)
+        private val divider: View = itemView.findViewById(R.id.overviewDivider)
         private val totalView: TextView = itemView.findViewById(R.id.overviewTotal)
         private val photosView: TextView = itemView.findViewById(R.id.statPhotos)
         private val videosView: TextView = itemView.findViewById(R.id.statVideos)
         private val foldersView: TextView = itemView.findViewById(R.id.statFolders)
         private val sizeView: TextView = itemView.findViewById(R.id.statSize)
+        private val numberFormat: NumberFormat = NumberFormat.getNumberInstance()
+
+        init {
+            applyGradientIfAvailable()
+        }
 
         fun bind(stats: OverviewStats) {
-            val nf = NumberFormat.getNumberInstance()
-            totalView.text = nf.format(stats.totalItems)
-            photosView.text = nf.format(stats.totalPhotos)
-            videosView.text = nf.format(stats.totalVideos)
-            foldersView.text = nf.format(stats.totalFolders)
+            totalView.text = numberFormat.format(stats.totalItems)
+            photosView.text = numberFormat.format(stats.totalPhotos)
+            videosView.text = numberFormat.format(stats.totalVideos)
+            foldersView.text = numberFormat.format(stats.totalFolders)
             sizeView.text = Formatter.formatShortFileSize(itemView.context, stats.totalSizeBytes)
         }
+
+        private fun applyGradientIfAvailable() {
+            val context = itemView.context
+            val gradient = GradientHelper.createForCurrentPack(context, heroCard.radius) ?: return
+            val onGradient = ThemeColorResolver.resolveColor(
+                context,
+                com.google.android.material.R.attr.colorOnPrimary,
+                Color.WHITE,
+            )
+
+            heroInnerLayout.background = gradient
+            heroInnerLayout.setTag(R.id.tag_custom_theme_skip_subtree, true)
+            heroCard.strokeWidth = 0
+            heroCard.setCardBackgroundColor(Color.TRANSPARENT)
+            divider.setBackgroundColor(onGradient.withAlpha(0x33))
+            applyTextColor(heroInnerLayout, onGradient)
+        }
+
+        private fun applyTextColor(view: View, color: Int) {
+            if (view is TextView) {
+                view.setTextColor(color)
+            }
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    applyTextColor(view.getChildAt(i), color)
+                }
+            }
+        }
+
+        private fun Int.withAlpha(alpha: Int): Int =
+            (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
     }
 
     companion object {
