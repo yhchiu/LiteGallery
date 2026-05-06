@@ -291,6 +291,26 @@ class CustomThemeColorResolutionTest {
     }
 
     @Test
+    fun themePackAdapterShowsPrismGradientInAccentSwatch() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        activity.setTheme(R.style.Theme_LiteGallery_Pack_Prism_NoActionBar)
+        val parent = RecyclerView(activity).apply {
+            layoutManager = LinearLayoutManager(activity)
+        }
+        val adapter = ThemePackAdapter(
+            packs = listOf(ThemePack.PRISM),
+            activeKey = ThemePack.PRISM.key,
+            onPickPack = {},
+        )
+        val holder = adapter.onCreateViewHolder(parent, adapter.getItemViewType(0))
+            as ThemePackAdapter.PackVH
+
+        adapter.onBindViewHolder(holder, 0)
+
+        assertTrue(holder.swatchAccent.background is GradientDrawable)
+    }
+
+    @Test
     fun runtimeApplierSkipsTaggedSubtrees() {
         PreferenceManager.getDefaultSharedPreferences(app).edit()
             .putString(ThemeHelper.THEME_PACK_PREFERENCE_KEY, ThemePack.CUSTOM.key)

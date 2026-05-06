@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
 import android.text.format.Formatter
@@ -14,6 +15,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityFolderViewBinding
+import org.iurl.litegallery.theme.GradientHelper
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.launch
 
@@ -99,6 +102,8 @@ class FolderViewActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSwipeRefresh()
         ThemeHelper.applyRuntimeCustomColors(this)
+        applyFolderHeroGradientAccent()
+        binding.root.post { applyFolderHeroGradientAccent() }
 
         mediaScanner = MediaScanner(this)
         loadMediaItems()
@@ -117,6 +122,7 @@ class FolderViewActivity : AppCompatActivity() {
         }
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+        applyFolderHeroGradientAccent()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -151,11 +157,34 @@ class FolderViewActivity : AppCompatActivity() {
             title = ""
         }
         binding.folderTitleTextView.text = folderName
+        binding.folderHeroDivider.visibility = View.GONE
         binding.folderStatsTextView.visibility = View.GONE
     }
 
+    private fun applyFolderHeroGradientAccent() {
+        val gradient = GradientHelper.createForCurrentPack(this, binding.heroContainer.radius) ?: return
+        val onGradient = ThemeColorResolver.resolveColor(
+            this,
+            com.google.android.material.R.attr.colorOnPrimary,
+            Color.WHITE,
+        )
+
+        binding.folderHeroInnerLayout.background = gradient
+        binding.folderHeroInnerLayout.setTag(R.id.tag_custom_theme_skip_subtree, true)
+        binding.heroContainer.strokeWidth = 0
+        binding.heroContainer.setCardBackgroundColor(Color.TRANSPARENT)
+        binding.folderHeroDivider.setBackgroundColor(onGradient.withAlpha(0x33))
+        binding.folderEyebrowTextView.setTextColor(onGradient)
+        binding.folderTitleTextView.setTextColor(onGradient)
+        binding.folderStatsTextView.setTextColor(onGradient)
+    }
+
+    private fun Int.withAlpha(alpha: Int): Int =
+        (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
+
     private fun bindFolderStats(items: List<MediaItem>) {
         if (items.isEmpty()) {
+            binding.folderHeroDivider.visibility = View.GONE
             binding.folderStatsTextView.visibility = View.GONE
             return
         }
@@ -169,6 +198,7 @@ class FolderViewActivity : AppCompatActivity() {
             parts.add(getString(R.string.folder_stat_videos_format, videoCount))
         }
         binding.folderStatsTextView.text = parts.joinToString(" · ")
+        binding.folderHeroDivider.visibility = View.VISIBLE
         binding.folderStatsTextView.visibility = View.VISIBLE
     }
     

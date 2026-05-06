@@ -15,6 +15,7 @@ import com.google.android.material.card.MaterialCardView
 import org.iurl.litegallery.theme.CustomThemeApplier
 import org.iurl.litegallery.theme.CustomThemePalette
 import org.iurl.litegallery.theme.CustomThemeStore
+import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemePack
 import org.iurl.litegallery.theme.ThemeColorResolver
 
@@ -145,7 +146,22 @@ class ThemePackAdapter(
         val accent = palette?.accent ?: ContextCompat.getColor(ctx, pack.swatchAccent)
         holder.swatchBg.setBackgroundColor(bg)
         holder.swatchText.setBackgroundColor(text)
-        holder.swatchAccent.setBackgroundColor(accent)
+        val swatchRadius = 2f * ctx.resources.displayMetrics.density
+        val gradient = when {
+            pack.isCustom && palette?.hasGradient == true -> GradientHelper.create(
+                start = palette.gradientStart!!,
+                end = palette.gradientEnd!!,
+                angle = palette.gradientAngle!!,
+                cornerRadius = swatchRadius,
+            )
+            !pack.isCustom -> GradientHelper.createForPack(ctx, pack, swatchRadius)
+            else -> null
+        }
+        if (gradient != null) {
+            holder.swatchAccent.background = gradient
+        } else {
+            holder.swatchAccent.setBackgroundColor(accent)
+        }
 
         // Name + subtitle
         holder.name.text = ctx.getString(pack.nameRes)
