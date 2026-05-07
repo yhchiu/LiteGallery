@@ -121,6 +121,8 @@
     <string name="action_bar_settings">動作列設定</string>
     <string name="general_settings">一般設定</string>
     <string name="default_view_mode">預設檢視模式</string>
+    <string name="remember_folder_sort_order_title">記憶資料夾排序模式</string>
+    <string name="remember_folder_sort_order_summary">下次開啟資料夾時使用上次選擇的排序模式</string>
     <string name="remember_folder_view_mode_title">記憶資料夾檢視模式</string>
     <string name="remember_folder_view_mode_summary">下次開啟資料夾時使用上次選擇的檢視模式</string>
     <string name="customize_action_bar_summary">自訂按鈕順序和可見性</string>

@@ -56,6 +56,24 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
+    fun exportSettings_includesRememberFolderSortOrderValues() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit()
+            .putBoolean("remember_folder_sort_order", true)
+            .putString("last_folder_sort_order", "size_desc")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("preferences")
+        assertTrue(preferences.getBoolean("remember_folder_sort_order"))
+        assertEquals("size_desc", preferences.getString("last_folder_sort_order"))
+    }
+
+    @Test
     fun exportSettings_includesLanguagePreference() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         prefs.edit()
@@ -162,6 +180,29 @@ class SettingsExportImportHelperTest {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         assertTrue(prefs.getBoolean("remember_folder_view_mode", false))
         assertEquals("list", prefs.getString("last_folder_view_mode", null))
+    }
+
+    @Test
+    fun importSettings_restoresRememberFolderSortOrderValues() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("remember_folder_sort_order", true)
+                put("last_folder_sort_order", "size_asc")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertTrue(prefs.getBoolean("remember_folder_sort_order", false))
+        assertEquals("size_asc", prefs.getString("last_folder_sort_order", null))
     }
 
     @Test

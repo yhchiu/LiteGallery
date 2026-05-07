@@ -12,6 +12,12 @@
             android:summary="@string/sort_by_date_desc"
             android:title="@string/default_sort_order" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="remember_folder_sort_order"
+            android:summary="@string/remember_folder_sort_order_summary"
+            android:title="@string/remember_folder_sort_order_title" />
+
         <ListPreference
             android:defaultValue="grid"
             android:entries="@array/view_mode_entries"

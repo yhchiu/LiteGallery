@@ -31,6 +31,8 @@ class SettingsExportImportHelper(private val context: Context) {
         private val DEFAULT_PREFERENCE_TYPES = mapOf(
             // Display Settings
             "default_sort_order" to PreferenceType.STRING,
+            "remember_folder_sort_order" to PreferenceType.BOOLEAN,
+            "last_folder_sort_order" to PreferenceType.STRING,
             "default_view_mode" to PreferenceType.STRING,
             "remember_folder_view_mode" to PreferenceType.BOOLEAN,
             "last_folder_view_mode" to PreferenceType.STRING,

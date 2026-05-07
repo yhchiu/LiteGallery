@@ -26,6 +26,9 @@ class FolderViewActivity : AppCompatActivity() {
         const val EXTRA_FOLDER_PATH = "extra_folder_path"
         const val EXTRA_FOLDER_NAME = "extra_folder_name"
         private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
+        private const val PREF_DEFAULT_SORT_ORDER = "default_sort_order"
+        private const val PREF_REMEMBER_FOLDER_SORT_ORDER = "remember_folder_sort_order"
+        private const val PREF_LAST_FOLDER_SORT_ORDER = "last_folder_sort_order"
         private const val PREF_DEFAULT_VIEW_MODE = "default_view_mode"
         private const val PREF_REMEMBER_FOLDER_VIEW_MODE = "remember_folder_view_mode"
         private const val PREF_LAST_FOLDER_VIEW_MODE = "last_folder_view_mode"
@@ -304,7 +307,20 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun loadSortOrderPreference() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        currentSortOrder = prefs.getString("default_sort_order", "date_desc") ?: "date_desc"
+        val defaultSortOrder = parseSortOrderPreference(
+            prefs.getString(PREF_DEFAULT_SORT_ORDER, "date_desc")
+        )
+        val rememberSortOrder = prefs.getBoolean(PREF_REMEMBER_FOLDER_SORT_ORDER, false)
+        currentSortOrder = if (rememberSortOrder) {
+            parseSortOrderPreference(prefs.getString(PREF_LAST_FOLDER_SORT_ORDER, defaultSortOrder))
+        } else {
+            defaultSortOrder
+        }
+
+        // Initialize remembered value when feature is enabled for the first time.
+        if (rememberSortOrder && !prefs.contains(PREF_LAST_FOLDER_SORT_ORDER)) {
+            prefs.edit().putString(PREF_LAST_FOLDER_SORT_ORDER, currentSortOrder).apply()
+        }
     }
 
     private fun sortMediaItems(items: List<MediaItem>): List<MediaItem> {
@@ -325,6 +341,19 @@ class FolderViewActivity : AppCompatActivity() {
     private val sizeAscendingComparator = compareBy<MediaItem> { it.size <= 0L }
         .thenBy { it.size }
 
+    private fun parseSortOrderPreference(sortOrderValue: String?): String {
+        return when (sortOrderValue) {
+            "date_desc", "date_asc", "name_asc", "name_desc", "size_desc", "size_asc" -> sortOrderValue
+            else -> "date_desc"
+        }
+    }
+
+    private fun persistCurrentSortOrderIfNeeded() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(PREF_REMEMBER_FOLDER_SORT_ORDER, false)) return
+        prefs.edit().putString(PREF_LAST_FOLDER_SORT_ORDER, currentSortOrder).apply()
+    }
+
     private fun showSortDialog() {
         val sortOptions = arrayOf(
             getString(R.string.sort_by_date_desc),
@@ -342,10 +371,9 @@ class FolderViewActivity : AppCompatActivity() {
         android.app.AlertDialog.Builder(this)
             .setTitle(R.string.sort)
             .setSingleChoiceItems(sortOptions, currentIndex) { dialog, which ->
-                // Temporary change - does not save to preferences
-                // Only changes sort order for current session
-                currentSortOrder = sortValues[which]
+                currentSortOrder = parseSortOrderPreference(sortValues[which])
                 applySorting()
+                persistCurrentSortOrderIfNeeded()
                 dialog.dismiss()
             }
             .setNegativeButton(R.string.cancel, null)
