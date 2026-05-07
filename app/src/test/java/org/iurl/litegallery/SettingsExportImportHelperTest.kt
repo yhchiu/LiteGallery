@@ -74,6 +74,22 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
+    fun exportSettings_includesHomeFolderSortOrderValue() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit()
+            .putString("home_folder_sort_order", "name_desc")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("preferences")
+        assertEquals("name_desc", preferences.getString("home_folder_sort_order"))
+    }
+
+    @Test
     fun exportSettings_includesLanguagePreference() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         prefs.edit()
@@ -203,6 +219,27 @@ class SettingsExportImportHelperTest {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         assertTrue(prefs.getBoolean("remember_folder_sort_order", false))
         assertEquals("size_asc", prefs.getString("last_folder_sort_order", null))
+    }
+
+    @Test
+    fun importSettings_restoresHomeFolderSortOrderValue() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("home_folder_sort_order", "size_desc")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(1, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertEquals("size_desc", prefs.getString("home_folder_sort_order", null))
     }
 
     @Test

@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
@@ -30,6 +31,8 @@ class MainActivity : AppCompatActivity() {
     private var permissionsGrantedOnStart = false
     private var isLoadingFolders = false
     private var lastUserRefreshAtMs = 0L
+    private var currentHomeSortOrder: String = HomeFolderSorter.DEFAULT_SORT_ORDER
+    private var currentHomeFolders: List<MediaFolder> = emptyList()
     
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -93,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         currentPackKey = ThemeHelper.getCurrentPack(this).key
 
         mediaScanner = MediaScanner(this)
+        loadHomeSortOrderPreference()
         setupRecyclerView()
         setupSwipeRefresh()
         
@@ -114,6 +118,14 @@ class MainActivity : AppCompatActivity() {
         }
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+
+        val homeSortOrderChanged = loadHomeSortOrderPreference()
+        if (homeSortOrderChanged) {
+            updateHomeSortIndicator()
+            if (::folderAdapter.isInitialized && currentHomeFolders.isNotEmpty()) {
+                folderAdapter.submitList(sortHomeFolders())
+            }
+        }
 
         // Check permissions again when returning from settings
         if (!hasStoragePermissions()) {
@@ -171,7 +183,10 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        headerAdapter = HomeOverviewAdapter()
+        headerAdapter = HomeOverviewAdapter(
+            onSortClick = { showHomeSortDialog() }
+        )
+        updateHomeSortIndicator()
 
         folderAdapter = FolderAdapter { folder ->
             if (SmbPath.isSmb(folder.path)) {
@@ -323,19 +338,18 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val scannedFolders = mediaScanner.scanMediaFolders()
-                val folders = mutableListOf<MediaFolder>()
-                folders.addAll(scannedFolders)
-                
-                // Add SMB virtual folder at the bottom
+
+                // Add SMB virtual folder, then sort through the same path as user-initiated changes.
                 val smbServerCount = withContext(Dispatchers.IO) {
                     SmbConfigStore.getAllServers(this@MainActivity).size
                 }
-                folders.add(MediaFolder(
+                currentHomeFolders = scannedFolders + MediaFolder(
                     name = getString(R.string.smb_browse_title),
                     path = "smb://",
                     itemCount = smbServerCount,
                     thumbnail = null
-                ))
+                )
+                val folders = sortHomeFolders()
                 
                 if (folders.isEmpty()) {
                     binding.progressBar.visibility = View.GONE
@@ -389,6 +403,87 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showHomeSortDialog() {
+        val sortOptions = arrayOf(
+            getString(R.string.sort_by_date_desc),
+            getString(R.string.sort_by_date_asc),
+            getString(R.string.sort_by_name_asc),
+            getString(R.string.sort_by_name_desc),
+            getString(R.string.sort_by_size_desc),
+            getString(R.string.sort_by_size_asc)
+        )
+        val sortValues = arrayOf(
+            HomeFolderSorter.SORT_DATE_DESC,
+            HomeFolderSorter.SORT_DATE_ASC,
+            HomeFolderSorter.SORT_NAME_ASC,
+            HomeFolderSorter.SORT_NAME_DESC,
+            HomeFolderSorter.SORT_SIZE_DESC,
+            HomeFolderSorter.SORT_SIZE_ASC
+        )
+        val currentIndex = sortValues.indexOf(currentHomeSortOrder).takeIf { it >= 0 } ?: 0
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.sort)
+            .setSingleChoiceItems(sortOptions, currentIndex) { dialog, which ->
+                currentHomeSortOrder = HomeFolderSorter.parseSortOrder(sortValues[which])
+                persistHomeSortOrder()
+                updateHomeSortIndicator()
+                folderAdapter.submitList(sortHomeFolders()) {
+                    binding.recyclerView.scrollToPosition(0)
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .showThemed()
+    }
+
+    private fun android.app.AlertDialog.Builder.showThemed(): android.app.AlertDialog {
+        val dialog = create()
+        dialog.show()
+        ThemeHelper.applyRuntimeCustomColors(dialog)
+        return dialog
+    }
+
+    private fun sortHomeFolders(): List<MediaFolder> {
+        return HomeFolderSorter.sort(currentHomeFolders, currentHomeSortOrder)
+    }
+
+    private fun loadHomeSortOrderPreference(): Boolean {
+        val previousSortOrder = currentHomeSortOrder
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        currentHomeSortOrder = HomeFolderSorter.parseSortOrder(
+            prefs.getString(PREF_HOME_FOLDER_SORT_ORDER, HomeFolderSorter.DEFAULT_SORT_ORDER)
+        )
+        return currentHomeSortOrder != previousSortOrder
+    }
+
+    private fun persistHomeSortOrder() {
+        PreferenceManager.getDefaultSharedPreferences(this)
+            .edit()
+            .putString(PREF_HOME_FOLDER_SORT_ORDER, currentHomeSortOrder)
+            .apply()
+    }
+
+    private fun updateHomeSortIndicator() {
+        val label = homeSortOrderLabel()
+        headerAdapter.submitSortIndicator(
+            label = label,
+            contentDescription = getString(R.string.folder_sort_content_description, label)
+        )
+    }
+
+    private fun homeSortOrderLabel(sortOrder: String = currentHomeSortOrder): String {
+        return when (sortOrder) {
+            HomeFolderSorter.SORT_DATE_DESC -> getString(R.string.folder_sort_chip_date_desc)
+            HomeFolderSorter.SORT_DATE_ASC -> getString(R.string.folder_sort_chip_date_asc)
+            HomeFolderSorter.SORT_NAME_ASC -> getString(R.string.folder_sort_chip_name_asc)
+            HomeFolderSorter.SORT_NAME_DESC -> getString(R.string.folder_sort_chip_name_desc)
+            HomeFolderSorter.SORT_SIZE_DESC -> getString(R.string.folder_sort_chip_size_desc)
+            HomeFolderSorter.SORT_SIZE_ASC -> getString(R.string.folder_sort_chip_size_asc)
+            else -> getString(R.string.folder_sort_chip_date_desc)
+        }
+    }
+
     private fun buildOverviewStats(scannedFolders: List<MediaFolder>): OverviewStats {
         if (scannedFolders.isEmpty()) return OverviewStats.EMPTY
         var photos = 0
@@ -411,6 +506,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val REFRESH_THROTTLE_MS = 1_200L
         private const val GRID_SPAN_COUNT = 2
+        private const val PREF_HOME_FOLDER_SORT_ORDER = "home_folder_sort_order"
     }
 
     private fun canUseAdvancedAllFilesAccess(): Boolean {

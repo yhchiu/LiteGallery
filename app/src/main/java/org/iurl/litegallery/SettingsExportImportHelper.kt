@@ -30,6 +30,7 @@ class SettingsExportImportHelper(private val context: Context) {
         // All known preference keys plus their expected storage types.
         private val DEFAULT_PREFERENCE_TYPES = mapOf(
             // Display Settings
+            "home_folder_sort_order" to PreferenceType.STRING,
             "default_sort_order" to PreferenceType.STRING,
             "remember_folder_sort_order" to PreferenceType.BOOLEAN,
             "last_folder_sort_order" to PreferenceType.STRING,

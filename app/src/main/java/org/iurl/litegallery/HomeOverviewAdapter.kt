@@ -19,13 +19,24 @@ import org.iurl.litegallery.theme.ThemeColorResolver
  * folder grid. Always displays exactly one viewholder, regardless of stat
  * values; an empty state simply shows zeros.
  */
-class HomeOverviewAdapter : RecyclerView.Adapter<HomeOverviewAdapter.HeaderViewHolder>() {
+class HomeOverviewAdapter(
+    private val onSortClick: () -> Unit
+) : RecyclerView.Adapter<HomeOverviewAdapter.HeaderViewHolder>() {
 
     private var stats: OverviewStats = OverviewStats.EMPTY
+    private var sortLabel: String? = null
+    private var sortContentDescription: String? = null
 
     fun submitStats(newStats: OverviewStats) {
         if (stats == newStats) return
         stats = newStats
+        notifyItemChanged(0)
+    }
+
+    fun submitSortIndicator(label: String, contentDescription: String) {
+        if (sortLabel == label && sortContentDescription == contentDescription) return
+        sortLabel = label
+        sortContentDescription = contentDescription
         notifyItemChanged(0)
     }
 
@@ -36,7 +47,7 @@ class HomeOverviewAdapter : RecyclerView.Adapter<HomeOverviewAdapter.HeaderViewH
     }
 
     override fun onBindViewHolder(holder: HeaderViewHolder, position: Int) {
-        holder.bind(stats)
+        holder.bind(stats, sortLabel, sortContentDescription, onSortClick)
     }
 
     override fun getItemCount(): Int = 1
@@ -52,18 +63,29 @@ class HomeOverviewAdapter : RecyclerView.Adapter<HomeOverviewAdapter.HeaderViewH
         private val videosView: TextView = itemView.findViewById(R.id.statVideos)
         private val foldersView: TextView = itemView.findViewById(R.id.statFolders)
         private val sizeView: TextView = itemView.findViewById(R.id.statSize)
+        private val sortLabelView: TextView = itemView.findViewById(R.id.sortLabel)
         private val numberFormat: NumberFormat = NumberFormat.getNumberInstance()
 
         init {
             applyGradientIfAvailable()
         }
 
-        fun bind(stats: OverviewStats) {
+        fun bind(
+            stats: OverviewStats,
+            sortLabel: String?,
+            sortContentDescription: String?,
+            onSortClick: () -> Unit
+        ) {
             totalView.text = numberFormat.format(stats.totalItems)
             photosView.text = numberFormat.format(stats.totalPhotos)
             videosView.text = numberFormat.format(stats.totalVideos)
             foldersView.text = numberFormat.format(stats.totalFolders)
             sizeView.text = Formatter.formatShortFileSize(itemView.context, stats.totalSizeBytes)
+            val label = sortLabel ?: itemView.context.getString(R.string.folder_sort_chip_date_desc)
+            sortLabelView.text = label
+            sortLabelView.contentDescription = sortContentDescription
+                ?: itemView.context.getString(R.string.folder_sort_content_description, label)
+            sortLabelView.setOnClickListener { onSortClick() }
         }
 
         private fun applyGradientIfAvailable() {

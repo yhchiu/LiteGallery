@@ -400,6 +400,7 @@
     <string name="home_stat_size">大小</string>
     <string name="home_section_folders">文件夹</string>
     <string name="home_sort_recent">最近</string>
+    <string name="home_sort_recent_content_description">排序：最近</string>
     <string name="folder_meta_format">%1$s · %2$s</string>
 
     <!-- Folder View -->

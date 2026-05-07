@@ -401,6 +401,7 @@
     <string name="home_stat_size">Size</string>
     <string name="home_section_folders">Folders</string>
     <string name="home_sort_recent">Recent</string>
+    <string name="home_sort_recent_content_description">Sort: Recent</string>
     <string name="folder_meta_format">%1$s · %2$s</string>
 
     <!-- Folder View -->

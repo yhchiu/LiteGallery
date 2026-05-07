@@ -194,13 +194,25 @@
             android:textAppearance="?attr/textAppearanceTitleLarge"
             android:textColor="?attr/colorOnSurface" />
 
-        <TextView
+        <com.google.android.material.chip.Chip
             android:id="@+id/sortLabel"
+            style="@style/Widget.Material3.Chip.Assist"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/home_sort_recent"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:contentDescription="@string/home_sort_recent_content_description"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:minHeight="36dp"
+            android:text="@string/folder_sort_chip_date_desc"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:chipBackgroundColor="?attr/colorSurfaceVariant"
+            app:chipIcon="@drawable/ic_sort"
+            app:chipIconTint="?attr/colorOnSurfaceVariant"
+            app:chipStrokeColor="?attr/colorOutlineVariant"
+            app:chipStrokeWidth="1dp"
+            app:closeIconVisible="false"
+            app:ensureMinTouchTargetSize="true"
+            app:rippleColor="?attr/colorPrimary" />
     </LinearLayout>
 
 </LinearLayout>
