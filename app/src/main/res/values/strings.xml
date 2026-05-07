@@ -187,6 +187,8 @@
     <string name="sort_by_date_asc">Sort by Date (Oldest First)</string>
     <string name="sort_by_name_asc">Sort by Name (A-Z)</string>
     <string name="sort_by_name_desc">Sort by Name (Z-A)</string>
+    <string name="sort_by_size_desc">Sort by Size (Largest First)</string>
+    <string name="sort_by_size_asc">Sort by Size (Smallest First)</string>
     
     <!-- Theme Mode (kept for dual-mode pack picker) -->
     <string name="theme_auto">Follow System</string>

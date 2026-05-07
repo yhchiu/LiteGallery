@@ -187,6 +187,8 @@
     <string name="sort_by_date_asc">按日期排序（旧到新）</string>
     <string name="sort_by_name_asc">按名称排序（A-Z）</string>
     <string name="sort_by_name_desc">按名称排序（Z-A）</string>
+    <string name="sort_by_size_desc">按大小排序（从大到小）</string>
+    <string name="sort_by_size_asc">按大小排序（从小到大）</string>
 
     <!-- Theme Mode -->
     <string name="theme_auto">跟随系统</string>

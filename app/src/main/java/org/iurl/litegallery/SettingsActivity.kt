@@ -314,6 +314,8 @@ class SettingsActivity : AppCompatActivity() {
                     "date_asc" -> getString(R.string.sort_by_date_asc)
                     "name_asc" -> getString(R.string.sort_by_name_asc)
                     "name_desc" -> getString(R.string.sort_by_name_desc)
+                    "size_desc" -> getString(R.string.sort_by_size_desc)
+                    "size_asc" -> getString(R.string.sort_by_size_asc)
                     else -> getString(R.string.sort_by_date_desc)
                 }
                 true
@@ -771,6 +773,8 @@ class SettingsActivity : AppCompatActivity() {
                 "date_asc" -> getString(R.string.sort_by_date_asc)
                 "name_asc" -> getString(R.string.sort_by_name_asc)
                 "name_desc" -> getString(R.string.sort_by_name_desc)
+                "size_desc" -> getString(R.string.sort_by_size_desc)
+                "size_asc" -> getString(R.string.sort_by_size_asc)
                 else -> getString(R.string.sort_by_date_desc)
             }
 

@@ -313,19 +313,29 @@ class FolderViewActivity : AppCompatActivity() {
             "date_asc" -> items.sortedBy { it.dateModified }
             "name_asc" -> items.sortedBy { it.name.lowercase() }
             "name_desc" -> items.sortedByDescending { it.name.lowercase() }
+            "size_desc" -> items.sortedWith(sizeDescendingComparator)
+            "size_asc" -> items.sortedWith(sizeAscendingComparator)
             else -> items.sortedByDescending { it.dateModified }
         }
     }
+
+    private val sizeDescendingComparator = compareBy<MediaItem> { it.size <= 0L }
+        .thenByDescending { it.size }
+
+    private val sizeAscendingComparator = compareBy<MediaItem> { it.size <= 0L }
+        .thenBy { it.size }
 
     private fun showSortDialog() {
         val sortOptions = arrayOf(
             getString(R.string.sort_by_date_desc),
             getString(R.string.sort_by_date_asc),
             getString(R.string.sort_by_name_asc),
-            getString(R.string.sort_by_name_desc)
+            getString(R.string.sort_by_name_desc),
+            getString(R.string.sort_by_size_desc),
+            getString(R.string.sort_by_size_asc)
         )
 
-        val sortValues = arrayOf("date_desc", "date_asc", "name_asc", "name_desc")
+        val sortValues = arrayOf("date_desc", "date_asc", "name_asc", "name_desc", "size_desc", "size_asc")
 
         val currentIndex = sortValues.indexOf(currentSortOrder).takeIf { it >= 0 } ?: 0
 
