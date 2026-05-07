@@ -25,7 +25,6 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="6dp"
         android:layout_marginTop="6dp"
-        android:layout_marginBottom="14dp"
         app:cardBackgroundColor="?attr/colorSurface"
         app:cardElevation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -87,6 +86,7 @@
         android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginTop="14dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -97,7 +97,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:padding="4dp" />
+            android:paddingHorizontal="4dp"
+            android:paddingBottom="4dp" />
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
