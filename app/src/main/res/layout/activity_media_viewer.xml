@@ -25,10 +25,11 @@
 
         <ProgressBar
             android:id="@+id/loadingProgressBar"
+            style="?android:attr/progressBarStyleLarge"
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:indeterminateOnly="true"
-            style="?android:attr/progressBarStyleLarge" />
+            android:indeterminateTint="?attr/colorPrimary" />
 
         <TextView
             android:id="@+id/loadingText"
@@ -128,8 +129,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="12dp"
                 android:layout_weight="1"
-                android:progressTint="@color/white"
-                android:thumbTint="@color/white" />
+                android:progressBackgroundTint="@color/semi_transparent_white"
+                android:progressTint="?attr/colorPrimary"
+                android:thumbTint="?attr/colorPrimary" />
 
             <TextView
                 android:id="@+id/durationText"
@@ -258,7 +260,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="100"
-                android:progress="50" />
+                android:progress="50"
+                android:progressBackgroundTint="@color/semi_transparent_white"
+                android:progressTint="?attr/colorPrimary"
+                android:thumbTint="?attr/colorPrimary" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -273,7 +278,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="100"
-                android:progress="50" />
+                android:progress="50"
+                android:progressBackgroundTint="@color/semi_transparent_white"
+                android:progressTint="?attr/colorPrimary"
+                android:thumbTint="?attr/colorPrimary" />
 
         </LinearLayout>
 
@@ -428,7 +436,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_delete"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorError" />
                             </FrameLayout>
 
                             <TextView
@@ -436,7 +444,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/delete"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorError"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -463,7 +471,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_share"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -471,7 +479,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/share"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -498,7 +506,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_edit"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -506,7 +514,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/edit"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -533,7 +541,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_rename"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -541,7 +549,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/rename"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -568,7 +576,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_rotate_right"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -576,7 +584,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/rotate_screen"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -603,7 +611,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_info"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -611,7 +619,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/properties"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -638,7 +646,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_rotate_right"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -646,7 +654,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/rotate"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -673,7 +681,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_copy"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -681,7 +689,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/copy"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -708,7 +716,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_move"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -716,7 +724,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/move"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 
@@ -744,7 +752,7 @@
                                     android:layout_gravity="center"
                                     android:contentDescription="@null"
                                     android:src="@drawable/ic_refresh"
-                                    app:tint="?attr/colorOnSurface" />
+                                    app:tint="?attr/colorPrimary" />
                             </FrameLayout>
 
                             <TextView
@@ -752,7 +760,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="4dp"
                                 android:text="@string/reload_video"
-                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="10sp" />
                         </LinearLayout>
 

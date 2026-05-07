@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
+import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -202,6 +203,9 @@ class MainActivity : AppCompatActivity() {
         binding.swipeRefresh.setOnRefreshListener {
             refreshFromUserAction(fromSwipeRefresh = true)
         }
+        binding.swipeRefresh.setColorSchemeColors(
+            ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),
+        )
     }
 
     private fun refreshFromUserAction(fromSwipeRefresh: Boolean) {

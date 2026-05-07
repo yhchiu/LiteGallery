@@ -92,6 +92,7 @@ class TrashAdapter(
             } else {
                 binding.remainBadgeTextView.visibility = View.VISIBLE
                 binding.remainBadgeTextView.text = remainLabel
+                TonalCountChipStyler.apply(binding.remainBadgeTextView)
             }
 
             // "from {folder}" hint

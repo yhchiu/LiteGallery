@@ -1,14 +1,18 @@
 package org.iurl.litegallery
 
+import android.content.Context
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.android.material.imageview.ShapeableImageView
 import org.iurl.litegallery.databinding.ItemMediaBinding
 import org.iurl.litegallery.databinding.ItemMediaListBinding
 import org.iurl.litegallery.databinding.ItemMediaDetailedBinding
+import org.iurl.litegallery.theme.ThemeColorResolver
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,6 +41,7 @@ class MediaAdapter(
         private const val VIEW_TYPE_LIST = 1
         private const val VIEW_TYPE_DETAILED = 2
         private const val PAYLOAD_SELECTION_STATE = "payload_selection_state"
+        private const val SELECTION_STROKE_DP = 2f
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -287,8 +292,25 @@ class MediaAdapter(
 
     private fun applySelectionState(root: android.view.View, mediaItem: MediaItem) {
         val selected = isItemSelected?.invoke(mediaItem) == true
-        root.alpha = if (selected) 0.6f else 1f
+        val thumbnail = root.findViewById<ShapeableImageView>(R.id.thumbnailImageView)
+
+        root.isSelected = selected
+        root.alpha = 1f
+        if (selected) {
+            thumbnail?.strokeColor = ColorStateList.valueOf(selectionStrokeColor(root.context))
+            thumbnail?.strokeWidth = SELECTION_STROKE_DP * root.resources.displayMetrics.density
+        } else {
+            thumbnail?.strokeColor = null
+            thumbnail?.strokeWidth = 0f
+        }
     }
+
+    private var cachedSelectionStrokeColor: Int? = null
+
+    private fun selectionStrokeColor(context: Context): Int =
+        cachedSelectionStrokeColor ?: ThemeColorResolver
+            .resolveColor(context, com.google.android.material.R.attr.colorPrimary)
+            .also { cachedSelectionStrokeColor = it }
 
     private fun formatFileSize(bytes: Long): String {
         if (bytes <= 0) return ""

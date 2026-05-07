@@ -25,7 +25,7 @@
                 android:src="@drawable/ic_home"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Home"
-                app:tint="?attr/colorControlNormal"
+                app:tint="?attr/colorOnSurfaceVariant"
                 android:visibility="gone" />
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
@@ -51,6 +51,8 @@
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOnSurfaceVariant"
             android:background="@drawable/edit_text_background" />
 
         <ImageButton
@@ -61,16 +63,19 @@
             android:src="@drawable/ic_star"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/smb_save_server"
-            app:tint="?attr/colorControlNormal" />
+            app:tint="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/connectButton"
+            style="?attr/materialButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
             android:layout_marginStart="8dp"
             android:text="@string/smb_connect_button"
+            android:textColor="?attr/colorOnPrimary"
             android:textAllCaps="false"
-            style="@style/Widget.MaterialComponents.Button.TextButton" />
+            app:backgroundTint="?attr/colorPrimary"
+            app:elevation="0dp" />
     </LinearLayout>
 
     <!-- Main Content -->
@@ -103,6 +108,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/smb_saved_servers"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -110,10 +116,11 @@
                     android:id="@+id/addServerButton"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:src="@android:drawable/ic_input_add"
+                    android:src="@drawable/ic_add"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/smb_add_server"
-                    android:scaleType="centerInside" />
+                    android:scaleType="centerInside"
+                    app:tint="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
 
             <ScrollView
@@ -168,6 +175,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:indeterminateTint="?attr/colorPrimary"
             android:visibility="gone" />
         </FrameLayout>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

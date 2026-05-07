@@ -32,6 +32,7 @@ class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
 
             binding.folderNameTextView.text = folder.name
             binding.countChip.text = formatCount(folder.itemCount)
+            TonalCountChipStyler.apply(binding.countChip)
             binding.folderMetaTextView.text = formatMeta(folder)
             binding.folderMetaTextView.visibility =
                 if (binding.folderMetaTextView.text.isNullOrEmpty()) View.GONE else View.VISIBLE

@@ -2,6 +2,7 @@ package org.iurl.litegallery
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MenuItem
@@ -243,7 +244,7 @@ class SmbBrowseActivity : AppCompatActivity() {
             if (exactConfig != null) {
                 // Already saved -> Delete it
                 SmbConfigStore.deleteServer(this, exactConfig.id)
-                Toast.makeText(this, "已從伺服器清單移除", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.smb_server_removed), Toast.LENGTH_SHORT).show()
                 updateStarButtonState()
                 refreshSavedServers()
             } else {
@@ -278,13 +279,13 @@ class SmbBrowseActivity : AppCompatActivity() {
     private fun updateStarButtonState() {
         val address = binding.addressEditText.text.toString().trim()
         if (address.isBlank()) {
-            binding.saveServerButton.setImageResource(R.drawable.ic_star_border)
+            setSaveServerButtonSaved(false)
             return
         }
 
         val smbPath = SmbPath.parse(if (address.startsWith("smb://")) address else "smb://$address")
         if (smbPath == null) {
-            binding.saveServerButton.setImageResource(R.drawable.ic_star_border)
+            setSaveServerButtonSaved(false)
             return
         }
 
@@ -295,11 +296,21 @@ class SmbBrowseActivity : AppCompatActivity() {
             it.path.equals(smbPath.path, ignoreCase = true)
         }
 
-        if (isSaved) {
-            binding.saveServerButton.setImageResource(R.drawable.ic_star)
+        setSaveServerButtonSaved(isSaved)
+    }
+
+    private fun setSaveServerButtonSaved(isSaved: Boolean) {
+        binding.saveServerButton.setImageResource(
+            if (isSaved) R.drawable.ic_star else R.drawable.ic_star_border,
+        )
+        val colorAttr = if (isSaved) {
+            com.google.android.material.R.attr.colorPrimary
         } else {
-            binding.saveServerButton.setImageResource(R.drawable.ic_star_border)
+            com.google.android.material.R.attr.colorOnSurfaceVariant
         }
+        binding.saveServerButton.imageTintList = ColorStateList.valueOf(
+            ThemeColorResolver.resolveColor(this, colorAttr),
+        )
     }
 
     private fun setupRecyclerView() {
@@ -749,12 +760,16 @@ class SmbBrowseAdapter(
         private val nameText: TextView = itemView.findViewById(R.id.fileNameText)
         private val sizeText: TextView = itemView.findViewById(R.id.fileSizeText)
         private val thumbnailView: android.widget.ImageView = itemView.findViewById(R.id.thumbnailView)
+        private val neutralIconTint = ColorStateList.valueOf(
+            ThemeColorResolver.resolveColor(itemView.context, com.google.android.material.R.attr.colorOnSurfaceVariant),
+        )
 
         fun bind(item: SmbClient.SmbFileInfo) {
             nameText.text = item.name
 
             if (item.isDirectory) {
                 iconView.setImageResource(R.drawable.ic_folder)
+                iconView.imageTintList = neutralIconTint
                 iconView.visibility = View.VISIBLE
                 thumbnailView.visibility = View.GONE
                 sizeText.text = ""
@@ -778,6 +793,7 @@ class SmbBrowseAdapter(
                     thumbnailView.visibility = View.GONE
                     iconView.visibility = View.VISIBLE
                     iconView.setImageResource(R.drawable.ic_image_placeholder)
+                    iconView.imageTintList = neutralIconTint
                 }
 
                 // Format file size

@@ -48,7 +48,7 @@
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="3dp"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="#1A1612"
+                android:textColor="?attr/colorPrimary"
                 tools:text="109" />
 
         </FrameLayout>

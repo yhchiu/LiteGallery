@@ -231,6 +231,9 @@ class FolderViewActivity : AppCompatActivity() {
 
             loadMediaItems(showBlockingLoading = false, fromSwipeRefresh = true)
         }
+        binding.swipeRefresh.setColorSchemeColors(
+            ThemeColorResolver.resolveColor(this, com.google.android.material.R.attr.colorPrimary),
+        )
     }
 
     private fun updateLayoutManager() {
