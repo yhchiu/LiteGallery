@@ -44,6 +44,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var currentPackKey: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
+    private var sortMenuItem: MenuItem? = null
     private var isLoadingMediaItems = false
     private var lastSwipeRefreshAtMs = 0L
 
@@ -130,6 +131,8 @@ class FolderViewActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.folder_view_menu, menu)
+        sortMenuItem = menu.findItem(R.id.action_sort)
+        updateSortIndicator()
         return true
     }
     
@@ -162,6 +165,8 @@ class FolderViewActivity : AppCompatActivity() {
         binding.folderTitleTextView.text = folderName
         binding.folderHeroDivider.visibility = View.GONE
         binding.folderStatsTextView.visibility = View.GONE
+        binding.sortStatusChip.setOnClickListener { showSortDialog() }
+        updateSortIndicator()
     }
 
     private fun applyFolderHeroGradientAccent() {
@@ -348,6 +353,26 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
 
+    private fun sortOrderLabel(sortOrder: String = currentSortOrder): String {
+        return when (sortOrder) {
+            "date_desc" -> getString(R.string.folder_sort_chip_date_desc)
+            "date_asc" -> getString(R.string.folder_sort_chip_date_asc)
+            "name_asc" -> getString(R.string.folder_sort_chip_name_asc)
+            "name_desc" -> getString(R.string.folder_sort_chip_name_desc)
+            "size_desc" -> getString(R.string.folder_sort_chip_size_desc)
+            "size_asc" -> getString(R.string.folder_sort_chip_size_asc)
+            else -> getString(R.string.folder_sort_chip_date_desc)
+        }
+    }
+
+    private fun updateSortIndicator() {
+        val label = sortOrderLabel()
+        val description = getString(R.string.folder_sort_content_description, label)
+        binding.sortStatusChip.text = label
+        binding.sortStatusChip.contentDescription = description
+        sortMenuItem?.title = description
+    }
+
     private fun persistCurrentSortOrderIfNeeded() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         if (!prefs.getBoolean(PREF_REMEMBER_FOLDER_SORT_ORDER, false)) return
@@ -374,6 +399,7 @@ class FolderViewActivity : AppCompatActivity() {
                 currentSortOrder = parseSortOrderPreference(sortValues[which])
                 applySorting()
                 persistCurrentSortOrderIfNeeded()
+                updateSortIndicator()
                 dialog.dismiss()
             }
             .setNegativeButton(R.string.cancel, null)

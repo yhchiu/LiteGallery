@@ -82,15 +82,49 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <LinearLayout
+        android:id="@+id/folderControlsRow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="6dp"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical|end"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/heroContainer">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/sortStatusChip"
+            style="@style/Widget.Material3.Chip.Assist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:minHeight="36dp"
+            android:text="@string/folder_sort_chip_date_desc"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:chipBackgroundColor="?attr/colorSurfaceVariant"
+            app:chipIcon="@drawable/ic_sort"
+            app:chipIconTint="?attr/colorOnSurfaceVariant"
+            app:chipStrokeColor="?attr/colorOutlineVariant"
+            app:chipStrokeWidth="1dp"
+            app:closeIconVisible="false"
+            app:ensureMinTouchTargetSize="true"
+            app:rippleColor="?attr/colorPrimary"
+            tools:text="Date: Newest" />
+
+    </LinearLayout>
+
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/heroContainer">
+        app:layout_constraintTop_toBottomOf="@+id/folderControlsRow">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"

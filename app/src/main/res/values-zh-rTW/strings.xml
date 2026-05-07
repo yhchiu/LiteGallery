@@ -191,6 +191,13 @@
     <string name="sort_by_name_desc">依名稱排序（Z-A）</string>
     <string name="sort_by_size_desc">依大小排序（大到小）</string>
     <string name="sort_by_size_asc">依大小排序（小到大）</string>
+    <string name="folder_sort_chip_date_desc">日期：新到舊</string>
+    <string name="folder_sort_chip_date_asc">日期：舊到新</string>
+    <string name="folder_sort_chip_name_asc">名稱：A-Z</string>
+    <string name="folder_sort_chip_name_desc">名稱：Z-A</string>
+    <string name="folder_sort_chip_size_desc">大小：大到小</string>
+    <string name="folder_sort_chip_size_asc">大小：小到大</string>
+    <string name="folder_sort_content_description">排序：%1$s</string>
 
     <!-- Theme Mode -->
     <string name="theme_auto">跟隨系統</string>

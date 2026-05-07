@@ -191,6 +191,13 @@
     <string name="sort_by_name_desc">Sort by Name (Z-A)</string>
     <string name="sort_by_size_desc">Sort by Size (Largest First)</string>
     <string name="sort_by_size_asc">Sort by Size (Smallest First)</string>
+    <string name="folder_sort_chip_date_desc">Date: Newest</string>
+    <string name="folder_sort_chip_date_asc">Date: Oldest</string>
+    <string name="folder_sort_chip_name_asc">Name: A-Z</string>
+    <string name="folder_sort_chip_name_desc">Name: Z-A</string>
+    <string name="folder_sort_chip_size_desc">Size: Largest</string>
+    <string name="folder_sort_chip_size_asc">Size: Smallest</string>
+    <string name="folder_sort_content_description">Sort: %1$s</string>
     
     <!-- Theme Mode (kept for dual-mode pack picker) -->
     <string name="theme_auto">Follow System</string>
