@@ -32,8 +32,8 @@ object ThemeHelper {
 
     /**
      * One-time migration: existing users who had only `color_theme_preference`
-     * land on Warm Paper (the new default). Run from Application.onCreate
-     * before applyTheme.
+     * land on the current default pack. Run from Application.onCreate before
+     * applyTheme.
      */
     fun migrateLegacyIfNeeded(context: Context) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)

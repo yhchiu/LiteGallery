@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- ===== First Light · Light (default) ===== -->
+    <color name="pack_first_light_bg">#f7f9fb</color>
+    <color name="pack_first_light_surface">#eef3f7</color>
+    <color name="pack_first_light_card">#ffffff</color>
+    <color name="pack_first_light_text">#0f1f2e</color>
+    <color name="pack_first_light_dim">#990f1f2e</color>
+    <color name="pack_first_light_faint">#520f1f2e</color>
+    <color name="pack_first_light_line">#140f1f2e</color>
+    <color name="pack_first_light_accent">#3b8ad9</color>
+    <color name="pack_first_light_on_accent">#ffffff</color>
+    <color name="pack_first_light_gradient_start">#4ec5a5</color>
+    <color name="pack_first_light_gradient_end">#3b8ad9</color>
+
     <!-- ===== Warm Paper · Light (V3) ===== -->
     <color name="pack_warm_paper_bg">#f4efe6</color>
     <color name="pack_warm_paper_surface">#ebe4d7</color>

@@ -272,15 +272,15 @@ object CustomThemeStore {
     // ── internal helpers ───────────────────────────────────────────────
 
     private fun defaultColorFor(context: Context, key: String): Int = when (key) {
-        KEY_BG        -> ContextCompat.getColor(context, R.color.pack_warm_paper_bg)
-        KEY_SURFACE   -> ContextCompat.getColor(context, R.color.pack_warm_paper_surface)
-        KEY_CARD      -> ContextCompat.getColor(context, R.color.pack_warm_paper_card)
-        KEY_TEXT       -> ContextCompat.getColor(context, R.color.pack_warm_paper_text)
-        KEY_DIM        -> ContextCompat.getColor(context, R.color.pack_warm_paper_dim)
-        KEY_FAINT      -> ContextCompat.getColor(context, R.color.pack_warm_paper_faint)
-        KEY_LINE       -> ContextCompat.getColor(context, R.color.pack_warm_paper_line)
-        KEY_ACCENT     -> ContextCompat.getColor(context, R.color.pack_warm_paper_accent)
-        KEY_ON_ACCENT  -> ContextCompat.getColor(context, R.color.pack_warm_paper_on_accent)
+        KEY_BG        -> ContextCompat.getColor(context, R.color.pack_first_light_bg)
+        KEY_SURFACE   -> ContextCompat.getColor(context, R.color.pack_first_light_surface)
+        KEY_CARD      -> ContextCompat.getColor(context, R.color.pack_first_light_card)
+        KEY_TEXT       -> ContextCompat.getColor(context, R.color.pack_first_light_text)
+        KEY_DIM        -> ContextCompat.getColor(context, R.color.pack_first_light_dim)
+        KEY_FAINT      -> ContextCompat.getColor(context, R.color.pack_first_light_faint)
+        KEY_LINE       -> ContextCompat.getColor(context, R.color.pack_first_light_line)
+        KEY_ACCENT     -> ContextCompat.getColor(context, R.color.pack_first_light_accent)
+        KEY_ON_ACCENT  -> ContextCompat.getColor(context, R.color.pack_first_light_on_accent)
         else           -> Color.MAGENTA
     }
 
@@ -319,6 +319,13 @@ object CustomThemeStore {
     private fun resolvePackColors(context: Context, pack: ThemePack): Map<String, Int> {
         fun c(resId: Int) = ContextCompat.getColor(context, resId)
         return when (pack) {
+            ThemePack.FIRST_LIGHT -> mapOf(
+                KEY_BG to c(R.color.pack_first_light_bg), KEY_SURFACE to c(R.color.pack_first_light_surface),
+                KEY_CARD to c(R.color.pack_first_light_card), KEY_TEXT to c(R.color.pack_first_light_text),
+                KEY_DIM to c(R.color.pack_first_light_dim), KEY_FAINT to c(R.color.pack_first_light_faint),
+                KEY_LINE to c(R.color.pack_first_light_line), KEY_ACCENT to c(R.color.pack_first_light_accent),
+                KEY_ON_ACCENT to c(R.color.pack_first_light_on_accent),
+            )
             ThemePack.WARM_PAPER -> mapOf(
                 KEY_BG to c(R.color.pack_warm_paper_bg), KEY_SURFACE to c(R.color.pack_warm_paper_surface),
                 KEY_CARD to c(R.color.pack_warm_paper_card), KEY_TEXT to c(R.color.pack_warm_paper_text),
@@ -365,6 +372,7 @@ object CustomThemeStore {
     }
 
     private fun packToFontKey(pack: ThemePack): String = when (pack) {
+        ThemePack.FIRST_LIGHT -> FONT_SANS_SERIF
         ThemePack.WARM_PAPER   -> FONT_FRAUNCES
         ThemePack.EDITORIAL    -> FONT_CORMORANT
         ThemePack.MONOLITH     -> FONT_JETBRAINS_MONO
@@ -374,6 +382,7 @@ object CustomThemeStore {
     }
 
     private fun packToCornerKey(pack: ThemePack): String = when (pack) {
+        ThemePack.FIRST_LIGHT -> CORNER_MEDIUM
         ThemePack.WARM_PAPER   -> CORNER_MEDIUM
         ThemePack.EDITORIAL    -> CORNER_SMALL
         ThemePack.MONOLITH     -> CORNER_SMALL

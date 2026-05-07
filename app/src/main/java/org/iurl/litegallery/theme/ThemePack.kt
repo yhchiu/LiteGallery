@@ -25,13 +25,13 @@ enum class Mode {
 }
 
 /**
- * The five Theme Packs shipping with LiteGallery. Each pack declares its
+ * The six Theme Packs shipping with LiteGallery. Each pack declares its
  * own typography, surfaces, accent and corner radii via the corresponding
  * `Theme.LiteGallery.Pack.<key>.{NoActionBar,FullScreen}` styles, plus
  * which Mode(s) it supports.
  *
  * Single-mode packs (V1/V2/V4 = Dark, future Light-only) override the user's
- * theme preference at runtime — see [PackResolver.resolveNightMode].
+ * theme preference at runtime - see [PackResolver.resolveNightMode].
  */
 enum class ThemePack(
     val key: String,
@@ -45,6 +45,18 @@ enum class ThemePack(
     val gradientEndRes: Int? = null,
     val gradientAngle: Int? = null,
 ) {
+    FIRST_LIGHT(
+        key = "first_light",
+        nameRes = R.string.pack_first_light_name,
+        subtitleRes = R.string.pack_first_light_sub,
+        supportedModes = listOf(Mode.AUTO, Mode.LIGHT, Mode.DARK),
+        swatchBg = R.color.pack_first_light_bg,
+        swatchText = R.color.pack_first_light_text,
+        swatchAccent = R.color.pack_first_light_accent,
+        gradientStartRes = R.color.pack_first_light_gradient_start,
+        gradientEndRes = R.color.pack_first_light_gradient_end,
+        gradientAngle = 135,
+    ),
     WARM_PAPER(
         key = "warm_paper",
         nameRes = R.string.pack_warm_paper_name,
@@ -141,11 +153,11 @@ enum class ThemePack(
     }
 
     companion object {
-        const val DEFAULT_KEY = "warm_paper"
+        const val DEFAULT_KEY = "first_light"
         val SUPPORTED_GRADIENT_ANGLES = setOf(0, 45, 90, 135, 180, 225, 270, 315)
 
         fun fromKey(key: String?): ThemePack =
-            values().firstOrNull { it.key == key } ?: WARM_PAPER
+            values().firstOrNull { it.key == key } ?: FIRST_LIGHT
 
         fun all(): List<ThemePack> = values().toList()
 
@@ -155,7 +167,7 @@ enum class ThemePack(
 }
 
 /**
- * Two manifest theme variants — passed to [PackResolver.pickStyle] so the
+ * Two manifest theme variants - passed to [PackResolver.pickStyle] so the
  * activity gets the correct windowFullscreen/windowActionBar set.
  */
 enum class ThemeVariant {

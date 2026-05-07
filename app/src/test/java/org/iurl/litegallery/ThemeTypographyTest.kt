@@ -16,6 +16,24 @@ import org.robolectric.annotation.Config
 class ThemeTypographyTest {
 
     @Test
+    fun firstLightThemeUsesSystemSansTypography() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        activity.setTheme(R.style.Theme_LiteGallery_Pack_FirstLight_NoActionBar)
+
+        assertEquals("sans-serif", activity.resolveStringAttr(androidx.appcompat.R.attr.fontFamily))
+        assertTextAppearanceFontFamily(
+            activity,
+            com.google.android.material.R.attr.textAppearanceHeadlineLarge,
+            "sans-serif-medium",
+        )
+        assertTextAppearanceFontFamily(
+            activity,
+            com.google.android.material.R.attr.textAppearanceBodyMedium,
+            "sans-serif",
+        )
+    }
+
+    @Test
     fun prismThemeOverridesWarmPaperSupportFontFamily() {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         activity.setTheme(R.style.Theme_LiteGallery_Pack_WarmPaper_NoActionBar)

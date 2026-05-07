@@ -5,14 +5,15 @@
         Pack-level shape and text appearance abstractions.
 
         FONTS: Bundled in res/font/ (all SIL OFL licensed):
-            @font/fraunces            — Warm Paper (V3) variable serif
-            @font/cormorant_garamond  — Editorial Noir (V1) family with italic
-            @font/jetbrains_mono      — Monolith (V2) + Brutalist (V5) body
-            @font/archivo_black       — Brutalist (V5) display
-            V4 Prism uses sans-serif (system Roboto — Inter approximation).
+            First Light            - system sans-serif, no bundled font
+            @font/fraunces            - Warm Paper (V3) variable serif
+            @font/cormorant_garamond  - Editorial Noir (V1) family with italic
+            @font/jetbrains_mono      - Monolith (V2) + Brutalist (V5) body
+            @font/archivo_black       - Brutalist (V5) display
+            V4 Prism uses sans-serif (system Roboto - Inter approximation).
     -->
 
-    <!-- Shared shape used by the Media Viewer info sheet — rounded top, square bottom. -->
+    <!-- Shared shape used by the Media Viewer info sheet - rounded top, square bottom. -->
     <style name="ShapeAppearance.LiteGallery.InfoSheet" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSizeTopLeft">20dp</item>
@@ -22,8 +23,18 @@
     </style>
 
     <!-- ============================================================
-         Shape Appearance — corner radii per pack
+         Shape Appearance - corner radii per pack
          ============================================================ -->
+
+    <style name="ShapeAppearance.LiteGallery.Pack.FirstLight.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerSize">8dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.FirstLight.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">14dp</item>
+    </style>
+    <style name="ShapeAppearance.LiteGallery.Pack.FirstLight.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">22dp</item>
+    </style>
 
     <style name="ShapeAppearance.LiteGallery.Pack.WarmPaper.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
         <item name="cornerSize">6dp</item>
@@ -76,9 +87,33 @@
     </style>
 
     <!-- ============================================================
-         Text Appearance — typography per pack
+         Text Appearance - typography per pack
          Roles: Display / Headline / Title / Body / Label
          ============================================================ -->
+
+    <!-- ===== First Light · clean system sans ===== -->
+    <style name="TextAppearance.LiteGallery.Pack.FirstLight.Display" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.FirstLight.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.FirstLight.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.FirstLight.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+    </style>
+    <style name="TextAppearance.LiteGallery.Pack.FirstLight.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+    </style>
 
     <!-- ===== Warm Paper · Fraunces serif (variable font) ===== -->
     <style name="TextAppearance.LiteGallery.Pack.WarmPaper.Display" parent="TextAppearance.Material3.HeadlineLarge">
@@ -222,9 +257,15 @@
     </style>
 
     <!-- ============================================================
-         PreferenceThemeOverlay variants — force pack typography through to
+         PreferenceThemeOverlay variants - force pack typography through to
          PreferenceFragmentCompat (which otherwise ignores the activity's fontFamily).
          ============================================================ -->
+
+    <style name="PreferenceThemeOverlay.LiteGallery.FirstLight" parent="PreferenceThemeOverlay">
+        <item name="android:textColorPrimary">@color/pack_first_light_text</item>
+        <item name="android:textColorSecondary">@color/pack_first_light_dim</item>
+        <item name="preferenceCategoryTitleTextColor">@color/pack_first_light_accent</item>
+    </style>
 
     <style name="PreferenceThemeOverlay.LiteGallery.WarmPaper" parent="PreferenceThemeOverlay">
         <item name="android:textColorPrimary">@color/pack_warm_paper_text</item>
@@ -257,7 +298,7 @@
     </style>
 
     <!-- ============================================================
-         Custom Pack — Shape, TextAppearance, PreferenceOverlay
+         Custom Pack - Shape, TextAppearance, PreferenceOverlay
          ============================================================ -->
 
     <style name="ShapeAppearance.LiteGallery.Pack.Custom.Small" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
@@ -270,7 +311,7 @@
         <item name="cornerSize">20dp</item>
     </style>
 
-    <!-- Text appearances — deliberately omit fontFamily so that the font overlay
+    <!-- Text appearances - deliberately omit fontFamily so that the font overlay
          applied in ThemeHelper can set it globally. -->
     <style name="TextAppearance.LiteGallery.Pack.Custom.Display" parent="TextAppearance.Material3.HeadlineLarge" />
     <style name="TextAppearance.LiteGallery.Pack.Custom.Headline" parent="TextAppearance.Material3.HeadlineMedium" />
@@ -288,7 +329,7 @@
     </style>
 
     <!-- ============================================================
-         Font overlay styles — applied via theme.applyStyle() at runtime.
+         Font overlay styles - applied via theme.applyStyle() at runtime.
          Each one overrides the theme-level fontFamily plus all
          Custom text-appearance fontFamilies in one shot.
          ============================================================ -->
@@ -315,7 +356,7 @@
     </style>
 
     <!-- ============================================================
-         Corner-radius overlay styles — applied via theme.applyStyle()
+         Corner-radius overlay styles - applied via theme.applyStyle()
          ============================================================ -->
 
     <style name="ThemeOverlay.Custom.Corner.None" parent="">

@@ -2,14 +2,79 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-        Pack themes (Light forms for dual-mode packs V3/V5; native form for
-        single-mode dark packs V1/V2/V4 — those force MODE_NIGHT_YES at runtime
+        Pack themes (Light forms for dual-mode packs First Light/V3/V5; native form for
+        single-mode dark packs V1/V2/V4 - those force MODE_NIGHT_YES at runtime
         so the night-qualified version below is what users actually see).
 
         Style names are stable across values/ and values-night/ folders:
             Theme.LiteGallery.Pack.<Pack>.NoActionBar
             Theme.LiteGallery.Pack.<Pack>.FullScreen
     -->
+
+    <!-- =========================================================
+         First Light · default · Light
+         ========================================================= -->
+    <style name="Theme.LiteGallery.Pack.FirstLight" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
+
+        <item name="colorPrimary">@color/pack_first_light_accent</item>
+        <item name="colorOnPrimary">@color/pack_first_light_on_accent</item>
+        <item name="colorPrimaryContainer">@color/pack_first_light_card</item>
+        <item name="colorOnPrimaryContainer">@color/pack_first_light_text</item>
+        <item name="colorSecondary">@color/pack_first_light_gradient_end</item>
+        <item name="colorOnSecondary">@color/pack_first_light_on_accent</item>
+        <item name="colorSecondaryContainer">@color/pack_first_light_surface</item>
+        <item name="colorOnSecondaryContainer">@color/pack_first_light_text</item>
+
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+
+        <item name="colorSurface">@color/pack_first_light_card</item>
+        <item name="colorOnSurface">@color/pack_first_light_text</item>
+        <item name="colorSurfaceVariant">@color/pack_first_light_surface</item>
+        <item name="colorOnSurfaceVariant">@color/pack_first_light_dim</item>
+        <item name="colorOutline">@color/pack_first_light_line</item>
+        <item name="colorOutlineVariant">@color/pack_first_light_faint</item>
+        <item name="android:colorBackground">@color/pack_first_light_bg</item>
+        <item name="android:windowBackground">@color/pack_first_light_bg</item>
+
+        <item name="android:textColorPrimary">@color/pack_first_light_text</item>
+        <item name="android:textColorSecondary">@color/pack_first_light_dim</item>
+        <item name="actionMenuTextColor">@color/pack_first_light_text</item>
+
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.LiteGallery.Pack.FirstLight.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.LiteGallery.Pack.FirstLight.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.LiteGallery.Pack.FirstLight.Large</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.LiteGallery.Pack.FirstLight.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.LiteGallery.Pack.FirstLight.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.LiteGallery.Pack.FirstLight.Large</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.LiteGallery.Pack.FirstLight.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.LiteGallery.Pack.FirstLight.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.LiteGallery.Pack.FirstLight.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.LiteGallery.Pack.FirstLight.Body</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.LiteGallery.Pack.FirstLight.Label</item>
+
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.LiteGallery.FirstLight</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.FirstLight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+    </style>
+
+    <style name="Theme.LiteGallery.Pack.FirstLight.FullScreen" parent="Theme.LiteGallery.Pack.FirstLight.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
 
     <!-- =========================================================
          V3 · Warm Paper · Light

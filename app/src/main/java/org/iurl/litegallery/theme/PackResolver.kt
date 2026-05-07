@@ -7,7 +7,7 @@ import org.iurl.litegallery.R
  * Pure functions for translating (pack, theme preference, system uiMode) into
  * the concrete inputs `ThemeHelper` and `Activity.setTheme()` need.
  *
- * No Activity / Configuration / Context reads here — that keeps these
+ * No Activity / Configuration / Context reads here - that keeps these
  * functions safe to call before super.onCreate() and trivially testable.
  */
 object PackResolver {
@@ -70,6 +70,10 @@ object PackResolver {
      * the system is in dark mode, so we do NOT branch on isDark here.
      */
     fun pickStyle(pack: ThemePack, variant: ThemeVariant): Int = when (pack) {
+        ThemePack.FIRST_LIGHT -> when (variant) {
+            ThemeVariant.NoActionBar -> R.style.Theme_LiteGallery_Pack_FirstLight_NoActionBar
+            ThemeVariant.FullScreen -> R.style.Theme_LiteGallery_Pack_FirstLight_FullScreen
+        }
         ThemePack.WARM_PAPER -> when (variant) {
             ThemeVariant.NoActionBar -> R.style.Theme_LiteGallery_Pack_WarmPaper_NoActionBar
             ThemeVariant.FullScreen -> R.style.Theme_LiteGallery_Pack_WarmPaper_FullScreen

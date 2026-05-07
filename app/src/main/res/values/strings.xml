@@ -220,6 +220,8 @@
     <string name="pack_active_chip">ACTIVE</string>
 
     <!-- Pack names + subtitles -->
+    <string name="pack_first_light_name">First Light</string>
+    <string name="pack_first_light_sub">Clean · sans-serif · teal</string>
     <string name="pack_warm_paper_name">Warm Paper</string>
     <string name="pack_warm_paper_sub">Cream · serif · terracotta</string>
     <string name="pack_editorial_name">Editorial Noir</string>

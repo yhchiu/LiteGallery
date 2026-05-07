@@ -217,6 +217,16 @@ class CustomThemeColorResolutionTest {
     }
 
     @Test
+    fun initializeFromFirstLightCopiesGradientTokens() {
+        CustomThemeStore.initializeFromPack(app, ThemePack.FIRST_LIGHT)
+
+        assertTrue(CustomThemeStore.hasGradient(app))
+        assertEquals(app.getColorCompat(R.color.pack_first_light_gradient_start), CustomThemeStore.getGradientStart(app))
+        assertEquals(app.getColorCompat(R.color.pack_first_light_gradient_end), CustomThemeStore.getGradientEnd(app))
+        assertEquals(135, CustomThemeStore.getGradientAngle(app))
+    }
+
+    @Test
     fun contrastRatioToleratesTransparentBackgroundInput() {
         val ratio = ContrastUtils.ratio(Color.BLACK, 0x00112233)
 

@@ -220,6 +220,8 @@
     <string name="pack_active_chip">使用中</string>
 
     <!-- Pack names + subtitles -->
+    <string name="pack_first_light_name">破晓</string>
+    <string name="pack_first_light_sub">清新 · 无衬线 · 湖水绿</string>
     <string name="pack_warm_paper_name">暖纸</string>
     <string name="pack_warm_paper_sub">奶油 · 衬线 · 陶土红</string>
     <string name="pack_editorial_name">夜读编辑</string>

@@ -36,7 +36,7 @@ class ThemeHelperPreferenceTest {
     fun migrateLegacyIfNeeded_setsDefaultPackWhenMissing() {
         ThemeHelper.migrateLegacyIfNeeded(context)
 
-        assertEquals(ThemePack.WARM_PAPER, ThemeHelper.getCurrentPack(context))
+        assertEquals(ThemePack.FIRST_LIGHT, ThemeHelper.getCurrentPack(context))
     }
 
     @Test
@@ -67,7 +67,7 @@ class ThemeHelperPreferenceTest {
             .putString(ThemeHelper.THEME_PACK_PREFERENCE_KEY, "missing")
             .commit()
 
-        assertEquals(ThemePack.WARM_PAPER, ThemeHelper.getCurrentPack(context))
+        assertEquals(ThemePack.FIRST_LIGHT, ThemeHelper.getCurrentPack(context))
     }
 
     @Test

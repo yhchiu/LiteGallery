@@ -49,9 +49,9 @@ class ThemeResolverTest {
 
     @Test
     fun themePackLookupAndBuiltInListUseStableDefaults() {
-        assertEquals("warm_paper", ThemePack.DEFAULT_KEY)
-        assertEquals(ThemePack.WARM_PAPER, ThemePack.fromKey(null))
-        assertEquals(ThemePack.WARM_PAPER, ThemePack.fromKey("missing"))
+        assertEquals("first_light", ThemePack.DEFAULT_KEY)
+        assertEquals(ThemePack.FIRST_LIGHT, ThemePack.fromKey(null))
+        assertEquals(ThemePack.FIRST_LIGHT, ThemePack.fromKey("missing"))
         assertEquals(ThemePack.BRUTALIST, ThemePack.fromKey("brutalist"))
         assertTrue(ThemePack.all().contains(ThemePack.CUSTOM))
         assertFalse(ThemePack.builtIn().contains(ThemePack.CUSTOM))
@@ -59,6 +59,7 @@ class ThemeResolverTest {
 
     @Test
     fun themePackModeFlagsReflectSupportedModes() {
+        assertTrue(ThemePack.FIRST_LIGHT.isDualMode)
         assertTrue(ThemePack.WARM_PAPER.isDualMode)
         assertFalse(ThemePack.WARM_PAPER.isSingleMode)
         assertTrue(ThemePack.EDITORIAL.isSingleMode)
@@ -68,12 +69,15 @@ class ThemeResolverTest {
     }
 
     @Test
-    fun onlyPrismDeclaresGradientTokens() {
+    fun gradientPacksDeclareExpectedTokens() {
+        assertTrue(ThemePack.FIRST_LIGHT.hasGradient)
+        assertEquals(135, ThemePack.FIRST_LIGHT.gradientAngle)
         assertTrue(ThemePack.PRISM.hasGradient)
         assertEquals(135, ThemePack.PRISM.gradientAngle)
 
-        val nonPrismPacks = ThemePack.all().filter { it != ThemePack.PRISM }
-        assertTrue(nonPrismPacks.all { !it.hasGradient })
+        val gradientPacks = setOf(ThemePack.FIRST_LIGHT, ThemePack.PRISM)
+        val nonGradientPacks = ThemePack.all().filter { it !in gradientPacks }
+        assertTrue(nonGradientPacks.all { !it.hasGradient })
     }
 
     @Test
@@ -130,6 +134,14 @@ class ThemeResolverTest {
 
     @Test
     fun pickStyleMapsEveryPackAndVariantToExpectedStyle() {
+        assertEquals(
+            R.style.Theme_LiteGallery_Pack_FirstLight_NoActionBar,
+            PackResolver.pickStyle(ThemePack.FIRST_LIGHT, ThemeVariant.NoActionBar)
+        )
+        assertEquals(
+            R.style.Theme_LiteGallery_Pack_FirstLight_FullScreen,
+            PackResolver.pickStyle(ThemePack.FIRST_LIGHT, ThemeVariant.FullScreen)
+        )
         assertEquals(
             R.style.Theme_LiteGallery_Pack_WarmPaper_NoActionBar,
             PackResolver.pickStyle(ThemePack.WARM_PAPER, ThemeVariant.NoActionBar)

@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- ===== Warm Paper · Dark (V3 Dark — same warmth, after dusk) ===== -->
+    <!-- ===== First Light · Dark (default) ===== -->
+    <color name="pack_first_light_bg">#0c1622</color>
+    <color name="pack_first_light_surface">#162232</color>
+    <color name="pack_first_light_card">#16212f</color>
+    <color name="pack_first_light_text">#eaf1f8</color>
+    <color name="pack_first_light_dim">#94eaf1f8</color>
+    <color name="pack_first_light_faint">#42eaf1f8</color>
+    <color name="pack_first_light_line">#14eaf1f8</color>
+    <color name="pack_first_light_accent">#5ea7ee</color>
+    <color name="pack_first_light_on_accent">#0c1622</color>
+    <color name="pack_first_light_gradient_start">#5fd9b6</color>
+    <color name="pack_first_light_gradient_end">#5ea7ee</color>
+
+    <!-- ===== Warm Paper · Dark (V3 Dark - same warmth, after dusk) ===== -->
     <color name="pack_warm_paper_bg">#1a1612</color>
     <color name="pack_warm_paper_surface">#231d17</color>
     <color name="pack_warm_paper_card">#2a2218</color>
@@ -46,7 +59,7 @@
     <color name="pack_prism_gradient_start">#ff4d9d</color>
     <color name="pack_prism_gradient_end">#3d7dff</color>
 
-    <!-- ===== Sharp Brutalist · Dark (V5 Dark — poster on black) ===== -->
+    <!-- ===== Sharp Brutalist · Dark (V5 Dark - poster on black) ===== -->
     <color name="pack_brutalist_bg">#0f0f0f</color>
     <color name="pack_brutalist_surface">#1a1a1a</color>
     <color name="pack_brutalist_card">#171717</color>
