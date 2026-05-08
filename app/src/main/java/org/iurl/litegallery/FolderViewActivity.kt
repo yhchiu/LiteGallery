@@ -471,7 +471,7 @@ class FolderViewActivity : AppCompatActivity() {
             .setTitle(R.string.sort)
             .setSingleChoiceItems(sortOptions, currentIndex) { dialog, which ->
                 currentSortOrder = parseSortOrderPreference(sortValues[which])
-                applyDisplayTransform(scrollToTop = true)
+                applyDisplayTransform(scrollToTop = true, bypassDiff = true)
                 persistCurrentSortOrderIfNeeded()
                 updateSortIndicator()
                 dialog.dismiss()
@@ -495,7 +495,7 @@ class FolderViewActivity : AppCompatActivity() {
             .setTitle(R.string.group_by)
             .setSingleChoiceItems(groupOptions, currentIndex) { dialog, which ->
                 currentGroupBy = groupValues[which]
-                applyDisplayTransform(scrollToTop = true)
+                applyDisplayTransform(scrollToTop = true, bypassDiff = true)
                 persistCurrentGroupByIfNeeded()
                 updateGroupIndicator()
                 dialog.dismiss()
@@ -511,7 +511,7 @@ class FolderViewActivity : AppCompatActivity() {
         return dialog
     }
 
-    private fun applyDisplayTransform(scrollToTop: Boolean) {
+    private fun applyDisplayTransform(scrollToTop: Boolean, bypassDiff: Boolean = false) {
         transformJob?.cancel()
         if (isLoadingMediaItems) return
         if (mediaItems.isEmpty()) {
@@ -537,16 +537,21 @@ class FolderViewActivity : AppCompatActivity() {
             if (generation != displayGeneration) return@launch
 
             mediaItems = result.sortedMediaItems
-            submitDisplayResult(result, scrollToTop)
+            submitDisplayResult(result, scrollToTop, bypassDiff)
         }
     }
 
-    private fun submitDisplayResult(result: FolderDisplayResult, scrollToTop: Boolean = false) {
+    private fun submitDisplayResult(
+        result: FolderDisplayResult,
+        scrollToTop: Boolean = false,
+        bypassDiff: Boolean = false
+    ) {
         if (result.isGrouped) {
             if (binding.recyclerView.adapter != groupedMediaAdapter) {
                 binding.recyclerView.adapter = groupedMediaAdapter
             }
             groupedMediaAdapter.viewMode = currentViewMode
+            if (bypassDiff) groupedMediaAdapter.submitList(null)
             groupedMediaAdapter.submitList(result.displayItems) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
             }
@@ -555,6 +560,7 @@ class FolderViewActivity : AppCompatActivity() {
                 binding.recyclerView.adapter = mediaAdapter
             }
             mediaAdapter.viewMode = currentViewMode
+            if (bypassDiff) mediaAdapter.submitList(null)
             mediaAdapter.submitList(result.sortedMediaItems) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
             }
