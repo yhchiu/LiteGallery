@@ -1,40 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground"
+    android:orientation="vertical"
     tools:context=".FolderViewActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_gravity="top"
         android:background="?android:attr/colorBackground"
-        app:elevation="0dp"
-        app:liftOnScroll="true">
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="?attr/colorOnSurface" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?android:attr/colorBackground"
-            app:layout_scrollFlags="scroll|enterAlways"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="?attr/colorOnSurface" />
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:id="@+id/folderCoordinator"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="?android:attr/colorBackground">
 
-        <!-- Hero block: eyebrow + serif title + stat row -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/heroContainer"
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="6dp"
-            android:layout_marginTop="6dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardElevation="0dp"
-            app:layout_scrollFlags="scroll|enterAlways"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:strokeWidth="1dp">
+            android:background="?android:attr/colorBackground"
+            app:elevation="0dp"
+            app:liftOnScroll="true">
+
+        <!-- Hero block: eyebrow + serif title + stat row -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/heroContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:layout_marginTop="6dp"
+                app:cardBackgroundColor="?attr/colorSurface"
+                app:cardElevation="0dp"
+                app:layout_scrollFlags="scroll"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp">
 
             <LinearLayout
                 android:id="@+id/folderHeroInnerLayout"
@@ -83,18 +91,18 @@
                     tools:text="2,847 items · 4.2 GB · 142 videos" />
 
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+            </com.google.android.material.card.MaterialCardView>
 
-        <HorizontalScrollView
-            android:id="@+id/folderControlsRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="6dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="8dp"
-            android:fillViewport="true"
-            android:scrollbars="none"
-            app:layout_scrollFlags="scroll|enterAlways">
+            <HorizontalScrollView
+                android:id="@+id/folderControlsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="8dp"
+                android:fillViewport="true"
+                android:scrollbars="none"
+                app:layout_scrollFlags="scroll">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -145,14 +153,14 @@
                     tools:text="Date: Newest" />
 
             </LinearLayout>
-        </HorizontalScrollView>
-    </com.google.android.material.appbar.AppBarLayout>
+            </HorizontalScrollView>
+        </com.google.android.material.appbar.AppBarLayout>
 
-    <FrameLayout
-        android:id="@+id/folderContentFrame"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        <FrameLayout
+            android:id="@+id/folderContentFrame"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefresh"
@@ -175,25 +183,27 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-    </FrameLayout>
+        </FrameLayout>
 
-    <TextView
-        android:id="@+id/emptyView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="@string/no_media_found"
-        android:textSize="16sp"
-        android:visibility="gone"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        <TextView
+            android:id="@+id/emptyView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/no_media_found"
+            android:textSize="16sp"
+            android:visibility="gone"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:indeterminateTint="?attr/colorPrimary"
-        android:visibility="gone"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminateTint="?attr/colorPrimary"
+            android:visibility="gone"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</LinearLayout>
