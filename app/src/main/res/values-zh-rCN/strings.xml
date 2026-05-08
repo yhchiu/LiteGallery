@@ -492,4 +492,6 @@
     <string name="custom_preview_main_screen">主画面</string>
     <string name="custom_preview_card_label">卡片</string>
     <string name="custom_preview_button">动作按钮</string>
+    <string name="fast_scroll_thumb_content_description">快速滚动控制点</string>
+    <string name="fast_scroll_position_content_description">当前滚动分组</string>
 </resources>

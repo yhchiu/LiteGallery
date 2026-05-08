@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import org.iurl.litegallery.theme.GradientHelper
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 class FolderViewActivity : AppCompatActivity() {
     
@@ -57,6 +59,9 @@ class FolderViewActivity : AppCompatActivity() {
     private var lastSwipeRefreshAtMs = 0L
     private var transformJob: Job? = null
     private var displayGeneration = 0
+    private var fastScrollSections: List<FastScrollSection> = emptyList()
+    private var lockedFastScrollRange = 0
+    private var swipeRefreshEnabledBeforeFastScroll = true
 
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -116,6 +121,7 @@ class FolderViewActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupSwipeRefresh()
+        setupFastScroller()
         ThemeHelper.applyRuntimeCustomColors(this)
         applyFolderHeroGradientAccent()
         binding.root.post { applyFolderHeroGradientAccent() }
@@ -281,6 +287,94 @@ class FolderViewActivity : AppCompatActivity() {
         )
     }
 
+    private fun setupFastScroller() {
+        binding.recyclerView.isVerticalScrollBarEnabled = false
+        binding.fastScrollerView.setSections(emptyList())
+        binding.fastScrollerView.setEnabledForContent(false)
+        binding.fastScrollerView.setDragListener(object : FolderFastScrollerView.DragListener {
+            override fun onDragStarted(): Boolean {
+                if (binding.swipeRefresh.isRefreshing) return false
+
+                val scrollRange = binding.recyclerView.computeVerticalScrollRange()
+                val scrollExtent = binding.recyclerView.computeVerticalScrollExtent()
+                val scrollableRange = scrollRange - scrollExtent
+                if (scrollableRange <= 0) return false
+
+                lockedFastScrollRange = scrollableRange
+                swipeRefreshEnabledBeforeFastScroll = binding.swipeRefresh.isEnabled
+                binding.swipeRefresh.isEnabled = false
+                return true
+            }
+
+            override fun onDragMoved(fraction: Float) {
+                val scrollableRange = lockedFastScrollRange
+                if (scrollableRange <= 0) return
+
+                val desiredOffset = (fraction * scrollableRange).roundToInt()
+                val delta = desiredOffset - binding.recyclerView.computeVerticalScrollOffset()
+                if (delta != 0) {
+                    binding.recyclerView.scrollBy(0, delta)
+                }
+                syncFastScrollerFromRecyclerView(showForScroll = false)
+            }
+
+            override fun onDragStopped() {
+                lockedFastScrollRange = 0
+                binding.swipeRefresh.isEnabled = swipeRefreshEnabledBeforeFastScroll
+            }
+        })
+
+        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                syncFastScrollerFromRecyclerView(showForScroll = dy != 0)
+            }
+        })
+    }
+
+    private fun syncFastScrollerFromRecyclerView(showForScroll: Boolean) {
+        val recyclerView = binding.recyclerView
+        val scrollOffset = recyclerView.computeVerticalScrollOffset()
+        val scrollRange = recyclerView.computeVerticalScrollRange()
+        val scrollExtent = recyclerView.computeVerticalScrollExtent()
+        val canScroll = recyclerView.visibility == View.VISIBLE &&
+            displayedItemCount > 0 &&
+            scrollRange > scrollExtent
+
+        binding.fastScrollerView.setScrollMetrics(scrollOffset, scrollRange, scrollExtent)
+        binding.fastScrollerView.setEnabledForContent(canScroll)
+        updateFastScrollerSectionTitle()
+
+        if (canScroll && showForScroll) {
+            binding.fastScrollerView.show()
+            binding.fastScrollerView.hideDelayed()
+        }
+    }
+
+    private fun updateFastScrollerSectionTitle() {
+        val firstVisiblePosition =
+            (binding.recyclerView.layoutManager as? LinearLayoutManager)
+                ?.findFirstVisibleItemPosition()
+                ?: RecyclerView.NO_POSITION
+        val title = FastScrollSectionIndex.titleForPosition(fastScrollSections, firstVisiblePosition)
+        binding.fastScrollerView.setCurrentSectionTitle(title)
+    }
+
+    private fun disableFastScrollerForListMutation() {
+        fastScrollSections = emptyList()
+        binding.fastScrollerView.setSections(emptyList())
+        binding.fastScrollerView.setCurrentSectionTitle(null)
+        binding.fastScrollerView.setEnabledForContent(false)
+    }
+
+    private fun applyFastScrollSectionsAfterCommit(sections: List<FastScrollSection>) {
+        fastScrollSections = sections
+        binding.fastScrollerView.setSections(sections)
+        updateFastScrollerSectionTitle()
+        binding.recyclerView.post {
+            syncFastScrollerFromRecyclerView(showForScroll = false)
+        }
+    }
+
     private fun updateLayoutManager() {
         binding.recyclerView.layoutManager = when (currentViewMode) {
             MediaAdapter.ViewMode.GRID -> GridLayoutManager(this, 3).apply {
@@ -301,6 +395,9 @@ class FolderViewActivity : AppCompatActivity() {
         }
         mediaAdapter.viewMode = currentViewMode
         groupedMediaAdapter.viewMode = currentViewMode
+        binding.recyclerView.post {
+            syncFastScrollerFromRecyclerView(showForScroll = false)
+        }
     }
 
     private fun loadViewModePreference() {
@@ -546,6 +643,7 @@ class FolderViewActivity : AppCompatActivity() {
         scrollToTop: Boolean = false,
         bypassDiff: Boolean = false
     ) {
+        disableFastScrollerForListMutation()
         if (result.isGrouped) {
             if (binding.recyclerView.adapter != groupedMediaAdapter) {
                 binding.recyclerView.adapter = groupedMediaAdapter
@@ -554,6 +652,7 @@ class FolderViewActivity : AppCompatActivity() {
             if (bypassDiff) groupedMediaAdapter.submitList(null)
             groupedMediaAdapter.submitList(result.displayItems) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
+                applyFastScrollSectionsAfterCommit(result.fastScrollSections)
             }
         } else {
             if (binding.recyclerView.adapter != mediaAdapter) {
@@ -563,11 +662,13 @@ class FolderViewActivity : AppCompatActivity() {
             if (bypassDiff) mediaAdapter.submitList(null)
             mediaAdapter.submitList(result.sortedMediaItems) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
+                applyFastScrollSectionsAfterCommit(emptyList())
             }
         }
     }
 
     private fun clearDisplayedItems() {
+        disableFastScrollerForListMutation()
         mediaAdapter.submitList(emptyList())
         groupedMediaAdapter.submitList(emptyList())
     }
@@ -630,6 +731,7 @@ class FolderViewActivity : AppCompatActivity() {
             binding.progressBar.visibility = View.VISIBLE
             binding.emptyView.visibility = View.GONE
             binding.recyclerView.visibility = View.GONE
+            binding.fastScrollerView.setEnabledForContent(false)
         } else if (fromSwipeRefresh) {
             binding.swipeRefresh.isRefreshing = true
         }
@@ -680,11 +782,15 @@ class FolderViewActivity : AppCompatActivity() {
                     binding.emptyView.visibility = View.GONE
                     binding.recyclerView.visibility = View.VISIBLE
                     bindFolderStats(mediaItems)
+                    binding.recyclerView.post {
+                        syncFastScrollerFromRecyclerView(showForScroll = false)
+                    }
                 }
             } catch (e: Exception) {
                 binding.progressBar.visibility = View.GONE
                 binding.emptyView.visibility = View.VISIBLE
                 binding.recyclerView.visibility = View.GONE
+                binding.fastScrollerView.setEnabledForContent(false)
             } finally {
                 isLoadingMediaItems = false
                 binding.swipeRefresh.isRefreshing = false

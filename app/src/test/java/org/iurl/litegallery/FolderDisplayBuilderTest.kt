@@ -19,6 +19,7 @@ class FolderDisplayBuilderTest {
         assertFalse(result.isGrouped)
         assertEquals(listOf("new.jpg", "old.jpg"), result.sortedMediaItems.map { it.name })
         assertTrue(result.displayItems.isEmpty())
+        assertTrue(result.fastScrollSections.isEmpty())
     }
 
     @Test
@@ -125,6 +126,30 @@ class FolderDisplayBuilderTest {
         val mediaItems = result.displayItems.filterIsInstance<FolderDisplayItem.Media>()
         assertEquals(listOf("a.jpg", "b.jpg", "c.jpg"), result.sortedMediaItems.map { it.name })
         assertEquals(listOf(0, 1, 2), mediaItems.map { it.mediaIndex })
+    }
+
+    @Test
+    fun groupedResultCreatesFastScrollSectionsFromHeaders() {
+        val result = FolderDisplayBuilder.build(
+            items = listOf(
+                item("b.jpg"),
+                item("a.jpg"),
+                item("c.jpg")
+            ),
+            sortOrder = "name_asc",
+            groupBy = FolderGroupBy.NAME,
+            labels = labels
+        )
+
+        assertEquals(
+            listOf(
+                FastScrollSection(adapterPosition = 0, title = "A"),
+                FastScrollSection(adapterPosition = 2, title = "B"),
+                FastScrollSection(adapterPosition = 4, title = "C")
+            ),
+            result.fastScrollSections
+        )
+        assertEquals(result.headers().map { it.title }, result.fastScrollSections.map { it.title })
     }
 
     @Test

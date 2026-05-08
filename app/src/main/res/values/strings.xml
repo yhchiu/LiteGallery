@@ -493,4 +493,6 @@
     <string name="custom_preview_main_screen">Main screen</string>
     <string name="custom_preview_card_label">Card</string>
     <string name="custom_preview_button">Action button</string>
+    <string name="fast_scroll_thumb_content_description">Fast scroll thumb</string>
+    <string name="fast_scroll_position_content_description">Current scroll section</string>
 </resources>

@@ -19,6 +19,7 @@ data class FolderDisplayLabels(
 data class FolderDisplayResult(
     val sortedMediaItems: List<MediaItem>,
     val displayItems: List<FolderDisplayItem>,
+    val fastScrollSections: List<FastScrollSection>,
     val isGrouped: Boolean
 )
 
@@ -36,13 +37,16 @@ object FolderDisplayBuilder {
             return FolderDisplayResult(
                 sortedMediaItems = sortedItems,
                 displayItems = emptyList(),
+                fastScrollSections = emptyList(),
                 isGrouped = false
             )
         }
 
+        val groupedDisplay = buildDisplayItems(sortedItems, groupBy, labels)
         return FolderDisplayResult(
             sortedMediaItems = sortedItems,
-            displayItems = buildDisplayItems(sortedItems, groupBy, labels),
+            displayItems = groupedDisplay.displayItems,
+            fastScrollSections = groupedDisplay.fastScrollSections,
             isGrouped = true
         )
     }
@@ -69,7 +73,7 @@ object FolderDisplayBuilder {
         sortedItems: List<MediaItem>,
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels
-    ): List<FolderDisplayItem> {
+    ): GroupedDisplayResult {
         val groupSelector = createGroupSelector(sortedItems, groupBy, labels)
         val groups = linkedMapOf<GroupInfo, MutableList<FolderDisplayItem.Media>>()
         sortedItems.forEachIndexed { index, item ->
@@ -79,11 +83,18 @@ object FolderDisplayBuilder {
         }
 
         val displayItems = ArrayList<FolderDisplayItem>(sortedItems.size + groups.size)
+        val fastScrollSections = ArrayList<FastScrollSection>(groups.size)
         groups.forEach { (group, media) ->
+            fastScrollSections.add(
+                FastScrollSection(
+                    adapterPosition = displayItems.size,
+                    title = group.title
+                )
+            )
             displayItems.add(FolderDisplayItem.Header(group.key, group.title, media.size))
             displayItems.addAll(media)
         }
-        return displayItems
+        return GroupedDisplayResult(displayItems, fastScrollSections)
     }
 
     private fun createGroupSelector(
@@ -204,5 +215,10 @@ object FolderDisplayBuilder {
     private data class GroupInfo(
         val key: String,
         val title: String
+    )
+
+    private data class GroupedDisplayResult(
+        val displayItems: List<FolderDisplayItem>,
+        val fastScrollSections: List<FastScrollSection>
     )
 }
