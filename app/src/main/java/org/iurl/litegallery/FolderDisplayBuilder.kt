@@ -51,8 +51,8 @@ object FolderDisplayBuilder {
         return when (sortOrder) {
             "date_desc" -> items.sortedByDescending { it.dateModified }
             "date_asc" -> items.sortedBy { it.dateModified }
-            "name_asc" -> items.sortedBy { it.name.lowercase(Locale.getDefault()) }
-            "name_desc" -> items.sortedByDescending { it.name.lowercase(Locale.getDefault()) }
+            "name_asc" -> items.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+            "name_desc" -> items.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.name })
             "size_desc" -> items.sortedWith(sizeDescendingComparator)
             "size_asc" -> items.sortedWith(sizeAscendingComparator)
             else -> items.sortedByDescending { it.dateModified }
