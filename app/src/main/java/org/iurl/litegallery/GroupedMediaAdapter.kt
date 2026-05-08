@@ -241,9 +241,10 @@ class GroupedMediaAdapter(
         }
     }
 
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+
     private fun formatDate(timestamp: Long): String {
         if (timestamp <= 0) return ""
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         return dateFormat.format(Date(timestamp))
     }
 
