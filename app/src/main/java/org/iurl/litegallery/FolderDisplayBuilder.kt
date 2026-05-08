@@ -104,62 +104,86 @@ object FolderDisplayBuilder {
     ): (MediaItem) -> GroupInfo {
         return when (groupBy) {
             FolderGroupBy.DATE -> createDateGroupSelector(labels)
-            FolderGroupBy.NAME -> { item -> nameGroup(item) }
+            FolderGroupBy.NAME -> createNameGroupSelector()
             FolderGroupBy.SIZE -> createSizeGroupSelector(items, labels)
-            FolderGroupBy.TYPE -> { item -> typeGroup(item, labels) }
-            FolderGroupBy.NONE -> { _ -> GroupInfo("none", "") }
+            FolderGroupBy.TYPE -> createTypeGroupSelector(labels)
+            FolderGroupBy.NONE -> createNoneGroupSelector()
         }
+    }
+
+    private fun createNoneGroupSelector(): (MediaItem) -> GroupInfo {
+        val noneGroup = GroupInfo("none", "")
+        return { noneGroup }
     }
 
     private fun createDateGroupSelector(labels: FolderDisplayLabels): (MediaItem) -> GroupInfo {
         val calendar = Calendar.getInstance()
+        val groupCache = HashMap<Int, GroupInfo>()
+        val unknownGroup = GroupInfo("date:unknown", labels.unknownDate)
         return { item ->
             if (item.dateModified <= 0L) {
-                GroupInfo("date:unknown", labels.unknownDate)
+                unknownGroup
             } else {
                 calendar.timeInMillis = item.dateModified
                 val year = calendar.get(Calendar.YEAR)
                 val month = calendar.get(Calendar.MONTH) + 1
-                GroupInfo(
-                    key = "date:%04d%02d".format(Locale.ROOT, year, month),
-                    title = "%04d/%02d".format(Locale.ROOT, year, month)
-                )
+                val cacheKey = (year * 100) + month
+                groupCache.getOrPut(cacheKey) {
+                    val monthText = twoDigitMonth(month)
+                    GroupInfo(
+                        key = "date:$year$monthText",
+                        title = "$year/$monthText"
+                    )
+                }
             }
         }
     }
 
-    private fun nameGroup(item: MediaItem): GroupInfo {
-        val title = if (item.name.isNotEmpty()) {
-            item.name.substring(0, item.name.offsetByCodePoints(0, 1))
-                .uppercase(Locale.getDefault())
-        } else {
-            "#"
+    private fun createNameGroupSelector(): (MediaItem) -> GroupInfo {
+        val groupCache = HashMap<String, GroupInfo>()
+        val fallbackGroup = GroupInfo("name:#", "#")
+        return { item ->
+            if (item.name.isEmpty()) {
+                fallbackGroup
+            } else {
+                val title = item.name.substring(0, item.name.offsetByCodePoints(0, 1))
+                    .uppercase(Locale.getDefault())
+                groupCache.getOrPut(title) {
+                    GroupInfo("name:$title", title)
+                }
+            }
         }
-        return GroupInfo("name:$title", title)
     }
 
     private fun createSizeGroupSelector(
         items: List<MediaItem>,
         labels: FolderDisplayLabels
     ): (MediaItem) -> GroupInfo {
-        val positiveSizes = items.asSequence()
-            .map { it.size }
-            .filter { it > 0L }
-            .toList()
-
-        if (positiveSizes.isEmpty()) {
-            return { GroupInfo("size:unknown", labels.unknownSize) }
+        var minSize = Long.MAX_VALUE
+        var maxSize = Long.MIN_VALUE
+        var hasPositiveSize = false
+        items.forEach { item ->
+            val size = item.size
+            if (size > 0L) {
+                hasPositiveSize = true
+                if (size < minSize) minSize = size
+                if (size > maxSize) maxSize = size
+            }
         }
 
-        val minSize = positiveSizes.minOrNull() ?: 0L
-        val maxSize = positiveSizes.maxOrNull() ?: 0L
+        val unknownGroup = GroupInfo("size:unknown", labels.unknownSize)
+        if (!hasPositiveSize) {
+            return { unknownGroup }
+        }
+
         if (minSize == maxSize) {
             val title = labels.formatSize(minSize)
+            val singleSizeGroup = GroupInfo("size:$minSize-$maxSize", title)
             return { item ->
                 if (item.size <= 0L) {
-                    GroupInfo("size:unknown", labels.unknownSize)
+                    unknownGroup
                 } else {
-                    GroupInfo("size:$minSize-$maxSize", title)
+                    singleSizeGroup
                 }
             }
         }
@@ -167,25 +191,28 @@ object FolderDisplayBuilder {
         val step = niceRoundUp(ceil((maxSize - minSize).toDouble() / TARGET_SIZE_BUCKETS).toLong())
             .coerceAtLeast(1L)
         val bucketCount = (((maxSize - minSize) / step) + 1).coerceAtMost(TARGET_SIZE_BUCKETS.toLong()).toInt()
+        val bucketGroups = Array<GroupInfo?>(bucketCount) { null }
 
         return { item ->
             if (item.size <= 0L) {
-                GroupInfo("size:unknown", labels.unknownSize)
+                unknownGroup
             } else {
                 val rawIndex = ((item.size - minSize) / step).toInt()
                 val index = rawIndex.coerceIn(0, bucketCount - 1)
-                val start = minSize + (index * step)
-                val end = if (index == bucketCount - 1) {
-                    maxSize
-                } else {
-                    (start + step - 1).coerceAtMost(maxSize)
+                bucketGroups[index] ?: run {
+                    val start = minSize + (index * step)
+                    val end = if (index == bucketCount - 1) {
+                        maxSize
+                    } else {
+                        (start + step - 1).coerceAtMost(maxSize)
+                    }
+                    val title = if (start == end) {
+                        labels.formatSize(start)
+                    } else {
+                        "${labels.formatSize(start)} - ${labels.formatSize(end)}"
+                    }
+                    GroupInfo("size:$start-$end", title).also { bucketGroups[index] = it }
                 }
-                val title = if (start == end) {
-                    labels.formatSize(start)
-                } else {
-                    "${labels.formatSize(start)} - ${labels.formatSize(end)}"
-                }
-                GroupInfo("size:$start-$end", title)
             }
         }
     }
@@ -204,12 +231,21 @@ object FolderDisplayBuilder {
         return multiplier * base
     }
 
-    private fun typeGroup(item: MediaItem, labels: FolderDisplayLabels): GroupInfo {
-        return when {
-            item.mimeType.startsWith("image/") -> GroupInfo("type:image", labels.imageType)
-            item.mimeType.startsWith("video/") -> GroupInfo("type:video", labels.videoType)
-            else -> GroupInfo("type:other", labels.otherType)
+    private fun createTypeGroupSelector(labels: FolderDisplayLabels): (MediaItem) -> GroupInfo {
+        val imageGroup = GroupInfo("type:image", labels.imageType)
+        val videoGroup = GroupInfo("type:video", labels.videoType)
+        val otherGroup = GroupInfo("type:other", labels.otherType)
+        return { item ->
+            when {
+                item.mimeType.startsWith("image/") -> imageGroup
+                item.mimeType.startsWith("video/") -> videoGroup
+                else -> otherGroup
+            }
         }
+    }
+
+    private fun twoDigitMonth(month: Int): String {
+        return if (month < 10) "0$month" else month.toString()
     }
 
     private data class GroupInfo(
