@@ -120,6 +120,8 @@
     <string name="display_settings">Display Settings</string>
     <string name="action_bar_settings">Action Bar Settings</string>
     <string name="general_settings">General Settings</string>
+    <string name="storage_and_privacy_settings">Storage &amp; Privacy Settings</string>
+    <string name="advanced_settings">Advanced Settings</string>
     <string name="default_view_mode">Default View Mode</string>
     <string name="default_group_by">Default Group By</string>
     <string name="remember_folder_sort_order_title">Remember Folder Sort Order</string>

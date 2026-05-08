@@ -13,7 +13,7 @@ import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     private lateinit var binding: ActivitySettingsBinding
     private var currentPackKey: String? = null
@@ -75,13 +75,37 @@ class SettingsActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
-                finish()
+                if (supportFragmentManager.backStackEntryCount > 0) {
+                    supportFragmentManager.popBackStack()
+                } else {
+                    finish()
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
     }
     
+    override fun onPreferenceStartFragment(
+        caller: PreferenceFragmentCompat,
+        pref: androidx.preference.Preference
+    ): Boolean {
+        val args = pref.extras
+        args.putString(PreferenceFragmentCompat.ARG_PREFERENCE_ROOT, pref.key)
+        val fragment = supportFragmentManager.fragmentFactory.instantiate(
+            classLoader,
+            pref.fragment!!
+        ).apply {
+            arguments = args
+            setTargetFragment(caller, 0)
+        }
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.settings_container, fragment)
+            .addToBackStack(null)
+            .commit()
+        return true
+    }
+
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
@@ -89,6 +113,15 @@ class SettingsActivity : AppCompatActivity() {
             setDisplayShowHomeEnabled(true)
             // Title lives in the hero block below the toolbar (Phase 5).
             title = ""
+        }
+        
+        supportFragmentManager.addOnBackStackChangedListener {
+            val isRoot = supportFragmentManager.backStackEntryCount == 0
+            if (isRoot) {
+                binding.offlineFooterCard.visibility = android.view.View.VISIBLE
+            } else {
+                binding.offlineFooterCard.visibility = android.view.View.GONE
+            }
         }
     }
 
@@ -139,7 +172,16 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-            setPreferencesFromResource(R.xml.preferences, rootKey)
+            val xmlRes = when (rootKey) {
+                "screen_display" -> R.xml.pref_display
+                "screen_video" -> R.xml.pref_video
+                "screen_rename" -> R.xml.pref_rename
+                "screen_storage" -> R.xml.pref_storage
+                "screen_advanced" -> R.xml.pref_advanced
+                "screen_backup" -> R.xml.pref_backup
+                else -> R.xml.pref_main
+            }
+            setPreferencesFromResource(xmlRes, null)
 
             // Initialize settings helper
             settingsHelper = SettingsExportImportHelper(requireContext())

@@ -132,6 +132,7 @@ class MediaViewerAdapter(
                 if (!mediaItem.isSmb) {
                     val context = binding.root.context
                     if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
+                        binding.videoThumbnail?.clearColorFilter()
                         Glide.with(context)
                             .load(mediaItem.path)
                             .fitCenter()
@@ -139,6 +140,7 @@ class MediaViewerAdapter(
                     }
                 } else {
                     binding.videoThumbnail?.setImageResource(R.drawable.ic_play_circle)
+                    binding.videoThumbnail?.setColorFilter(android.graphics.Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN)
                 }
                 
                 // Set up video player

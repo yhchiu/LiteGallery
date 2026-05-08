@@ -120,6 +120,8 @@
     <string name="display_settings">顯示設定</string>
     <string name="action_bar_settings">動作列設定</string>
     <string name="general_settings">一般設定</string>
+    <string name="storage_and_privacy_settings">儲存空間與隱私設定</string>
+    <string name="advanced_settings">進階設定</string>
     <string name="default_view_mode">預設檢視模式</string>
     <string name="default_group_by">預設分組</string>
     <string name="remember_folder_sort_order_title">記憶資料夾排序模式</string>

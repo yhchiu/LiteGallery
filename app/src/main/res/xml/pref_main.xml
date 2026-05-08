@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <Preference
+        android:key="screen_display"
+        android:title="@string/display_settings"
+        android:icon="@drawable/ic_palette"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
+    <Preference
+        android:key="screen_video"
+        android:title="@string/video_gesture_settings"
+        android:icon="@drawable/ic_play_circle"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
+    <Preference
+        android:key="screen_rename"
+        android:title="@string/quick_rename_settings"
+        android:icon="@drawable/ic_rename"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
+    <Preference
+        android:key="screen_storage"
+        android:title="@string/storage_and_privacy_settings"
+        android:icon="@drawable/ic_shield"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
+    <Preference
+        android:key="screen_backup"
+        android:title="@string/settings_backup"
+        android:icon="@drawable/ic_restore"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
+    <Preference
+        android:key="screen_advanced"
+        android:title="@string/advanced_settings"
+        android:icon="@drawable/ic_settings"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
+</PreferenceScreen>

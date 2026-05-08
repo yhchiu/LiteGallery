@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/display_settings">
+
+    <Preference
+        android:key="theme_pack"
+        android:summary="@string/theme_pack_summary"
+        android:title="@string/theme_pack_title" />
+
+    <ListPreference
+        android:defaultValue="date_desc"
+        android:entries="@array/sort_entries"
+        android:entryValues="@array/sort_values"
+        android:key="default_sort_order"
+        android:summary="@string/sort_by_date_desc"
+        android:title="@string/default_sort_order" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="remember_folder_sort_order"
+        android:summary="@string/remember_folder_sort_order_summary"
+        android:title="@string/remember_folder_sort_order_title" />
+
+    <ListPreference
+        android:defaultValue="date"
+        android:entries="@array/group_by_entries"
+        android:entryValues="@array/group_by_values"
+        android:key="default_group_by"
+        android:summary="@string/group_date"
+        android:title="@string/default_group_by" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="remember_folder_group_by"
+        android:summary="@string/remember_folder_group_by_summary"
+        android:title="@string/remember_folder_group_by_title" />
+
+    <ListPreference
+        android:defaultValue="grid"
+        android:entries="@array/view_mode_entries"
+        android:entryValues="@array/view_mode_values"
+        android:key="default_view_mode"
+        android:summary="@string/thumbnail_view"
+        android:title="@string/default_view_mode" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="remember_folder_view_mode"
+        android:summary="@string/remember_folder_view_mode_summary"
+        android:title="@string/remember_folder_view_mode_title" />
+
+    <ListPreference
+        android:defaultValue="1"
+        android:entries="@array/filename_max_lines_entries"
+        android:entryValues="@array/filename_max_lines_values"
+        android:key="filename_max_lines"
+        android:summary="@string/filename_max_lines_1"
+        android:title="@string/filename_max_lines_title" />
+
+    <ListPreference
+        android:defaultValue="3"
+        android:entries="@array/zoom_max_scale_entries"
+        android:entryValues="@array/zoom_max_scale_values"
+        android:key="zoom_max_scale"
+        android:summary="@string/zoom_scale_3x"
+        android:title="@string/zoom_max_scale_title" />
+        
+    <Preference
+        android:key="customize_action_bar"
+        android:summary="@string/customize_action_bar_summary"
+        android:title="@string/customize_action_bar" />
+
+    <ListPreference
+        android:defaultValue="system"
+        android:entries="@array/language_entries"
+        android:entryValues="@array/language_values"
+        android:key="app_language"
+        android:summary="@string/language_summary"
+        android:title="@string/language_title" />
+
+</PreferenceScreen>

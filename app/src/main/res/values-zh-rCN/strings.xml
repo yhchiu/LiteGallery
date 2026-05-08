@@ -120,6 +120,8 @@
     <string name="display_settings">显示设置</string>
     <string name="action_bar_settings">操作栏设置</string>
     <string name="general_settings">常规设置</string>
+    <string name="storage_and_privacy_settings">存储空间与隐私设置</string>
+    <string name="advanced_settings">高级设置</string>
     <string name="default_view_mode">默认视图模式</string>
     <string name="default_group_by">默认分组</string>
     <string name="remember_folder_sort_order_title">记忆文件夹排序模式</string>
