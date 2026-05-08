@@ -18,7 +18,10 @@ import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FolderViewActivity : AppCompatActivity() {
     
@@ -32,10 +35,14 @@ class FolderViewActivity : AppCompatActivity() {
         private const val PREF_DEFAULT_VIEW_MODE = "default_view_mode"
         private const val PREF_REMEMBER_FOLDER_VIEW_MODE = "remember_folder_view_mode"
         private const val PREF_LAST_FOLDER_VIEW_MODE = "last_folder_view_mode"
+        private const val PREF_DEFAULT_GROUP_BY = "default_group_by"
+        private const val PREF_REMEMBER_FOLDER_GROUP_BY = "remember_folder_group_by"
+        private const val PREF_LAST_FOLDER_GROUP_BY = "last_folder_group_by"
     }
     
     private lateinit var binding: ActivityFolderViewBinding
     private lateinit var mediaAdapter: MediaAdapter
+    private lateinit var groupedMediaAdapter: GroupedMediaAdapter
     private lateinit var mediaScanner: MediaScanner
     
     private var folderPath: String = ""
@@ -44,9 +51,12 @@ class FolderViewActivity : AppCompatActivity() {
     private var currentPackKey: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
+    private var currentGroupBy: FolderGroupBy = FolderGroupBy.NONE
     private var sortMenuItem: MenuItem? = null
     private var isLoadingMediaItems = false
     private var lastSwipeRefreshAtMs = 0L
+    private var transformJob: Job? = null
+    private var displayGeneration = 0
 
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -58,7 +68,7 @@ class FolderViewActivity : AppCompatActivity() {
 
         val changedFolderPath = data?.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
         if (changedFolderPath.isNullOrEmpty() || changedFolderPath == folderPath) {
-            loadMediaItems(showBlockingLoading = mediaAdapter.itemCount == 0)
+            loadMediaItems(showBlockingLoading = displayedItemCount == 0)
         }
 
         setResult(
@@ -101,6 +111,7 @@ class FolderViewActivity : AppCompatActivity() {
         // Load default view mode and sort order from preferences
         loadViewModePreference()
         loadSortOrderPreference()
+        loadGroupByPreference()
 
         setupToolbar()
         setupRecyclerView()
@@ -111,6 +122,11 @@ class FolderViewActivity : AppCompatActivity() {
 
         mediaScanner = MediaScanner(this)
         loadMediaItems()
+    }
+
+    override fun onDestroy() {
+        transformJob?.cancel()
+        super.onDestroy()
     }
     
     override fun onResume() {
@@ -165,7 +181,9 @@ class FolderViewActivity : AppCompatActivity() {
         binding.folderTitleTextView.text = folderName
         binding.folderHeroDivider.visibility = View.GONE
         binding.folderStatsTextView.visibility = View.GONE
+        binding.groupStatusChip.setOnClickListener { showGroupDialog() }
         binding.sortStatusChip.setOnClickListener { showSortDialog() }
+        updateGroupIndicator()
         updateSortIndicator()
     }
 
@@ -212,20 +230,39 @@ class FolderViewActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         mediaAdapter = MediaAdapter(
-            onMediaClick = { mediaItem, position ->
-                val intent = Intent(this, MediaViewerActivity::class.java).apply {
-                    putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, mediaItem.path)
-                    putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
-                    putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
-                }
-                mediaViewerLauncher.launch(intent)
-            }
+            onMediaClick = { mediaItem, position -> openMediaViewer(mediaItem, position) }
+        )
+        groupedMediaAdapter = GroupedMediaAdapter(
+            onMediaClick = { mediaItem, mediaIndex -> openMediaViewer(mediaItem, mediaIndex) }
         )
 
-        binding.recyclerView.adapter = mediaAdapter
+        binding.recyclerView.adapter = if (currentGroupBy == FolderGroupBy.NONE) {
+            mediaAdapter
+        } else {
+            groupedMediaAdapter
+        }
 
         // Apply view mode
         updateLayoutManager()
+    }
+
+    private val displayedItemCount: Int
+        get() {
+            if (!::mediaAdapter.isInitialized || !::groupedMediaAdapter.isInitialized) return 0
+            return when (binding.recyclerView.adapter) {
+                groupedMediaAdapter -> groupedMediaAdapter.itemCount
+                mediaAdapter -> mediaAdapter.itemCount
+                else -> 0
+            }
+        }
+
+    private fun openMediaViewer(mediaItem: MediaItem, position: Int) {
+        val intent = Intent(this, MediaViewerActivity::class.java).apply {
+            putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, mediaItem.path)
+            putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
+            putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
+        }
+        mediaViewerLauncher.launch(intent)
     }
 
     private fun setupSwipeRefresh() {
@@ -246,10 +283,24 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun updateLayoutManager() {
         binding.recyclerView.layoutManager = when (currentViewMode) {
-            MediaAdapter.ViewMode.GRID -> GridLayoutManager(this, 3)
+            MediaAdapter.ViewMode.GRID -> GridLayoutManager(this, 3).apply {
+                spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int): Int {
+                        return if (
+                            binding.recyclerView.adapter == groupedMediaAdapter &&
+                            groupedMediaAdapter.isHeaderPosition(position)
+                        ) {
+                            spanCount
+                        } else {
+                            1
+                        }
+                    }
+                }
+            }
             MediaAdapter.ViewMode.LIST, MediaAdapter.ViewMode.DETAILED -> LinearLayoutManager(this)
         }
         mediaAdapter.viewMode = currentViewMode
+        groupedMediaAdapter.viewMode = currentViewMode
     }
 
     private fun loadViewModePreference() {
@@ -328,23 +379,22 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun sortMediaItems(items: List<MediaItem>): List<MediaItem> {
-        return when (currentSortOrder) {
-            "date_desc" -> items.sortedByDescending { it.dateModified }
-            "date_asc" -> items.sortedBy { it.dateModified }
-            "name_asc" -> items.sortedBy { it.name.lowercase() }
-            "name_desc" -> items.sortedByDescending { it.name.lowercase() }
-            "size_desc" -> items.sortedWith(sizeDescendingComparator)
-            "size_asc" -> items.sortedWith(sizeAscendingComparator)
-            else -> items.sortedByDescending { it.dateModified }
+    private fun loadGroupByPreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val defaultGroupBy = FolderGroupBy.fromPreference(
+            prefs.getString(PREF_DEFAULT_GROUP_BY, FolderGroupBy.DATE.preferenceValue)
+        )
+        val rememberGroupBy = prefs.getBoolean(PREF_REMEMBER_FOLDER_GROUP_BY, false)
+        currentGroupBy = if (rememberGroupBy) {
+            FolderGroupBy.fromPreference(prefs.getString(PREF_LAST_FOLDER_GROUP_BY, defaultGroupBy.preferenceValue))
+        } else {
+            defaultGroupBy
+        }
+
+        if (rememberGroupBy && !prefs.contains(PREF_LAST_FOLDER_GROUP_BY)) {
+            prefs.edit().putString(PREF_LAST_FOLDER_GROUP_BY, currentGroupBy.preferenceValue).apply()
         }
     }
-
-    private val sizeDescendingComparator = compareBy<MediaItem> { it.size <= 0L }
-        .thenByDescending { it.size }
-
-    private val sizeAscendingComparator = compareBy<MediaItem> { it.size <= 0L }
-        .thenBy { it.size }
 
     private fun parseSortOrderPreference(sortOrderValue: String?): String {
         return when (sortOrderValue) {
@@ -373,10 +423,34 @@ class FolderViewActivity : AppCompatActivity() {
         sortMenuItem?.title = description
     }
 
+    private fun groupByLabel(groupBy: FolderGroupBy = currentGroupBy): String {
+        return when (groupBy) {
+            FolderGroupBy.NONE -> getString(R.string.group_none)
+            FolderGroupBy.DATE -> getString(R.string.group_date)
+            FolderGroupBy.NAME -> getString(R.string.group_name)
+            FolderGroupBy.SIZE -> getString(R.string.group_size)
+            FolderGroupBy.TYPE -> getString(R.string.group_type)
+        }
+    }
+
+    private fun updateGroupIndicator() {
+        val label = groupByLabel()
+        val chipText = getString(R.string.folder_group_chip_format, label)
+        binding.groupStatusChip.text = chipText
+        binding.groupStatusChip.contentDescription =
+            getString(R.string.folder_group_content_description, label)
+    }
+
     private fun persistCurrentSortOrderIfNeeded() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         if (!prefs.getBoolean(PREF_REMEMBER_FOLDER_SORT_ORDER, false)) return
         prefs.edit().putString(PREF_LAST_FOLDER_SORT_ORDER, currentSortOrder).apply()
+    }
+
+    private fun persistCurrentGroupByIfNeeded() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(PREF_REMEMBER_FOLDER_GROUP_BY, false)) return
+        prefs.edit().putString(PREF_LAST_FOLDER_GROUP_BY, currentGroupBy.preferenceValue).apply()
     }
 
     private fun showSortDialog() {
@@ -397,9 +471,33 @@ class FolderViewActivity : AppCompatActivity() {
             .setTitle(R.string.sort)
             .setSingleChoiceItems(sortOptions, currentIndex) { dialog, which ->
                 currentSortOrder = parseSortOrderPreference(sortValues[which])
-                applySorting()
+                applyDisplayTransform(scrollToTop = true)
                 persistCurrentSortOrderIfNeeded()
                 updateSortIndicator()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .showThemed()
+    }
+
+    private fun showGroupDialog() {
+        val groupValues = arrayOf(
+            FolderGroupBy.DATE,
+            FolderGroupBy.NAME,
+            FolderGroupBy.SIZE,
+            FolderGroupBy.TYPE,
+            FolderGroupBy.NONE
+        )
+        val groupOptions = groupValues.map { groupByLabel(it) }.toTypedArray()
+        val currentIndex = groupValues.indexOf(currentGroupBy).takeIf { it >= 0 } ?: 0
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.group_by)
+            .setSingleChoiceItems(groupOptions, currentIndex) { dialog, which ->
+                currentGroupBy = groupValues[which]
+                applyDisplayTransform(scrollToTop = true)
+                persistCurrentGroupByIfNeeded()
+                updateGroupIndicator()
                 dialog.dismiss()
             }
             .setNegativeButton(R.string.cancel, null)
@@ -413,11 +511,89 @@ class FolderViewActivity : AppCompatActivity() {
         return dialog
     }
 
-    private fun applySorting() {
-        val sortedItems = sortMediaItems(mediaItems)
-        mediaAdapter.submitList(sortedItems) {
-            // Scroll to top after list is updated
-            binding.recyclerView.scrollToPosition(0)
+    private fun applyDisplayTransform(scrollToTop: Boolean) {
+        transformJob?.cancel()
+        if (isLoadingMediaItems) return
+        if (mediaItems.isEmpty()) {
+            clearDisplayedItems()
+            return
+        }
+
+        val generation = ++displayGeneration
+        val sourceItems = mediaItems
+        val sortOrderSnapshot = currentSortOrder
+        val groupBySnapshot = currentGroupBy
+        val labels = folderDisplayLabels()
+
+        transformJob = lifecycleScope.launch {
+            val result = withContext(Dispatchers.Default) {
+                FolderDisplayBuilder.build(
+                    items = sourceItems,
+                    sortOrder = sortOrderSnapshot,
+                    groupBy = groupBySnapshot,
+                    labels = labels
+                )
+            }
+            if (generation != displayGeneration) return@launch
+
+            mediaItems = result.sortedMediaItems
+            submitDisplayResult(result, scrollToTop)
+        }
+    }
+
+    private fun submitDisplayResult(result: FolderDisplayResult, scrollToTop: Boolean = false) {
+        if (result.isGrouped) {
+            if (binding.recyclerView.adapter != groupedMediaAdapter) {
+                binding.recyclerView.adapter = groupedMediaAdapter
+            }
+            groupedMediaAdapter.viewMode = currentViewMode
+            groupedMediaAdapter.submitList(result.displayItems) {
+                if (scrollToTop) binding.recyclerView.scrollToPosition(0)
+            }
+        } else {
+            if (binding.recyclerView.adapter != mediaAdapter) {
+                binding.recyclerView.adapter = mediaAdapter
+            }
+            mediaAdapter.viewMode = currentViewMode
+            mediaAdapter.submitList(result.sortedMediaItems) {
+                if (scrollToTop) binding.recyclerView.scrollToPosition(0)
+            }
+        }
+    }
+
+    private fun clearDisplayedItems() {
+        mediaAdapter.submitList(emptyList())
+        groupedMediaAdapter.submitList(emptyList())
+    }
+
+    private fun folderDisplayLabels(): FolderDisplayLabels {
+        val appContext = applicationContext
+        return FolderDisplayLabels(
+            unknownDate = getString(R.string.group_unknown_date),
+            unknownSize = getString(R.string.group_unknown_size),
+            imageType = getString(R.string.group_type_image),
+            videoType = getString(R.string.group_type_video),
+            otherType = getString(R.string.group_type_other),
+            formatSize = { bytes -> Formatter.formatShortFileSize(appContext, bytes) }
+        )
+    }
+
+    private suspend fun buildDisplayResultForCurrentState(items: List<MediaItem>): FolderDisplayResult {
+        while (true) {
+            val sortOrderSnapshot = currentSortOrder
+            val groupBySnapshot = currentGroupBy
+            val labels = folderDisplayLabels()
+            val result = withContext(Dispatchers.Default) {
+                FolderDisplayBuilder.build(
+                    items = items,
+                    sortOrder = sortOrderSnapshot,
+                    groupBy = groupBySnapshot,
+                    labels = labels
+                )
+            }
+            if (sortOrderSnapshot == currentSortOrder && groupBySnapshot == currentGroupBy) {
+                return result
+            }
         }
     }
 
@@ -456,37 +632,44 @@ class FolderViewActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                if (SmbPath.isSmb(folderPath)) {
+                transformJob?.cancel()
+                val scannedItems = if (SmbPath.isSmb(folderPath)) {
                     // SMB folder: use SmbMediaScanner
                     val smbScanner = SmbMediaScanner(this@FolderViewActivity)
-                    mediaItems = smbScanner.scanSmbMediaInFolder(folderPath)
+                    smbScanner.scanSmbMediaInFolder(folderPath)
                 } else {
                     // Local folder: use MediaScanner
                     val includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
-                    mediaItems = mediaScanner.scanMediaInFolder(
+                    var localItems = mediaScanner.scanMediaInFolder(
                         folderPath = folderPath,
                         includeDeferredMetadata = includeDeferredMetadata,
                         mergeFileSystemFallback = false
                     )
 
-                    if (mediaItems.isEmpty()) {
-                        mediaItems = mediaScanner.scanMediaInFolder(
+                    if (localItems.isEmpty()) {
+                        localItems = mediaScanner.scanMediaInFolder(
                             folderPath = folderPath,
                             includeDeferredMetadata = includeDeferredMetadata,
                             mergeFileSystemFallback = true
                         )
                     }
+                    localItems
                 }
 
-                if (mediaItems.isEmpty()) {
+                if (scannedItems.isEmpty()) {
+                    mediaItems = emptyList()
+                    clearDisplayedItems()
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.VISIBLE
                     binding.recyclerView.visibility = View.GONE
                     bindFolderStats(mediaItems)
                 } else {
-                    // Apply sorting before displaying
-                    val sortedItems = sortMediaItems(mediaItems)
-                    mediaAdapter.submitList(sortedItems)
+                    val generation = ++displayGeneration
+                    val displayResult = buildDisplayResultForCurrentState(scannedItems)
+                    if (generation != displayGeneration) return@launch
+
+                    mediaItems = displayResult.sortedMediaItems
+                    submitDisplayResult(displayResult)
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.GONE
                     binding.recyclerView.visibility = View.VISIBLE

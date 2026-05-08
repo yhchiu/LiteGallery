@@ -19,6 +19,20 @@
             android:title="@string/remember_folder_sort_order_title" />
 
         <ListPreference
+            android:defaultValue="date"
+            android:entries="@array/group_by_entries"
+            android:entryValues="@array/group_by_values"
+            android:key="default_group_by"
+            android:summary="@string/group_date"
+            android:title="@string/default_group_by" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="remember_folder_group_by"
+            android:summary="@string/remember_folder_group_by_summary"
+            android:title="@string/remember_folder_group_by_title" />
+
+        <ListPreference
             android:defaultValue="grid"
             android:entries="@array/view_mode_entries"
             android:entryValues="@array/view_mode_values"

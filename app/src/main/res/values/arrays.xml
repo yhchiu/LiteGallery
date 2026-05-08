@@ -19,6 +19,23 @@
         <item>size_desc</item>
         <item>size_asc</item>
     </string-array>
+
+    <!-- Group Options -->
+    <string-array name="group_by_entries">
+        <item>@string/group_date</item>
+        <item>@string/group_name</item>
+        <item>@string/group_size</item>
+        <item>@string/group_type</item>
+        <item>@string/group_none</item>
+    </string-array>
+
+    <string-array name="group_by_values">
+        <item>date</item>
+        <item>name</item>
+        <item>size</item>
+        <item>type</item>
+        <item>none</item>
+    </string-array>
     
     <!-- View Mode Options -->
     <string-array name="view_mode_entries">

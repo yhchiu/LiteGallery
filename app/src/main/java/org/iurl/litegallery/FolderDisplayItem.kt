@@ -1,0 +1,14 @@
+package org.iurl.litegallery
+
+sealed interface FolderDisplayItem {
+    data class Header(
+        val key: String,
+        val title: String,
+        val count: Int
+    ) : FolderDisplayItem
+
+    data class Media(
+        val item: MediaItem,
+        val mediaIndex: Int
+    ) : FolderDisplayItem
+}

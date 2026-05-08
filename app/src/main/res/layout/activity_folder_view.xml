@@ -85,38 +85,67 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <LinearLayout
+        <HorizontalScrollView
             android:id="@+id/folderControlsRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="6dp"
             android:layout_marginTop="10dp"
             android:layout_marginBottom="8dp"
-            android:gravity="center_vertical|end"
-            android:orientation="horizontal"
+            android:fillViewport="true"
+            android:scrollbars="none"
             app:layout_scrollFlags="scroll|enterAlways">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/sortStatusChip"
-                style="@style/Widget.Material3.Chip.Assist"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:minHeight="36dp"
-                android:text="@string/folder_sort_chip_date_desc"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                app:chipBackgroundColor="?attr/colorSurfaceVariant"
-                app:chipIcon="@drawable/ic_sort"
-                app:chipIconTint="?attr/colorOnSurfaceVariant"
-                app:chipStrokeColor="?attr/colorOutlineVariant"
-                app:chipStrokeWidth="1dp"
-                app:closeIconVisible="false"
-                app:ensureMinTouchTargetSize="true"
-                app:rippleColor="?attr/colorPrimary"
-                tools:text="Date: Newest" />
+                android:layout_gravity="end"
+                android:gravity="center_vertical|end"
+                android:orientation="horizontal">
 
-        </LinearLayout>
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/groupStatusChip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:minHeight="36dp"
+                    android:text="@string/folder_group_chip_none"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    app:chipBackgroundColor="?attr/colorSurfaceVariant"
+                    app:chipIcon="@drawable/ic_folder"
+                    app:chipIconTint="?attr/colorOnSurfaceVariant"
+                    app:chipStrokeColor="?attr/colorOutlineVariant"
+                    app:chipStrokeWidth="1dp"
+                    app:closeIconVisible="false"
+                    app:ensureMinTouchTargetSize="true"
+                    app:rippleColor="?attr/colorPrimary"
+                    tools:text="Group: None" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/sortStatusChip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:minHeight="36dp"
+                    android:text="@string/folder_sort_chip_date_desc"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    app:chipBackgroundColor="?attr/colorSurfaceVariant"
+                    app:chipIcon="@drawable/ic_sort"
+                    app:chipIconTint="?attr/colorOnSurfaceVariant"
+                    app:chipStrokeColor="?attr/colorOutlineVariant"
+                    app:chipStrokeWidth="1dp"
+                    app:closeIconVisible="false"
+                    app:ensureMinTouchTargetSize="true"
+                    app:rippleColor="?attr/colorPrimary"
+                    tools:text="Date: Newest" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

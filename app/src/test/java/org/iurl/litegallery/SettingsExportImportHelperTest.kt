@@ -74,6 +74,26 @@ class SettingsExportImportHelperTest {
     }
 
     @Test
+    fun exportSettings_includesRememberFolderGroupByValues() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit()
+            .putString("default_group_by", "date")
+            .putBoolean("remember_folder_group_by", true)
+            .putString("last_folder_group_by", "type")
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("preferences")
+        assertEquals("date", preferences.getString("default_group_by"))
+        assertTrue(preferences.getBoolean("remember_folder_group_by"))
+        assertEquals("type", preferences.getString("last_folder_group_by"))
+    }
+
+    @Test
     fun exportSettings_includesHomeFolderSortOrderValue() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         prefs.edit()
@@ -219,6 +239,31 @@ class SettingsExportImportHelperTest {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         assertTrue(prefs.getBoolean("remember_folder_sort_order", false))
         assertEquals("size_asc", prefs.getString("last_folder_sort_order", null))
+    }
+
+    @Test
+    fun importSettings_restoresRememberFolderGroupByValues() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("default_group_by", "name")
+                put("remember_folder_group_by", true)
+                put("last_folder_group_by", "size")
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(3, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertEquals("name", prefs.getString("default_group_by", null))
+        assertTrue(prefs.getBoolean("remember_folder_group_by", false))
+        assertEquals("size", prefs.getString("last_folder_group_by", null))
     }
 
     @Test

@@ -121,10 +121,13 @@
     <string name="action_bar_settings">Action Bar Settings</string>
     <string name="general_settings">General Settings</string>
     <string name="default_view_mode">Default View Mode</string>
+    <string name="default_group_by">Default Group By</string>
     <string name="remember_folder_sort_order_title">Remember Folder Sort Order</string>
     <string name="remember_folder_sort_order_summary">Use the last selected sort order when opening folders next time</string>
     <string name="remember_folder_view_mode_title">Remember Folder View Mode</string>
     <string name="remember_folder_view_mode_summary">Use the last selected view mode when opening folders next time</string>
+    <string name="remember_folder_group_by_title">Remember Folder Grouping</string>
+    <string name="remember_folder_group_by_summary">Use the last selected grouping when opening folders next time</string>
     <string name="customize_action_bar_summary">Customize button order and visibility</string>
     <string name="restore_brightness_title">Restore Brightness</string>
     <string name="restore_brightness_summary">Restore original brightness when exiting app</string>
@@ -198,6 +201,20 @@
     <string name="folder_sort_chip_size_desc">Size: Largest</string>
     <string name="folder_sort_chip_size_asc">Size: Smallest</string>
     <string name="folder_sort_content_description">Sort: %1$s</string>
+    <string name="group_by">Group By</string>
+    <string name="group_none">None</string>
+    <string name="group_date">Date</string>
+    <string name="group_name">Name</string>
+    <string name="group_size">Size</string>
+    <string name="group_type">Type</string>
+    <string name="folder_group_chip_format">Group: %1$s</string>
+    <string name="folder_group_chip_none">Group: None</string>
+    <string name="folder_group_content_description">Group: %1$s</string>
+    <string name="group_unknown_date">Unknown Date</string>
+    <string name="group_unknown_size">Unknown Size</string>
+    <string name="group_type_image">Image</string>
+    <string name="group_type_video">Video</string>
+    <string name="group_type_other">Other</string>
     
     <!-- Theme Mode (kept for dual-mode pack picker) -->
     <string name="theme_auto">Follow System</string>

@@ -121,10 +121,13 @@
     <string name="action_bar_settings">操作栏设置</string>
     <string name="general_settings">常规设置</string>
     <string name="default_view_mode">默认视图模式</string>
+    <string name="default_group_by">默认分组</string>
     <string name="remember_folder_sort_order_title">记忆文件夹排序模式</string>
     <string name="remember_folder_sort_order_summary">下次打开文件夹时使用上次选择的排序模式</string>
     <string name="remember_folder_view_mode_title">记忆文件夹视图模式</string>
     <string name="remember_folder_view_mode_summary">下次打开文件夹时使用上次选择的视图模式</string>
+    <string name="remember_folder_group_by_title">记忆文件夹分组模式</string>
+    <string name="remember_folder_group_by_summary">下次打开文件夹时使用上次选择的分组模式</string>
     <string name="customize_action_bar_summary">自定义按钮顺序和可见性</string>
     <string name="restore_brightness_title">还原亮度</string>
     <string name="restore_brightness_summary">退出应用时还原原始亮度</string>
@@ -198,6 +201,20 @@
     <string name="folder_sort_chip_size_desc">大小：从大到小</string>
     <string name="folder_sort_chip_size_asc">大小：从小到大</string>
     <string name="folder_sort_content_description">排序：%1$s</string>
+    <string name="group_by">分组</string>
+    <string name="group_none">无</string>
+    <string name="group_date">日期</string>
+    <string name="group_name">名称</string>
+    <string name="group_size">大小</string>
+    <string name="group_type">类型</string>
+    <string name="folder_group_chip_format">分组：%1$s</string>
+    <string name="folder_group_chip_none">分组：无</string>
+    <string name="folder_group_content_description">分组：%1$s</string>
+    <string name="group_unknown_date">未知日期</string>
+    <string name="group_unknown_size">未知大小</string>
+    <string name="group_type_image">图片</string>
+    <string name="group_type_video">视频</string>
+    <string name="group_type_other">其他</string>
 
     <!-- Theme Mode -->
     <string name="theme_auto">跟随系统</string>

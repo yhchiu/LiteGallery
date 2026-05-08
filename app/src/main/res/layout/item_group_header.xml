@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:minHeight="48dp"
+    android:paddingStart="12dp"
+    android:paddingTop="24dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="8dp">
+
+    <View
+        android:id="@+id/groupHeaderAccentBar"
+        android:layout_width="3dp"
+        android:layout_height="24dp"
+        android:background="@drawable/group_header_accent_bar"
+        android:backgroundTint="?attr/colorPrimary" />
+
+    <TextView
+        android:id="@+id/groupHeaderTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:fontFeatureSettings="tnum"
+        android:textAppearance="?attr/textAppearanceTitleMedium"
+        android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold"
+        tools:text="2026/05" />
+</LinearLayout>

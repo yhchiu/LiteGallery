@@ -321,6 +321,13 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
+            findPreference<androidx.preference.ListPreference>("default_group_by")?.setOnPreferenceChangeListener { _, newValue ->
+                val groupBy = FolderGroupBy.fromPreference(newValue as String)
+                val preference = findPreference<androidx.preference.ListPreference>("default_group_by")
+                preference?.summary = groupByLabel(groupBy)
+                true
+            }
+
             // Handle default view mode preference change
             findPreference<androidx.preference.ListPreference>("default_view_mode")?.setOnPreferenceChangeListener { _, newValue ->
                 val viewMode = newValue as String
@@ -363,6 +370,16 @@ class SettingsActivity : AppCompatActivity() {
                     else -> getString(R.string.zoom_scale_3x)
                 }
                 true
+            }
+        }
+
+        private fun groupByLabel(groupBy: FolderGroupBy): String {
+            return when (groupBy) {
+                FolderGroupBy.NONE -> getString(R.string.group_none)
+                FolderGroupBy.DATE -> getString(R.string.group_date)
+                FolderGroupBy.NAME -> getString(R.string.group_name)
+                FolderGroupBy.SIZE -> getString(R.string.group_size)
+                FolderGroupBy.TYPE -> getString(R.string.group_type)
             }
         }
 
@@ -777,6 +794,10 @@ class SettingsActivity : AppCompatActivity() {
                 "size_asc" -> getString(R.string.sort_by_size_asc)
                 else -> getString(R.string.sort_by_date_desc)
             }
+
+            val groupBy = FolderGroupBy.fromPreference(prefs.getString("default_group_by", "date"))
+            val groupByPreference = findPreference<androidx.preference.ListPreference>("default_group_by")
+            groupByPreference?.summary = groupByLabel(groupBy)
 
             // Update default view mode summary
             val viewMode = prefs.getString("default_view_mode", "grid")
