@@ -40,6 +40,7 @@ class FolderViewActivity : AppCompatActivity() {
         private const val PREF_DEFAULT_GROUP_BY = "default_group_by"
         private const val PREF_REMEMBER_FOLDER_GROUP_BY = "remember_folder_group_by"
         private const val PREF_LAST_FOLDER_GROUP_BY = "last_folder_group_by"
+        private const val FAST_SCROLL_JUMP_VIEWPORT_MULTIPLIER = 2
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -313,7 +314,7 @@ class FolderViewActivity : AppCompatActivity() {
                 val desiredOffset = (fraction * scrollableRange).roundToInt()
                 val delta = desiredOffset - binding.recyclerView.computeVerticalScrollOffset()
                 if (delta != 0) {
-                    binding.recyclerView.scrollBy(0, delta)
+                    scrollRecyclerViewForFastDrag(fraction, delta)
                 }
                 syncFastScrollerFromRecyclerView(showForScroll = false)
             }
@@ -329,6 +330,23 @@ class FolderViewActivity : AppCompatActivity() {
                 syncFastScrollerFromRecyclerView(showForScroll = dy != 0)
             }
         })
+    }
+
+    private fun scrollRecyclerViewForFastDrag(fraction: Float, delta: Int) {
+        val recyclerView = binding.recyclerView
+        val jumpThreshold = recyclerView.height * FAST_SCROLL_JUMP_VIEWPORT_MULTIPLIER
+        if (kotlin.math.abs(delta) <= jumpThreshold) {
+            recyclerView.scrollBy(0, delta)
+            return
+        }
+
+        val itemCount = recyclerView.adapter?.itemCount ?: 0
+        if (itemCount <= 0) return
+
+        val targetPosition = (fraction * (itemCount - 1)).roundToInt()
+            .coerceIn(0, itemCount - 1)
+        (recyclerView.layoutManager as? LinearLayoutManager)
+            ?.scrollToPositionWithOffset(targetPosition, 0)
     }
 
     private fun syncFastScrollerFromRecyclerView(showForScroll: Boolean) {
