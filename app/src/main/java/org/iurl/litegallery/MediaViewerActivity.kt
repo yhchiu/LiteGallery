@@ -932,6 +932,9 @@ class MediaViewerActivity : AppCompatActivity() {
         if (!item.path.startsWith("content://")) {
             notifyMediaScanner(item.path, null)
         }
+        lifecycleScope.launch {
+            mediaScanner.removeIndexedMediaPath(item.path)
+        }
         removeDeletedItemFromViewer(item.path)
     }
 
@@ -2756,6 +2759,7 @@ class MediaViewerActivity : AppCompatActivity() {
                     updatedList[sourcePosition] = updatedMediaItem
                     mediaItems = updatedList
                     replaceSourceFolderCache(mediaItems)
+                    mediaScanner.updateIndexedMediaItem(originalFile.absolutePath, updatedMediaItem)
 
                     val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
                     val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {

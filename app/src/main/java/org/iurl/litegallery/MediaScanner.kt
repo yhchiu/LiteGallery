@@ -62,6 +62,7 @@ class MediaScanner(private val context: Context) {
     }
     
     private val fileSystemScanner = FileSystemScanner(context)
+    private val mediaIndexRepository = MediaIndexRepository(context.applicationContext)
     private val primaryExternalRootPath: String? =
         Environment.getExternalStorageDirectory()?.absolutePath
 
@@ -83,6 +84,12 @@ class MediaScanner(private val context: Context) {
     suspend fun scanMediaFolders(
         allowDeepFileSystemFallback: Boolean = false
     ): List<MediaFolder> = withContext(Dispatchers.IO) {
+        val indexedFolders = runCatching { mediaIndexRepository.getFolders() }.getOrNull()
+        if (indexedFolders != null) {
+            if (indexedFolders.isNotEmpty()) return@withContext indexedFolders
+            if (!allowDeepFileSystemFallback) return@withContext emptyList()
+        }
+
         val folders = mutableMapOf<String, FolderAggregate>()
         
         // Lightweight scan for folder list: only count items and keep a representative thumbnail path.
@@ -113,6 +120,10 @@ class MediaScanner(private val context: Context) {
         emptyList()
     }
 
+    suspend fun getCachedMediaFolders(): List<MediaFolder> {
+        return mediaIndexRepository.getCachedFolders()
+    }
+
     private fun isTrashedFile(file: File): Boolean {
         return file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)
     }
@@ -124,12 +135,17 @@ class MediaScanner(private val context: Context) {
         mergeFileSystemFallback: Boolean = true
     ): List<MediaItem> = withContext(Dispatchers.IO) {
         val items = mutableListOf<MediaItem>()
-        
-        // Scan images in folder
-        scanImagesInFolder(folderPath, items, includeDeferredMetadata)
-        
-        // Scan videos in folder
-        scanVideosInFolder(folderPath, items, includeDeferredMetadata, includeVideoDuration)
+        val indexedItems = runCatching { mediaIndexRepository.getMediaInFolder(folderPath) }.getOrNull()
+
+        if (indexedItems != null) {
+            items.addAll(indexedItems)
+        } else {
+            // Scan images in folder
+            scanImagesInFolder(folderPath, items, includeDeferredMetadata)
+
+            // Scan videos in folder
+            scanVideosInFolder(folderPath, items, includeDeferredMetadata, includeVideoDuration)
+        }
         
         if (mergeFileSystemFallback && canUseDeepFileSystemFallback()) {
             // If MediaStore didn't find anything, try file system scan (for non-media folders)
@@ -158,6 +174,18 @@ class MediaScanner(private val context: Context) {
         } else {
             sortedItems
         }
+    }
+
+    suspend fun getCachedMediaInFolder(folderPath: String): List<MediaItem> {
+        return mediaIndexRepository.getCachedMediaInFolder(folderPath)
+    }
+
+    suspend fun removeIndexedMediaPath(path: String) {
+        mediaIndexRepository.removePath(path)
+    }
+
+    suspend fun updateIndexedMediaItem(oldPath: String, item: MediaItem) {
+        mediaIndexRepository.updateMediaItem(oldPath, item)
     }
 
     suspend fun enrichItemsWithSizeAndDimensions(items: List<MediaItem>): List<MediaItem> = withContext(Dispatchers.IO) {
@@ -192,7 +220,13 @@ class MediaScanner(private val context: Context) {
             }
         }
 
-        if (changed) mutableItems else items
+        if (changed) {
+            val changedItems = mutableItems.filterIndexed { index, item -> item != items[index] }
+            mediaIndexRepository.updateMetadata(changedItems)
+            mutableItems
+        } else {
+            items
+        }
     }
 
     suspend fun enrichItemWithSizeAndDimensions(item: MediaItem): MediaItem = withContext(Dispatchers.IO) {
@@ -201,6 +235,9 @@ class MediaScanner(private val context: Context) {
         var enrichedItem = enrichItemFromMediaStore(item)
         if (needsDeferredMetadata(enrichedItem)) {
             enrichedItem = fillMissingMetadataFromSource(enrichedItem)
+        }
+        if (enrichedItem != item) {
+            mediaIndexRepository.updateMetadata(listOf(enrichedItem))
         }
         enrichedItem
     }
