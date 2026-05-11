@@ -154,8 +154,8 @@ class MediaViewerActivity : AppCompatActivity() {
         setupViewPager()
         setupUI()
         ThemeHelper.applyRuntimeCustomColors(this)
-        loadMedia()
         sourceFolderPath = intent.getStringExtra(EXTRA_FOLDER_PATH)
+        loadMedia()
 
         // Apply initial filename max lines setting
         applyFilenameMaxLinesSetting()
@@ -1134,6 +1134,7 @@ class MediaViewerActivity : AppCompatActivity() {
         val deletedIndex = newList.indexOfFirst { it.path == deletedPath }.takeIf { it >= 0 } ?: currentPosition
         if (deletedIndex in newList.indices) newList.removeAt(deletedIndex)
         mediaItems = newList
+        replaceSourceFolderCache(mediaItems)
 
         if (mediaItems.isEmpty()) {
             finish()
@@ -1248,6 +1249,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 val updated = mediaItems.toMutableList()
                 updated[position] = enrichedItem
                 mediaItems = updated
+                replaceSourceFolderCache(mediaItems)
             }
 
             showPropertiesDialogForItem(enrichedItem)
@@ -1388,32 +1390,9 @@ class MediaViewerActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     val targetPath = mediaPath
-
-                    if (SmbPath.isSmb(path)) {
-                        // SMB folder: use SmbMediaScanner
-                        val smbScanner = SmbMediaScanner(this@MediaViewerActivity)
-                        mediaItems = smbScanner.scanSmbMediaInFolder(path)
-                    } else {
-                        // Local folder: use MediaScanner
-                        mediaItems = mediaScanner.scanMediaInFolder(
-                            folderPath = path,
-                            includeDeferredMetadata = false,
-                            includeVideoDuration = false,
-                            mergeFileSystemFallback = false
-                        )
-
-                        val shouldFallbackToFileSystem = mediaItems.isEmpty() || (
-                            !targetPath.isNullOrBlank() && findMediaItemIndexByPath(mediaItems, targetPath) < 0
-                        )
-
-                        if (shouldFallbackToFileSystem) {
-                            mediaItems = mediaScanner.scanMediaInFolder(
-                                folderPath = path,
-                                includeDeferredMetadata = false,
-                                includeVideoDuration = false,
-                                mergeFileSystemFallback = true
-                            )
-                        }
+                    val cachedSnapshot = FolderMediaRepository.get(path, targetPath)
+                    mediaItems = cachedSnapshot?.items ?: scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
+                        FolderMediaRepository.put(folderPath = path, items = scannedItems)
                     }
 
                     mediaViewerAdapter.submitList(mediaItems) {
@@ -1443,6 +1422,44 @@ class MediaViewerActivity : AppCompatActivity() {
             mediaPath?.let { path ->
                 handleSingleMediaFile(path)
             }
+        }
+    }
+
+    private suspend fun scanFolderMediaForViewer(folderPath: String, targetPath: String?): List<MediaItem> {
+        if (SmbPath.isSmb(folderPath)) {
+            val smbScanner = SmbMediaScanner(this@MediaViewerActivity)
+            return smbScanner.scanSmbMediaInFolder(folderPath)
+        }
+
+        var scannedItems = mediaScanner.scanMediaInFolder(
+            folderPath = folderPath,
+            includeDeferredMetadata = false,
+            includeVideoDuration = false,
+            mergeFileSystemFallback = false
+        )
+
+        val shouldFallbackToFileSystem = scannedItems.isEmpty() || (
+            !targetPath.isNullOrBlank() && findMediaItemIndexByPath(scannedItems, targetPath) < 0
+        )
+
+        if (shouldFallbackToFileSystem) {
+            scannedItems = mediaScanner.scanMediaInFolder(
+                folderPath = folderPath,
+                includeDeferredMetadata = false,
+                includeVideoDuration = false,
+                mergeFileSystemFallback = true
+            )
+        }
+
+        return scannedItems
+    }
+
+    private fun replaceSourceFolderCache(items: List<MediaItem>) {
+        val folderPath = sourceFolderPath ?: intent.getStringExtra(EXTRA_FOLDER_PATH)
+        if (items.isEmpty()) {
+            FolderMediaRepository.invalidate(folderPath)
+        } else {
+            FolderMediaRepository.replaceItems(folderPath, items)
         }
     }
     
@@ -2738,6 +2755,7 @@ class MediaViewerActivity : AppCompatActivity() {
                     val updatedList = mediaItems.toMutableList()
                     updatedList[sourcePosition] = updatedMediaItem
                     mediaItems = updatedList
+                    replaceSourceFolderCache(mediaItems)
 
                     val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
                     val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {
@@ -2842,6 +2860,7 @@ class MediaViewerActivity : AppCompatActivity() {
                     val updatedList = mediaItems.toMutableList()
                     updatedList[sourcePosition] = updatedMediaItem
                     mediaItems = updatedList
+                    replaceSourceFolderCache(mediaItems)
 
                     val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
                     val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {

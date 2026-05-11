@@ -74,6 +74,7 @@ class FolderViewActivity : AppCompatActivity() {
 
         val changedFolderPath = data?.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
         if (changedFolderPath.isNullOrEmpty() || changedFolderPath == folderPath) {
+            FolderMediaRepository.invalidate(folderPath)
             loadMediaItems(showBlockingLoading = displayedItemCount == 0)
         }
 
@@ -270,6 +271,20 @@ class FolderViewActivity : AppCompatActivity() {
             putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
         }
         mediaViewerLauncher.launch(intent)
+    }
+
+    private fun cacheCurrentFolderMedia(items: List<MediaItem> = mediaItems) {
+        if (items.isEmpty()) {
+            FolderMediaRepository.invalidate(folderPath)
+            return
+        }
+        FolderMediaRepository.put(
+            folderPath = folderPath,
+            items = items,
+            includesDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED,
+            sortOrder = currentSortOrder,
+            groupBy = currentGroupBy
+        )
     }
 
     private fun setupSwipeRefresh() {
@@ -630,6 +645,7 @@ class FolderViewActivity : AppCompatActivity() {
         transformJob?.cancel()
         if (isLoadingMediaItems) return
         if (mediaItems.isEmpty()) {
+            FolderMediaRepository.invalidate(folderPath)
             clearDisplayedItems()
             return
         }
@@ -652,6 +668,7 @@ class FolderViewActivity : AppCompatActivity() {
             if (generation != displayGeneration) return@launch
 
             mediaItems = result.sortedMediaItems
+            cacheCurrentFolderMedia(mediaItems)
             submitDisplayResult(result, scrollToTop, bypassDiff)
         }
     }
@@ -784,6 +801,7 @@ class FolderViewActivity : AppCompatActivity() {
 
                 if (scannedItems.isEmpty()) {
                     mediaItems = emptyList()
+                    FolderMediaRepository.invalidate(folderPath)
                     clearDisplayedItems()
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.VISIBLE
@@ -795,6 +813,7 @@ class FolderViewActivity : AppCompatActivity() {
                     if (generation != displayGeneration) return@launch
 
                     mediaItems = displayResult.sortedMediaItems
+                    cacheCurrentFolderMedia(mediaItems)
                     submitDisplayResult(displayResult)
                     binding.progressBar.visibility = View.GONE
                     binding.emptyView.visibility = View.GONE
