@@ -352,9 +352,6 @@ class MediaViewerAdapter(
                 // Reset photo-specific zoom
                 resetPhotoZoom()
             }
-            
-            // Clear any pending callbacks
-            binding.root.handler?.removeCallbacksAndMessages(null)
         }
         
         fun forceCompleteReset() {
@@ -383,9 +380,6 @@ class MediaViewerAdapter(
                 playerView.player = null
                 (playerView as? org.iurl.litegallery.ZoomablePlayerView)?.resetZoom()
             }
-            
-            // Clear any pending callbacks
-            binding.root.handler?.removeCallbacksAndMessages(null)
         }
         
         fun clearAllReferences() {
