@@ -1,24 +1,10 @@
 package org.iurl.litegallery
 
 import android.app.Application
-import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import java.io.InputStream
 
 class LiteGalleryApplication : Application() {
-
-    companion object {
-        val sharedFolderViewPool: RecyclerView.RecycledViewPool =
-            RecyclerView.RecycledViewPool().apply {
-                setMaxRecycledViews(0, 30)
-                setMaxRecycledViews(1, 20)
-                setMaxRecycledViews(2, 20)
-                setMaxRecycledViews(10, 12)
-                setMaxRecycledViews(11, 30)
-                setMaxRecycledViews(12, 20)
-                setMaxRecycledViews(13, 20)
-            }
-    }
 
     override fun onCreate() {
         super.onCreate()

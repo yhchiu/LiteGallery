@@ -300,7 +300,6 @@ class FolderViewActivity : AppCompatActivity() {
         binding.recyclerView.apply {
             setHasFixedSize(true)
             setItemViewCacheSize(20)
-            setRecycledViewPool(LiteGalleryApplication.sharedFolderViewPool)
             addOnScrollListener(createThumbnailPreloader())
             
             adapter = if (currentGroupBy == FolderGroupBy.NONE) {
