@@ -598,7 +598,7 @@ class MediaScanner(private val context: Context) {
     }
 
     private fun needsDeferredMetadata(item: MediaItem): Boolean {
-        return item.size <= 0L || item.width <= 0 || item.height <= 0
+        return MediaMetadataPolicy.needsDetailedMetadata(item)
     }
 
     private fun enrichImageMetadataInFolder(

@@ -15,7 +15,8 @@ import java.util.Date
 import java.util.Locale
 
 class GroupedMediaAdapter(
-    private val onMediaClick: (MediaItem, Int) -> Unit
+    private val onMediaClick: (MediaItem, Int) -> Unit,
+    private val onDetailedMetadataNeeded: ((MediaItem) -> Unit)? = null
 ) : ListAdapter<FolderDisplayItem, RecyclerView.ViewHolder>(DisplayItemDiffCallback()) {
 
     var viewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
@@ -140,6 +141,8 @@ class GroupedMediaAdapter(
             } else {
                 binding.dateTextView.visibility = android.view.View.GONE
             }
+
+            onDetailedMetadataNeeded?.invoke(mediaItem)
 
             binding.root.setOnClickListener {
                 onMediaClick(mediaItem, displayItem.mediaIndex)

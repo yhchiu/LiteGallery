@@ -21,7 +21,8 @@ class MediaAdapter(
     private val onMediaLongClick: ((MediaItem, Int) -> Unit)? = null,
     private val isItemSelected: ((MediaItem) -> Boolean)? = null,
     private val sourceBadgeLabelProvider: ((MediaItem) -> String?)? = null,
-    private val sourceBadgeContentDescriptionProvider: ((MediaItem) -> String?)? = null
+    private val sourceBadgeContentDescriptionProvider: ((MediaItem) -> String?)? = null,
+    private val onDetailedMetadataNeeded: ((MediaItem) -> Unit)? = null
 ) :
     ListAdapter<MediaItem, RecyclerView.ViewHolder>(MediaDiffCallback()) {
 
@@ -272,6 +273,8 @@ class MediaAdapter(
             } else {
                 binding.dateTextView.visibility = android.view.View.GONE
             }
+
+            onDetailedMetadataNeeded?.invoke(mediaItem)
 
             binding.root.setOnClickListener {
                 onMediaClick(mediaItem, position)

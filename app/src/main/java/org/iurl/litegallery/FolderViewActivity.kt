@@ -63,6 +63,8 @@ class FolderViewActivity : AppCompatActivity() {
     private var fastScrollSections: List<FastScrollSection> = emptyList()
     private var lockedFastScrollRange = 0
     private var swipeRefreshEnabledBeforeFastScroll = true
+    private val detailedMetadataJobs = mutableMapOf<String, Job>()
+    private val detailedMetadataAttemptedPaths = mutableSetOf<String>()
 
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -134,6 +136,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         transformJob?.cancel()
+        cancelDetailedMetadataJobs()
         super.onDestroy()
     }
     
@@ -238,10 +241,12 @@ class FolderViewActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         mediaAdapter = MediaAdapter(
-            onMediaClick = { mediaItem, position -> openMediaViewer(mediaItem, position) }
+            onMediaClick = { mediaItem, position -> openMediaViewer(mediaItem, position) },
+            onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem
         )
         groupedMediaAdapter = GroupedMediaAdapter(
-            onMediaClick = { mediaItem, mediaIndex -> openMediaViewer(mediaItem, mediaIndex) }
+            onMediaClick = { mediaItem, mediaIndex -> openMediaViewer(mediaItem, mediaIndex) },
+            onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem
         )
 
         binding.recyclerView.adapter = if (currentGroupBy == FolderGroupBy.NONE) {
@@ -281,10 +286,78 @@ class FolderViewActivity : AppCompatActivity() {
         FolderMediaRepository.put(
             folderPath = folderPath,
             items = items,
-            includesDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED,
+            includesDeferredMetadata = items.none { MediaMetadataPolicy.needsDetailedMetadata(it) },
             sortOrder = currentSortOrder,
             groupBy = currentGroupBy
         )
+    }
+
+    private fun requestDetailedMetadataForVisibleItem(item: MediaItem) {
+        if (currentViewMode != MediaAdapter.ViewMode.DETAILED) return
+        if (!MediaMetadataPolicy.needsDetailedMetadata(item)) return
+        if (item.isSmb || item.path.isBlank()) return
+        if (detailedMetadataAttemptedPaths.contains(item.path)) return
+        if (detailedMetadataJobs.containsKey(item.path)) return
+
+        detailedMetadataAttemptedPaths.add(item.path)
+        detailedMetadataJobs[item.path] = lifecycleScope.launch {
+            try {
+                val enrichedItem = mediaScanner.enrichItemWithSizeAndDimensions(item)
+                if (enrichedItem != item) {
+                    applyLazyDetailedMetadata(item.path, enrichedItem)
+                }
+            } catch (_: Exception) {
+                // Keep detailed metadata enrichment best-effort; the row can still show base metadata.
+            } finally {
+                detailedMetadataJobs.remove(item.path)
+            }
+        }
+    }
+
+    private fun applyLazyDetailedMetadata(originalPath: String, enrichedItem: MediaItem) {
+        val index = mediaItems.indexOfFirst { it.path == originalPath }
+        if (index < 0) return
+
+        val currentItem = mediaItems[index]
+        val updatedItem = currentItem.copy(
+            size = if (enrichedItem.size > 0L) enrichedItem.size else currentItem.size,
+            duration = if (enrichedItem.duration > 0L) enrichedItem.duration else currentItem.duration,
+            width = if (enrichedItem.width > 0) enrichedItem.width else currentItem.width,
+            height = if (enrichedItem.height > 0) enrichedItem.height else currentItem.height
+        )
+        if (updatedItem == currentItem) return
+
+        val sizeChanged = updatedItem.size != currentItem.size
+        mediaItems = mediaItems.toMutableList().also { it[index] = updatedItem }
+        cacheCurrentFolderMedia(mediaItems)
+
+        if (sizeChanged && (currentSortOrder.startsWith("size_") || currentGroupBy == FolderGroupBy.SIZE)) {
+            applyDisplayTransform(scrollToTop = false)
+            return
+        }
+
+        if (binding.recyclerView.adapter == groupedMediaAdapter) {
+            val updatedDisplayItems = groupedMediaAdapter.currentList.map { displayItem ->
+                if (displayItem is FolderDisplayItem.Media && displayItem.item.path == originalPath) {
+                    displayItem.copy(item = updatedItem)
+                } else {
+                    displayItem
+                }
+            }
+            groupedMediaAdapter.submitList(updatedDisplayItems)
+        } else {
+            mediaAdapter.submitList(mediaItems)
+        }
+    }
+
+    private fun cancelDetailedMetadataJobs() {
+        detailedMetadataJobs.values.forEach { it.cancel() }
+        detailedMetadataJobs.clear()
+    }
+
+    private fun resetDetailedMetadataRequests() {
+        cancelDetailedMetadataJobs()
+        detailedMetadataAttemptedPaths.clear()
     }
 
     private fun setupSwipeRefresh() {
@@ -457,7 +530,6 @@ class FolderViewActivity : AppCompatActivity() {
             MediaAdapter.ViewMode.DETAILED -> MediaAdapter.ViewMode.GRID
         }
         updateLayoutManager()
-        maybeReloadForDetailedMode()
         persistCurrentViewModeIfNeeded()
 
         // Show toast to indicate current view mode
@@ -739,18 +811,6 @@ class FolderViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun maybeReloadForDetailedMode() {
-        if (currentViewMode != MediaAdapter.ViewMode.DETAILED) return
-        if (mediaItems.isEmpty()) return
-
-        val hasDeferredMetadata = mediaItems.any { item ->
-            item.size <= 0L || item.width <= 0 || item.height <= 0
-        }
-        if (!hasDeferredMetadata) return
-
-        loadMediaItems(showBlockingLoading = false)
-    }
-    
     private fun loadMediaItems(
         showBlockingLoading: Boolean = true,
         fromSwipeRefresh: Boolean = false
@@ -776,23 +836,23 @@ class FolderViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 transformJob?.cancel()
+                resetDetailedMetadataRequests()
                 val scannedItems = if (SmbPath.isSmb(folderPath)) {
                     // SMB folder: use SmbMediaScanner
                     val smbScanner = SmbMediaScanner(this@FolderViewActivity)
                     smbScanner.scanSmbMediaInFolder(folderPath)
                 } else {
-                    // Local folder: use MediaScanner
-                    val includeDeferredMetadata = currentViewMode == MediaAdapter.ViewMode.DETAILED
+                    // Detailed metadata is enriched lazily as detailed rows become visible.
                     var localItems = mediaScanner.scanMediaInFolder(
                         folderPath = folderPath,
-                        includeDeferredMetadata = includeDeferredMetadata,
+                        includeDeferredMetadata = false,
                         mergeFileSystemFallback = false
                     )
 
                     if (localItems.isEmpty()) {
                         localItems = mediaScanner.scanMediaInFolder(
                             folderPath = folderPath,
-                            includeDeferredMetadata = includeDeferredMetadata,
+                            includeDeferredMetadata = false,
                             mergeFileSystemFallback = true
                         )
                     }
