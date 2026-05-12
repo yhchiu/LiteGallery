@@ -24,6 +24,7 @@ class MediaAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<MediaItemSkeleton>()
+    private val indexByPath = mutableMapOf<String, Int>()
 
     var viewMode: ViewMode = ViewMode.GRID
         set(value) {
@@ -50,6 +51,7 @@ class MediaAdapter(
     fun submitList(newItems: List<MediaItemSkeleton>, bypassDiff: Boolean = false, commitCallback: (() -> Unit)? = null) {
         items.clear()
         items.addAll(newItems)
+        rebuildIndexByPath()
         notifyDataSetChanged()
         commitCallback?.invoke()
     }
@@ -58,13 +60,17 @@ class MediaAdapter(
         if (deltaItems.isEmpty()) return
         val start = items.size
         items.addAll(deltaItems)
+        deltaItems.forEachIndexed { offset, skeleton ->
+            indexByPath[skeleton.path] = start + offset
+        }
         notifyItemRangeInserted(start, deltaItems.size)
     }
 
     fun renameSkeleton(oldPath: String, updated: MediaItemSkeleton): Int {
-        val index = items.indexOfFirst { it.path == oldPath }
-        if (index < 0) return -1
+        val index = indexByPath[oldPath] ?: return -1
         items[index] = updated
+        indexByPath.remove(oldPath)
+        indexByPath[updated.path] = index
         notifyItemChanged(index, PAYLOAD_NAME_CHANGED)
         return index
     }
@@ -78,6 +84,9 @@ class MediaAdapter(
                 notifyItemRemoved(index)
                 changed = true
             }
+        }
+        if (changed) {
+            rebuildIndexByPath()
         }
         return changed
     }
@@ -150,13 +159,16 @@ class MediaAdapter(
     fun notifySelectionChanged(changedPaths: Collection<String>) {
         if (changedPaths.isEmpty()) return
 
-        val indexByPath = items
-            .mapIndexed { index, skeleton -> skeleton.path to index }
-            .toMap()
-
         changedPaths.forEach { path ->
             val index = indexByPath[path] ?: return@forEach
             notifyItemChanged(index, PAYLOAD_SELECTION_STATE)
+        }
+    }
+
+    private fun rebuildIndexByPath() {
+        indexByPath.clear()
+        items.forEachIndexed { index, skeleton ->
+            indexByPath[skeleton.path] = index
         }
     }
 

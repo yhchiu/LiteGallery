@@ -20,8 +20,19 @@ data class FolderDisplayResult(
     val sortedMediaItems: List<MediaItemSkeleton>,
     val displayItems: List<FolderDisplayItem>,
     val fastScrollSections: List<FastScrollSection>,
-    val isGrouped: Boolean
+    val isGrouped: Boolean,
+    val stats: FolderDisplayStats
 )
+
+data class FolderDisplayStats(
+    val itemCount: Int,
+    val totalSizeBytes: Long,
+    val videoCount: Int
+) {
+    companion object {
+        val EMPTY = FolderDisplayStats(itemCount = 0, totalSizeBytes = 0L, videoCount = 0)
+    }
+}
 
 object FolderDisplayBuilder {
     private const val TARGET_SIZE_BUCKETS = 5
@@ -32,6 +43,7 @@ object FolderDisplayBuilder {
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels
     ): FolderDisplayResult {
+        val stats = buildStats(items)
         val sortedItems = sortMediaItems(items, sortOrder)
         if (groupBy == FolderGroupBy.NONE || sortedItems.isEmpty()) {
             val flatSections = if (sortedItems.isNotEmpty()) buildIndexForFlatList(sortedItems, sortOrder, labels) else emptyList()
@@ -39,7 +51,8 @@ object FolderDisplayBuilder {
                 sortedMediaItems = sortedItems,
                 displayItems = emptyList(),
                 fastScrollSections = flatSections,
-                isGrouped = false
+                isGrouped = false,
+                stats = stats
             )
         }
 
@@ -48,7 +61,22 @@ object FolderDisplayBuilder {
             sortedMediaItems = sortedItems,
             displayItems = groupedDisplay.displayItems,
             fastScrollSections = groupedDisplay.fastScrollSections,
-            isGrouped = true
+            isGrouped = true,
+            stats = stats
+        )
+    }
+
+    private fun buildStats(items: List<MediaItemSkeleton>): FolderDisplayStats {
+        var totalSizeBytes = 0L
+        var videoCount = 0
+        items.forEach { item ->
+            totalSizeBytes += item.size.coerceAtLeast(0L)
+            if (item.isVideo) videoCount++
+        }
+        return FolderDisplayStats(
+            itemCount = items.size,
+            totalSizeBytes = totalSizeBytes,
+            videoCount = videoCount
         )
     }
 

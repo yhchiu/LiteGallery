@@ -229,18 +229,18 @@ class FolderViewActivity : AppCompatActivity() {
     private fun Int.withAlpha(alpha: Int): Int =
         (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
 
-    private fun bindFolderStats(items: List<MediaItemSkeleton>) {
-        if (items.isEmpty()) {
+    private fun bindFolderStats(stats: FolderDisplayStats) {
+        if (stats.itemCount == 0) {
             binding.folderHeroDivider.visibility = View.GONE
             binding.folderStatsTextView.visibility = View.GONE
             return
         }
-        val parts = mutableListOf(getString(R.string.items_count, items.size))
-        val totalSize = items.sumOf { it.size.coerceAtLeast(0L) }
+        val parts = mutableListOf(getString(R.string.items_count, stats.itemCount))
+        val totalSize = stats.totalSizeBytes
         if (totalSize > 0L) {
             parts.add(Formatter.formatShortFileSize(this, totalSize))
         }
-        val videoCount = items.count { it.isVideo }
+        val videoCount = stats.videoCount
         if (videoCount > 0) {
             parts.add(getString(R.string.folder_stat_videos_format, videoCount))
         }
@@ -408,12 +408,10 @@ class FolderViewActivity : AppCompatActivity() {
             clearDisplayedItems()
             binding.emptyView.visibility = View.VISIBLE
             binding.recyclerView.visibility = View.GONE
-            bindFolderStats(mediaItems)
         } else {
             binding.emptyView.visibility = View.GONE
             binding.recyclerView.visibility = View.VISIBLE
             applyDisplayTransform(scrollToTop = false, bypassDiff = true)
-            bindFolderStats(mediaItems)
         }
         return true
     }
@@ -896,6 +894,7 @@ class FolderViewActivity : AppCompatActivity() {
         bypassDiff: Boolean = false
     ) {
         disableFastScrollerForListMutation()
+        bindFolderStats(result.stats)
         if (result.isGrouped) {
             if (binding.recyclerView.adapter != groupedMediaAdapter) {
                 binding.recyclerView.adapter = groupedMediaAdapter
@@ -936,6 +935,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun clearDisplayedItems() {
         disableFastScrollerForListMutation()
+        bindFolderStats(FolderDisplayStats.EMPTY)
         mediaAdapter.submitList(emptyList())
         groupedMediaAdapter.submitList(emptyList())
     }
@@ -1046,7 +1046,6 @@ class FolderViewActivity : AppCompatActivity() {
                                     binding.progressBar.visibility = View.GONE
                                     binding.emptyView.visibility = if (mediaItems.isEmpty()) View.VISIBLE else View.GONE
                                     binding.recyclerView.visibility = if (mediaItems.isEmpty()) View.GONE else View.VISIBLE
-                                    bindFolderStats(mediaItems)
                                     isLoadingMediaItems = false
                                     binding.swipeRefresh.isRefreshing = false
                                     binding.recyclerView.post {

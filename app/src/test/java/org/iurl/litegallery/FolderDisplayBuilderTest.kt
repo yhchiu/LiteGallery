@@ -23,6 +23,24 @@ class FolderDisplayBuilderTest {
     }
 
     @Test
+    fun resultIncludesFolderStats() {
+        val result = FolderDisplayBuilder.build(
+            items = listOf(
+                item("photo.jpg", size = 100L, mimeType = "image/jpeg"),
+                item("clip.mp4", size = 250L, mimeType = "video/mp4"),
+                item("unknown.jpg", size = -1L, mimeType = "image/jpeg")
+            ),
+            sortOrder = "date_desc",
+            groupBy = FolderGroupBy.NONE,
+            labels = labels
+        )
+
+        assertEquals(3, result.stats.itemCount)
+        assertEquals(350L, result.stats.totalSizeBytes)
+        assertEquals(1, result.stats.videoCount)
+    }
+
+    @Test
     fun dateGroupingHandlesUnknownAndFollowsDateSortDirection() {
         val items = listOf(
             item("unknown.jpg", dateModified = 0L),
