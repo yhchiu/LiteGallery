@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -181,7 +182,9 @@ object FolderMediaRepository {
                 val mediaScanner = MediaScanner(context)
                 mediaScanner.scanMediaInFolderStreamed(folderPath).collect { emit(it) }
             }
-        } catch (e: Throwable) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             emit(LoadEvent.Failed(e))
         }
     }.flowOn(Dispatchers.IO)

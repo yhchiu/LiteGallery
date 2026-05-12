@@ -28,6 +28,7 @@ import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -383,6 +384,8 @@ class FolderViewActivity : AppCompatActivity() {
                 val item = cachedItems.firstOrNull() ?: return@launch
                 MediaMetadataCache.put(item)
                 notifyMetadataLoaded(item)
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
             } finally {
                 pendingMetadataIds.remove(skeleton.id)
@@ -516,6 +519,8 @@ class FolderViewActivity : AppCompatActivity() {
                 cachedItems.forEach { item ->
                     notifyMetadataLoaded(item)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
             } finally {
                 idsToFetch.forEach { pendingMetadataIds.remove(it) }
@@ -682,7 +687,12 @@ class FolderViewActivity : AppCompatActivity() {
         if (mediaIndexSyncJob?.isActive == true) return
 
         mediaIndexSyncJob = lifecycleScope.launch {
-            runCatching { mediaScanner.synchronizeMediaIndexIfNeeded() }
+            try {
+                mediaScanner.synchronizeMediaIndexIfNeeded()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -1288,6 +1298,8 @@ class FolderViewActivity : AppCompatActivity() {
                             }
                         }
                     }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 deferFastScrollerUntilFinalLoad = false
                 binding.progressBar.visibility = View.GONE
