@@ -137,6 +137,10 @@ class MediaScanner(private val context: Context) {
     private val primaryExternalRootPath: String? =
         Environment.getExternalStorageDirectory()?.absolutePath
 
+    suspend fun synchronizeMediaIndexIfNeeded() {
+        mediaIndexRepository.synchronizeIndexIfNeeded()
+    }
+
     private data class FolderAggregate(
         var imageCount: Int = 0,
         var videoCount: Int = 0,

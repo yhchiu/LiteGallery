@@ -19,6 +19,7 @@ import org.iurl.litegallery.databinding.ActivityMainBinding
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private var lastUserRefreshAtMs = 0L
     private var currentHomeSortOrder: String = HomeFolderSorter.DEFAULT_SORT_ORDER
     private var currentHomeFolders: List<MediaFolder> = emptyList()
+    private var mediaIndexSyncJob: Job? = null
     
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -146,6 +148,7 @@ class MainActivity : AppCompatActivity() {
             loadMediaFolders()
             cleanupExpiredTrashInBackground()
         } else {
+            synchronizeMediaIndexInBackground()
             cleanupExpiredTrashInBackground()
         }
     }
@@ -400,6 +403,15 @@ class MainActivity : AppCompatActivity() {
                     ) { _, _ -> }
                 }
             }
+        }
+    }
+
+    private fun synchronizeMediaIndexInBackground() {
+        if (!::mediaScanner.isInitialized || isLoadingFolders) return
+        if (mediaIndexSyncJob?.isActive == true) return
+
+        mediaIndexSyncJob = lifecycleScope.launch {
+            runCatching { mediaScanner.synchronizeMediaIndexIfNeeded() }
         }
     }
 

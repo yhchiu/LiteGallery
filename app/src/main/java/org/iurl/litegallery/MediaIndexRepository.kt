@@ -22,6 +22,10 @@ class MediaIndexRepository(context: Context) {
     private val primaryExternalRootPath: String? =
         Environment.getExternalStorageDirectory()?.absolutePath
 
+    suspend fun synchronizeIndexIfNeeded() = withContext(Dispatchers.IO) {
+        synchronizeIfNeeded()
+    }
+
     suspend fun getFolders(): List<MediaFolder> = withContext(Dispatchers.IO) {
         synchronizeIfNeeded()
         dao.getFolders().map { it.toMediaFolder() }

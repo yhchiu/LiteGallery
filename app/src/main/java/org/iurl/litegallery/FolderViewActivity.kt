@@ -64,6 +64,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var isLoadingMediaItems = false
     private var lastSwipeRefreshAtMs = 0L
     private var transformJob: Job? = null
+    private var mediaIndexSyncJob: Job? = null
     private var displayGeneration = 0
     private var fastScrollSections: List<FastScrollSection> = emptyList()
     private var lockedFastScrollRange = 0
@@ -143,6 +144,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         transformJob?.cancel()
+        mediaIndexSyncJob?.cancel()
         resetDetailedMetadataRequests()
         super.onDestroy()
     }
@@ -161,6 +163,7 @@ class FolderViewActivity : AppCompatActivity() {
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
         applyFolderHeroGradientAccent()
+        synchronizeMediaIndexInBackground()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -487,6 +490,15 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun resetDetailedMetadataRequests() {
         pendingMetadataIds.clear()
+    }
+
+    private fun synchronizeMediaIndexInBackground() {
+        if (!::mediaScanner.isInitialized || isLoadingMediaItems || SmbPath.isSmb(folderPath)) return
+        if (mediaIndexSyncJob?.isActive == true) return
+
+        mediaIndexSyncJob = lifecycleScope.launch {
+            runCatching { mediaScanner.synchronizeMediaIndexIfNeeded() }
+        }
     }
 
     private fun setupSwipeRefresh() {
@@ -987,6 +999,10 @@ class FolderViewActivity : AppCompatActivity() {
             try {
                 transformJob?.cancel()
                 resetDetailedMetadataRequests()
+
+                if (fromSwipeRefresh && !SmbPath.isSmb(folderPath)) {
+                    mediaScanner.synchronizeMediaIndexIfNeeded()
+                }
                 
                 FolderMediaRepository.loadFolderStreamed(this@FolderViewActivity, folderPath)
                     .collect { event ->
