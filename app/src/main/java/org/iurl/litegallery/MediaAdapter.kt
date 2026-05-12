@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.imageview.ShapeableImageView
@@ -17,20 +15,21 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MediaAdapter(
-    private val onMediaClick: (MediaItem, Int) -> Unit,
-    private val onMediaLongClick: ((MediaItem, Int) -> Unit)? = null,
-    private val isItemSelected: ((MediaItem) -> Boolean)? = null,
-    private val sourceBadgeLabelProvider: ((MediaItem) -> String?)? = null,
-    private val sourceBadgeContentDescriptionProvider: ((MediaItem) -> String?)? = null,
-    private val onDetailedMetadataNeeded: ((MediaItem) -> Unit)? = null
-) :
-    ListAdapter<MediaItem, RecyclerView.ViewHolder>(MediaDiffCallback()) {
+    private val onMediaClick: (MediaItemSkeleton, Int) -> Unit,
+    private val onMediaLongClick: ((MediaItemSkeleton, Int) -> Unit)? = null,
+    private val isItemSelected: ((MediaItemSkeleton) -> Boolean)? = null,
+    private val sourceBadgeLabelProvider: ((MediaItemSkeleton) -> String?)? = null,
+    private val sourceBadgeContentDescriptionProvider: ((MediaItemSkeleton) -> String?)? = null,
+    private val onDetailedMetadataNeeded: ((MediaItemSkeleton) -> Unit)? = null
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private val items = mutableListOf<MediaItemSkeleton>()
 
     var viewMode: ViewMode = ViewMode.GRID
         set(value) {
             if (field == value) return
             field = value
-            notifyDataSetChanged()
+            notifyItemRangeChanged(0, itemCount)
         }
 
     enum class ViewMode {
@@ -42,7 +41,60 @@ class MediaAdapter(
         private const val VIEW_TYPE_LIST = 1
         private const val VIEW_TYPE_DETAILED = 2
         private const val PAYLOAD_SELECTION_STATE = "payload_selection_state"
+        private const val PAYLOAD_NAME_CHANGED = "payload_name_changed"
+        const val PAYLOAD_META_LOADED = "payload_meta_loaded"
         private const val SELECTION_STROKE_DP = 2f
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun submitList(newItems: List<MediaItemSkeleton>, bypassDiff: Boolean = false, commitCallback: (() -> Unit)? = null) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+        commitCallback?.invoke()
+    }
+
+    fun appendSkeletons(deltaItems: List<MediaItemSkeleton>) {
+        if (deltaItems.isEmpty()) return
+        val start = items.size
+        items.addAll(deltaItems)
+        notifyItemRangeInserted(start, deltaItems.size)
+    }
+
+    fun renameSkeleton(oldPath: String, updated: MediaItemSkeleton): Int {
+        val index = items.indexOfFirst { it.path == oldPath }
+        if (index < 0) return -1
+        items[index] = updated
+        notifyItemChanged(index, PAYLOAD_NAME_CHANGED)
+        return index
+    }
+
+    fun removeSkeletonPaths(paths: Set<String>): Boolean {
+        if (paths.isEmpty()) return false
+        var changed = false
+        for (index in items.indices.reversed()) {
+            if (items[index].path in paths) {
+                items.removeAt(index)
+                notifyItemRemoved(index)
+                changed = true
+            }
+        }
+        return changed
+    }
+
+    val currentList: List<MediaItemSkeleton>
+        get() = items
+
+    fun getItem(position: Int): MediaItemSkeleton = items[position]
+
+    override fun getItemCount(): Int = items.size
+
+    fun putCachedMetadata(item: MediaItem) {
+        MediaMetadataCache.put(item)
+    }
+
+    fun getCachedMetadata(id: Long): MediaItem? {
+        return MediaMetadataCache.get(id)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -72,11 +124,14 @@ class MediaAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val mediaItem = getItem(position)
+        val skeleton = getItem(position)
+        val cachedMeta = MediaMetadataCache.get(skeleton)
+        val mediaItemToBind = cachedMeta ?: skeleton.toBaselineMediaItem()
+
         when (holder) {
-            is GridViewHolder -> holder.bind(mediaItem, position)
-            is ListViewHolder -> holder.bind(mediaItem, position)
-            is DetailedViewHolder -> holder.bind(mediaItem, position)
+            is GridViewHolder -> holder.bind(skeleton, mediaItemToBind, position)
+            is ListViewHolder -> holder.bind(skeleton, mediaItemToBind, position)
+            is DetailedViewHolder -> holder.bind(skeleton, mediaItemToBind, position)
         }
     }
 
@@ -85,14 +140,18 @@ class MediaAdapter(
             applySelectionState(holder.itemView, getItem(position))
             return
         }
+        if (payloads.contains(PAYLOAD_META_LOADED) || payloads.contains(PAYLOAD_NAME_CHANGED)) {
+            onBindViewHolder(holder, position)
+            return
+        }
         super.onBindViewHolder(holder, position, payloads)
     }
 
     fun notifySelectionChanged(changedPaths: Collection<String>) {
         if (changedPaths.isEmpty()) return
 
-        val indexByPath = currentList
-            .mapIndexed { index, mediaItem -> mediaItem.path to index }
+        val indexByPath = items
+            .mapIndexed { index, skeleton -> skeleton.path to index }
             .toMap()
 
         changedPaths.forEach { path ->
@@ -101,25 +160,23 @@ class MediaAdapter(
         }
     }
 
-    // Grid View Holder (Original)
+    // Grid View Holder
     inner class GridViewHolder(private val binding: ItemMediaBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(mediaItem: MediaItem, position: Int) {
-            // Load thumbnail (skip Glide for SMB videos - can't extract frames from network)
-            if (mediaItem.isSmb && mediaItem.isVideo) {
+        fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
+            if (skeleton.isSmb && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
-                    .load(mediaItem.path)
+                    .load(skeleton.thumbnailModel())
                     .centerCrop()
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
             }
 
-            // Show video indicators
-            if (mediaItem.isVideo) {
+            if (skeleton.isVideo) {
                 binding.playIcon.visibility = android.view.View.VISIBLE
                 val duration = mediaItem.getFormattedDuration()
                 if (duration.isNotEmpty()) {
@@ -133,7 +190,7 @@ class MediaAdapter(
                 binding.durationTextView.visibility = android.view.View.GONE
             }
 
-            val sourceBadgeLabel = sourceBadgeLabelProvider?.invoke(mediaItem)
+            val sourceBadgeLabel = sourceBadgeLabelProvider?.invoke(skeleton)
             if (sourceBadgeLabel.isNullOrBlank()) {
                 binding.sourceBadgeTextView.visibility = android.view.View.GONE
                 binding.sourceBadgeTextView.contentDescription = null
@@ -141,23 +198,23 @@ class MediaAdapter(
                 binding.sourceBadgeTextView.visibility = android.view.View.VISIBLE
                 binding.sourceBadgeTextView.text = sourceBadgeLabel
                 binding.sourceBadgeTextView.contentDescription =
-                    sourceBadgeContentDescriptionProvider?.invoke(mediaItem)
+                    sourceBadgeContentDescriptionProvider?.invoke(skeleton)
             }
 
             binding.root.setOnClickListener {
-                onMediaClick(mediaItem, position)
+                onMediaClick(skeleton, position)
             }
 
             binding.root.setOnLongClickListener {
                 if (onMediaLongClick != null) {
-                    onMediaLongClick.invoke(mediaItem, position)
+                    onMediaLongClick.invoke(skeleton, position)
                     true
                 } else {
                     false
                 }
             }
 
-            applySelectionState(binding.root, mediaItem)
+            applySelectionState(binding.root, skeleton)
         }
     }
 
@@ -165,21 +222,19 @@ class MediaAdapter(
     inner class ListViewHolder(private val binding: ItemMediaListBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(mediaItem: MediaItem, position: Int) {
-            // Load thumbnail (skip Glide for SMB videos)
-            if (mediaItem.isSmb && mediaItem.isVideo) {
+        fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
+            if (skeleton.isSmb && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
-                    .load(mediaItem.path)
+                    .load(skeleton.thumbnailModel())
                     .centerCrop()
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
             }
 
-            // Show video indicators
-            if (mediaItem.isVideo) {
+            if (skeleton.isVideo) {
                 binding.playIcon.visibility = android.view.View.VISIBLE
                 val duration = mediaItem.getFormattedDuration()
                 if (duration.isNotEmpty()) {
@@ -193,23 +248,22 @@ class MediaAdapter(
                 binding.durationTextView.visibility = android.view.View.GONE
             }
 
-            // File name only
-            binding.fileNameTextView.text = mediaItem.name
+            binding.fileNameTextView.text = skeleton.name
 
             binding.root.setOnClickListener {
-                onMediaClick(mediaItem, position)
+                onMediaClick(skeleton, position)
             }
 
             binding.root.setOnLongClickListener {
                 if (onMediaLongClick != null) {
-                    onMediaLongClick.invoke(mediaItem, position)
+                    onMediaLongClick.invoke(skeleton, position)
                     true
                 } else {
                     false
                 }
             }
 
-            applySelectionState(binding.root, mediaItem)
+            applySelectionState(binding.root, skeleton)
         }
     }
 
@@ -217,21 +271,19 @@ class MediaAdapter(
     inner class DetailedViewHolder(private val binding: ItemMediaDetailedBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(mediaItem: MediaItem, position: Int) {
-            // Load thumbnail (skip Glide for SMB videos)
-            if (mediaItem.isSmb && mediaItem.isVideo) {
+        fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
+            if (skeleton.isSmb && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
-                    .load(mediaItem.path)
+                    .load(skeleton.thumbnailModel())
                     .centerCrop()
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .into(binding.thumbnailImageView)
             }
 
-            // Show video indicators
-            if (mediaItem.isVideo) {
+            if (skeleton.isVideo) {
                 binding.playIcon.visibility = android.view.View.VISIBLE
                 val duration = mediaItem.getFormattedDuration()
                 if (duration.isNotEmpty()) {
@@ -245,10 +297,8 @@ class MediaAdapter(
                 binding.durationTextView.visibility = android.view.View.GONE
             }
 
-            // File name
-            binding.fileNameTextView.text = mediaItem.name
+            binding.fileNameTextView.text = skeleton.name
 
-            // Resolution
             if (mediaItem.width > 0 && mediaItem.height > 0) {
                 binding.resolutionTextView.text = "${mediaItem.width} x ${mediaItem.height}"
                 binding.resolutionTextView.visibility = android.view.View.VISIBLE
@@ -256,7 +306,6 @@ class MediaAdapter(
                 binding.resolutionTextView.visibility = android.view.View.GONE
             }
 
-            // File size
             val sizeStr = formatFileSize(mediaItem.size)
             if (sizeStr.isNotEmpty()) {
                 binding.fileSizeTextView.text = sizeStr
@@ -265,7 +314,6 @@ class MediaAdapter(
                 binding.fileSizeTextView.visibility = android.view.View.GONE
             }
 
-            // Date
             val dateStr = formatDate(mediaItem.dateModified)
             if (dateStr.isNotEmpty()) {
                 binding.dateTextView.text = dateStr
@@ -274,27 +322,27 @@ class MediaAdapter(
                 binding.dateTextView.visibility = android.view.View.GONE
             }
 
-            onDetailedMetadataNeeded?.invoke(mediaItem)
+            onDetailedMetadataNeeded?.invoke(skeleton)
 
             binding.root.setOnClickListener {
-                onMediaClick(mediaItem, position)
+                onMediaClick(skeleton, position)
             }
 
             binding.root.setOnLongClickListener {
                 if (onMediaLongClick != null) {
-                    onMediaLongClick.invoke(mediaItem, position)
+                    onMediaLongClick.invoke(skeleton, position)
                     true
                 } else {
                     false
                 }
             }
 
-            applySelectionState(binding.root, mediaItem)
+            applySelectionState(binding.root, skeleton)
         }
     }
 
-    private fun applySelectionState(root: android.view.View, mediaItem: MediaItem) {
-        val selected = isItemSelected?.invoke(mediaItem) == true
+    private fun applySelectionState(root: android.view.View, skeleton: MediaItemSkeleton) {
+        val selected = isItemSelected?.invoke(skeleton) == true
         val thumbnail = root.findViewById<ShapeableImageView>(R.id.thumbnailImageView)
 
         root.isSelected = selected
@@ -334,15 +382,5 @@ class MediaAdapter(
     private fun formatDate(timestamp: Long): String {
         if (timestamp <= 0) return ""
         return dateFormat.format(Date(timestamp))
-    }
-
-    private class MediaDiffCallback : DiffUtil.ItemCallback<MediaItem>() {
-        override fun areItemsTheSame(oldItem: MediaItem, newItem: MediaItem): Boolean {
-            return oldItem.path == newItem.path
-        }
-
-        override fun areContentsTheSame(oldItem: MediaItem, newItem: MediaItem): Boolean {
-            return oldItem == newItem
-        }
     }
 }

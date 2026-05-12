@@ -27,6 +27,7 @@ class MediaIndexEntityTest {
 
         val item = entity.toMediaItem()
 
+        assertEquals(7L, item.id)
         assertEquals("movie.mp4", item.name)
         assertEquals("/photos/movie.mp4", item.path)
         assertEquals(123_000L, item.dateModified)

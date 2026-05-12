@@ -2,6 +2,8 @@ package org.iurl.litegallery
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 
 /**
@@ -90,6 +92,7 @@ class SmbMediaScanner(private val context: Context) {
 
                 items.add(
                     MediaItem(
+                        id = MediaItem.NO_MEDIASTORE_ID,
                         name = file.name,
                         path = fileSmbPath,
                         dateModified = file.lastModified,
@@ -106,6 +109,31 @@ class SmbMediaScanner(private val context: Context) {
         }
 
         items.sortedByDescending { it.dateModified }
+    }
+
+    /**
+     * Scan an SMB directory directly to lightweight skeleton representations.
+     */
+    suspend fun scanSmbSkeletonsInFolder(folderSmbPath: String): List<MediaItemSkeleton> = withContext(Dispatchers.IO) {
+        val fullItems = scanSmbMediaInFolder(folderSmbPath)
+        fullItems.map { item ->
+            MediaItemSkeleton(
+                id = item.id,
+                path = item.path,
+                name = item.name,
+                dateModified = item.dateModified,
+                size = item.size,
+                isVideo = item.isVideo
+            )
+        }
+    }
+
+    /**
+     * Stream scanned SMB media items chunk by chunk using a Coroutine Flow.
+     */
+    fun scanSmbMediaInFolderStreamed(folderSmbPath: String): Flow<LoadEvent> = flow {
+        val skeletons = scanSmbSkeletonsInFolder(folderSmbPath)
+        MediaScanner.streamSkeletonListLoadEvents(skeletons).collect { emit(it) }
     }
 
     /**

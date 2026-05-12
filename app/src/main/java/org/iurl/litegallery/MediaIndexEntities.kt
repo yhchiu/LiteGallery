@@ -72,6 +72,7 @@ data class FolderAggregateRow(
 
 fun MediaIndexEntity.toMediaItem(): MediaItem {
     return MediaItem(
+        id = mediaStoreId,
         name = name,
         path = path,
         dateModified = dateModifiedMs,

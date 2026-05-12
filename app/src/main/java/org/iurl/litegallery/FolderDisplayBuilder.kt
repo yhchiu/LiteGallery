@@ -17,7 +17,7 @@ data class FolderDisplayLabels(
 )
 
 data class FolderDisplayResult(
-    val sortedMediaItems: List<MediaItem>,
+    val sortedMediaItems: List<MediaItemSkeleton>,
     val displayItems: List<FolderDisplayItem>,
     val fastScrollSections: List<FastScrollSection>,
     val isGrouped: Boolean
@@ -27,17 +27,18 @@ object FolderDisplayBuilder {
     private const val TARGET_SIZE_BUCKETS = 5
 
     fun build(
-        items: List<MediaItem>,
+        items: List<MediaItemSkeleton>,
         sortOrder: String,
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels
     ): FolderDisplayResult {
         val sortedItems = sortMediaItems(items, sortOrder)
         if (groupBy == FolderGroupBy.NONE || sortedItems.isEmpty()) {
+            val flatSections = if (sortedItems.isNotEmpty()) buildIndexForFlatList(sortedItems, sortOrder, labels) else emptyList()
             return FolderDisplayResult(
                 sortedMediaItems = sortedItems,
                 displayItems = emptyList(),
-                fastScrollSections = emptyList(),
+                fastScrollSections = flatSections,
                 isGrouped = false
             )
         }
@@ -51,7 +52,33 @@ object FolderDisplayBuilder {
         )
     }
 
-    fun sortMediaItems(items: List<MediaItem>, sortOrder: String): List<MediaItem> {
+    private fun buildIndexForFlatList(
+        sortedItems: List<MediaItemSkeleton>,
+        sortOrder: String,
+        labels: FolderDisplayLabels
+    ): List<FastScrollSection> {
+        val sections = mutableListOf<FastScrollSection>()
+        var currentLabel = ""
+        
+        // Use a dummy group selector that matches the sort order
+        val selector = when (sortOrder) {
+            "name_asc", "name_desc" -> createGroupSelector(sortedItems, FolderGroupBy.NAME, labels)
+            "size_asc", "size_desc" -> createGroupSelector(sortedItems, FolderGroupBy.SIZE, labels)
+            else -> createGroupSelector(sortedItems, FolderGroupBy.DATE, labels) // Default to DATE
+        }
+        
+        sortedItems.forEachIndexed { i, item ->
+            val groupInfo = selector(item)
+            val label = groupInfo.title
+            if (label != currentLabel) {
+                sections.add(FastScrollSection(adapterPosition = i, title = label))
+                currentLabel = label
+            }
+        }
+        return sections
+    }
+
+    fun sortMediaItems(items: List<MediaItemSkeleton>, sortOrder: String): List<MediaItemSkeleton> {
         return when (sortOrder) {
             "date_desc" -> items.sortedByDescending { it.dateModified }
             "date_asc" -> items.sortedBy { it.dateModified }
@@ -63,14 +90,14 @@ object FolderDisplayBuilder {
         }
     }
 
-    private val sizeDescendingComparator = compareBy<MediaItem> { it.size <= 0L }
+    private val sizeDescendingComparator = compareBy<MediaItemSkeleton> { it.size <= 0L }
         .thenByDescending { it.size }
 
-    private val sizeAscendingComparator = compareBy<MediaItem> { it.size <= 0L }
+    private val sizeAscendingComparator = compareBy<MediaItemSkeleton> { it.size <= 0L }
         .thenBy { it.size }
 
     private fun buildDisplayItems(
-        sortedItems: List<MediaItem>,
+        sortedItems: List<MediaItemSkeleton>,
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels
     ): GroupedDisplayResult {
@@ -98,10 +125,10 @@ object FolderDisplayBuilder {
     }
 
     private fun createGroupSelector(
-        items: List<MediaItem>,
+        items: List<MediaItemSkeleton>,
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels
-    ): (MediaItem) -> GroupInfo {
+    ): (MediaItemSkeleton) -> GroupInfo {
         return when (groupBy) {
             FolderGroupBy.DATE -> createDateGroupSelector(labels)
             FolderGroupBy.NAME -> createNameGroupSelector()
@@ -111,12 +138,12 @@ object FolderDisplayBuilder {
         }
     }
 
-    private fun createNoneGroupSelector(): (MediaItem) -> GroupInfo {
+    private fun createNoneGroupSelector(): (MediaItemSkeleton) -> GroupInfo {
         val noneGroup = GroupInfo("none", "")
         return { noneGroup }
     }
 
-    private fun createDateGroupSelector(labels: FolderDisplayLabels): (MediaItem) -> GroupInfo {
+    private fun createDateGroupSelector(labels: FolderDisplayLabels): (MediaItemSkeleton) -> GroupInfo {
         val calendar = Calendar.getInstance()
         val groupCache = HashMap<Int, GroupInfo>()
         val unknownGroup = GroupInfo("date:unknown", labels.unknownDate)
@@ -139,7 +166,7 @@ object FolderDisplayBuilder {
         }
     }
 
-    private fun createNameGroupSelector(): (MediaItem) -> GroupInfo {
+    private fun createNameGroupSelector(): (MediaItemSkeleton) -> GroupInfo {
         val groupCache = HashMap<String, GroupInfo>()
         val fallbackGroup = GroupInfo("name:#", "#")
         return { item ->
@@ -156,9 +183,9 @@ object FolderDisplayBuilder {
     }
 
     private fun createSizeGroupSelector(
-        items: List<MediaItem>,
+        items: List<MediaItemSkeleton>,
         labels: FolderDisplayLabels
-    ): (MediaItem) -> GroupInfo {
+    ): (MediaItemSkeleton) -> GroupInfo {
         var minSize = Long.MAX_VALUE
         var maxSize = Long.MIN_VALUE
         var hasPositiveSize = false
@@ -231,16 +258,11 @@ object FolderDisplayBuilder {
         return multiplier * base
     }
 
-    private fun createTypeGroupSelector(labels: FolderDisplayLabels): (MediaItem) -> GroupInfo {
+    private fun createTypeGroupSelector(labels: FolderDisplayLabels): (MediaItemSkeleton) -> GroupInfo {
         val imageGroup = GroupInfo("type:image", labels.imageType)
         val videoGroup = GroupInfo("type:video", labels.videoType)
-        val otherGroup = GroupInfo("type:other", labels.otherType)
         return { item ->
-            when {
-                item.mimeType.startsWith("image/") -> imageGroup
-                item.mimeType.startsWith("video/") -> videoGroup
-                else -> otherGroup
-            }
+            if (item.isVideo) videoGroup else imageGroup
         }
     }
 

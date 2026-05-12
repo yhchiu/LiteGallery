@@ -121,4 +121,28 @@ interface MediaIndexDao {
         durationMs: Long,
         updatedAtMs: Long
     ): Int
+
+    @Query("SELECT * FROM media_items WHERE mediaStoreId IN (:ids)")
+    suspend fun findByIds(ids: List<Long>): List<MediaIndexEntity>
+
+    @Query("SELECT * FROM media_items WHERE mediaStoreId = :id LIMIT 1")
+    suspend fun findById(id: Long): MediaIndexEntity?
+
+    @Query("""
+        SELECT * FROM media_items 
+        WHERE folderPath = :folderPath 
+        ORDER BY dateModifiedMs DESC, name COLLATE NOCASE ASC 
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun loadWindow(folderPath: String, offset: Int, limit: Int): List<MediaIndexEntity>
+
+    @Query("""
+        SELECT COUNT(*) FROM media_items 
+        WHERE folderPath = :folderPath AND (
+            dateModifiedMs > (SELECT dateModifiedMs FROM media_items WHERE path = :targetPath)
+            OR (dateModifiedMs = (SELECT dateModifiedMs FROM media_items WHERE path = :targetPath) 
+                AND name COLLATE NOCASE < (SELECT name FROM media_items WHERE path = :targetPath))
+        )
+    """)
+    suspend fun findIndexOfPath(folderPath: String, targetPath: String): Int
 }

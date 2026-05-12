@@ -8,7 +8,7 @@ sealed interface FolderDisplayItem {
     ) : FolderDisplayItem
 
     data class Media(
-        val item: MediaItem,
+        val skeleton: MediaItemSkeleton,
         val mediaIndex: Int
     ) : FolderDisplayItem
 }

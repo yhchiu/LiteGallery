@@ -36,6 +36,11 @@ class MediaIndexRepository(context: Context) {
         dao.getMediaInFolder(folderPath).map { it.toMediaItem() }
     }
 
+    suspend fun getCachedMediaByIds(ids: List<Long>): List<MediaItem> = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext emptyList()
+        dao.findByIds(ids).map { it.toMediaItem() }
+    }
+
     suspend fun getCachedMediaInFolder(folderPath: String): List<MediaItem> = withContext(Dispatchers.IO) {
         dao.getMediaInFolder(folderPath).map { it.toMediaItem() }
     }
@@ -446,6 +451,14 @@ class MediaIndexRepository(context: Context) {
 
     private fun isTrashedFile(file: File): Boolean {
         return file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)
+    }
+
+    suspend fun loadWindow(folderPath: String, offset: Int, limit: Int): List<MediaItem> = withContext(Dispatchers.IO) {
+        dao.loadWindow(folderPath, offset, limit).map { it.toMediaItem() }
+    }
+
+    suspend fun findIndexOfPath(folderPath: String, targetPath: String): Int = withContext(Dispatchers.IO) {
+        dao.findIndexOfPath(folderPath, targetPath)
     }
 
     private fun Cursor.getStringOrNull(column: Int): String? {

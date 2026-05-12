@@ -10,12 +10,17 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class MediaScanner(private val context: Context) {
 
     companion object {
+        internal const val FIRST_SCREEN_LIMIT = 500
+        internal const val CHUNK_SIZE = 5_000
+
         internal fun buildImageFolderProjection(includeDeferredMetadata: Boolean): Array<String> {
             // SIZE is always included — it is a cheap MediaStore column and the
             // Folder View hero card needs it to display total bytes regardless
@@ -58,6 +63,72 @@ class MediaScanner(private val context: Context) {
                 projection.add(MediaStore.Video.Media.HEIGHT)
             }
             return projection.toTypedArray()
+        }
+
+        internal fun streamSkeletonLoadEvents(cursor: Cursor): Flow<LoadEvent> = flow {
+            cursor.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                val dataCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+                val nameCol = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                val dateCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+                val sizeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+                val mediaTypeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+
+                val firstScreen = ArrayList<MediaItemSkeleton>(FIRST_SCREEN_LIMIT)
+                val pendingDelta = ArrayList<MediaItemSkeleton>(CHUNK_SIZE)
+                var firstScreenSent = false
+                var totalLoaded = 0
+
+                while (c.moveToNext()) {
+                    val mediaType = c.getInt(mediaTypeCol)
+                    val path = c.getString(dataCol) ?: continue
+                    val name = if (nameCol >= 0) c.getString(nameCol) else File(path).name
+                    val skeleton = MediaItemSkeleton(
+                        id = c.getLong(idCol),
+                        path = path,
+                        name = name ?: "",
+                        dateModified = c.getLong(dateCol) * 1000L,
+                        size = c.getLong(sizeCol).coerceAtLeast(0L),
+                        isVideo = mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
+                    )
+
+                    totalLoaded++
+                    if (!firstScreenSent) {
+                        firstScreen.add(skeleton)
+                        if (firstScreen.size >= FIRST_SCREEN_LIMIT) {
+                            emit(LoadEvent.FirstScreen(firstScreen.toList()))
+                            firstScreenSent = true
+                        }
+                    } else {
+                        pendingDelta.add(skeleton)
+                        if (pendingDelta.size >= CHUNK_SIZE) {
+                            emit(LoadEvent.Progress(pendingDelta.toList(), totalLoaded, isFinal = false))
+                            pendingDelta.clear()
+                        }
+                    }
+                }
+
+                if (!firstScreenSent) {
+                    emit(LoadEvent.FirstScreen(firstScreen.toList()))
+                }
+                if (pendingDelta.isNotEmpty()) {
+                    emit(LoadEvent.Progress(pendingDelta.toList(), totalLoaded, isFinal = false))
+                }
+                emit(LoadEvent.Progress(emptyList(), totalLoaded, isFinal = true))
+            }
+        }
+
+        internal fun streamSkeletonListLoadEvents(skeletons: List<MediaItemSkeleton>): Flow<LoadEvent> = flow {
+            val firstScreenCount = FIRST_SCREEN_LIMIT.coerceAtMost(skeletons.size)
+            emit(LoadEvent.FirstScreen(skeletons.take(firstScreenCount)))
+
+            var nextIndex = firstScreenCount
+            while (nextIndex < skeletons.size) {
+                val endIndex = (nextIndex + CHUNK_SIZE).coerceAtMost(skeletons.size)
+                emit(LoadEvent.Progress(skeletons.subList(nextIndex, endIndex).toList(), endIndex, isFinal = false))
+                nextIndex = endIndex
+            }
+            emit(LoadEvent.Progress(emptyList(), skeletons.size, isFinal = true))
         }
     }
     
@@ -176,8 +247,69 @@ class MediaScanner(private val context: Context) {
         }
     }
 
+    suspend fun scanSkeletonsInFolder(folderPath: String): List<MediaItemSkeleton> = withContext(Dispatchers.IO) {
+        val fullItems = scanMediaInFolder(
+            folderPath = folderPath,
+            includeDeferredMetadata = false,
+            includeVideoDuration = false,
+            mergeFileSystemFallback = true
+        )
+        fullItems.map { item ->
+            MediaItemSkeleton(
+                id = item.id,
+                path = item.path,
+                name = item.name,
+                dateModified = item.dateModified,
+                size = item.size,
+                isVideo = item.isVideo
+            )
+        }
+    }
+
+    fun scanMediaInFolderStreamed(folderPath: String): Flow<LoadEvent> = flow {
+        val externalUri = MediaStore.Files.getContentUri("external")
+        val projection = arrayOf(
+            MediaStore.Files.FileColumns._ID,
+            MediaStore.Files.FileColumns.DATA,
+            MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.DATE_MODIFIED,
+            MediaStore.Files.FileColumns.SIZE,
+            MediaStore.Files.FileColumns.MEDIA_TYPE,
+            MediaStore.Files.FileColumns.MIME_TYPE
+        )
+
+        val folderQuery = buildFolderQuery(
+            folderPath = folderPath,
+            dataColumn = MediaStore.Files.FileColumns.DATA,
+            relativePathColumn = MediaStore.Files.FileColumns.RELATIVE_PATH
+        )
+
+        val selection = "${folderQuery.selection} AND (${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?)"
+        val selectionArgs = folderQuery.selectionArgs + arrayOf(
+            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
+        )
+
+        val cursor = context.contentResolver.query(
+            externalUri,
+            projection,
+            selection,
+            selectionArgs,
+            "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
+        ) ?: run {
+            streamSkeletonListLoadEvents(scanSkeletonsInFolder(folderPath)).collect { emit(it) }
+            return@flow
+        }
+
+        streamSkeletonLoadEvents(cursor).collect { emit(it) }
+    }
+
     suspend fun getCachedMediaInFolder(folderPath: String): List<MediaItem> {
         return mediaIndexRepository.getCachedMediaInFolder(folderPath)
+    }
+
+    suspend fun getCachedMediaByIds(ids: List<Long>): List<MediaItem> {
+        return mediaIndexRepository.getCachedMediaByIds(ids)
     }
 
     suspend fun removeIndexedMediaPath(path: String) {
@@ -500,6 +632,7 @@ class MediaScanner(private val context: Context) {
                 }
 
                 val mediaItem = MediaItem(
+                    id = if (idColumn >= 0) it.getLong(idColumn) else MediaItem.NO_MEDIASTORE_ID,
                     name = fileName ?: File(path).name,
                     path = path,
                     dateModified = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L,
@@ -582,6 +715,7 @@ class MediaScanner(private val context: Context) {
                 }
 
                 val mediaItem = MediaItem(
+                    id = if (idColumn >= 0) it.getLong(idColumn) else MediaItem.NO_MEDIASTORE_ID,
                     name = fileName ?: File(path).name,
                     path = path,
                     dateModified = if (dateColumn >= 0) it.getLong(dateColumn) * 1000 else 0L,

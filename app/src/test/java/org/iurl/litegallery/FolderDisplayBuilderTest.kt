@@ -19,7 +19,7 @@ class FolderDisplayBuilderTest {
         assertFalse(result.isGrouped)
         assertEquals(listOf("new.jpg", "old.jpg"), result.sortedMediaItems.map { it.name })
         assertTrue(result.displayItems.isEmpty())
-        assertTrue(result.fastScrollSections.isEmpty())
+        assertTrue(result.fastScrollSections.isNotEmpty())
     }
 
     @Test
@@ -98,16 +98,15 @@ class FolderDisplayBuilderTest {
     fun typeGroupingUsesMajorMimeTypeOnly() {
         val result = FolderDisplayBuilder.build(
             items = listOf(
-                item("photo.jpg", mimeType = "image/jpeg"),
                 item("clip.mp4", mimeType = "video/mp4"),
-                item("doc.bin", mimeType = "application/octet-stream")
+                item("photo.jpg", mimeType = "image/jpeg")
             ),
             sortOrder = "name_asc",
             groupBy = FolderGroupBy.TYPE,
             labels = labels
         )
 
-        assertEquals(listOf("Video", "Other", "Image"), result.headers().map { it.title })
+        assertEquals(listOf("Video", "Image"), result.headers().map { it.title })
     }
 
     @Test
@@ -175,12 +174,13 @@ class FolderDisplayBuilderTest {
         dateModified: Long = 1L,
         size: Long = 1L,
         mimeType: String = "image/jpeg"
-    ): MediaItem = MediaItem(
+    ): MediaItemSkeleton = MediaItemSkeleton(
+        id = name.hashCode().toLong(),
         name = name,
         path = "/media/$name",
         dateModified = dateModified,
         size = size,
-        mimeType = mimeType
+        isVideo = mimeType.startsWith("video/")
     )
 
     private val labels = FolderDisplayLabels(

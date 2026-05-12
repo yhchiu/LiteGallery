@@ -51,6 +51,7 @@ class MediaMetadataPolicyTest {
         duration: Long = 1L
     ): MediaItem {
         return MediaItem(
+            id = 1L,
             name = "item",
             path = "/photos/item",
             dateModified = 1L,

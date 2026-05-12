@@ -162,6 +162,7 @@ class FileSystemScanner(private val context: Context) {
         val isVideo = videoExtensions.contains(extension)
         
         return MediaItem(
+            id = MediaItem.NO_MEDIASTORE_ID,
             name = file.name,
             path = file.absolutePath,
             dateModified = file.lastModified(),

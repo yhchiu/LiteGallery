@@ -445,6 +445,7 @@ class TrashBinActivity : AppCompatActivity() {
                 ?: getCursorString(it, android.provider.MediaStore.MediaColumns.MIME_TYPE)
                 ?: resolveMimeTypeFromName(displayName)
             return MediaItem(
+                id = MediaItem.NO_MEDIASTORE_ID,
                 name = displayName,
                 path = record.trashedUri,
                 dateModified = dateModifiedMs,
@@ -529,6 +530,7 @@ class TrashBinActivity : AppCompatActivity() {
 
                 items.add(
                     MediaItem(
+                        id = id,
                         name = name ?: itemUri.lastPathSegment ?: getString(R.string.unknown_value),
                         path = itemUri.toString(),
                         dateModified = dateModifiedMs,
@@ -549,6 +551,7 @@ class TrashBinActivity : AppCompatActivity() {
         if (!isVideo && !isImage) return null
 
         return MediaItem(
+            id = MediaItem.NO_MEDIASTORE_ID,
             name = file.name,
             path = file.absolutePath,
             dateModified = file.lastModified(),

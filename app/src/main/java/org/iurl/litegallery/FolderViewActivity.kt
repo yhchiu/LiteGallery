@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
@@ -15,6 +16,10 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.preference.PreferenceManager
+import com.bumptech.glide.Glide
+import com.bumptech.glide.ListPreloader
+import com.bumptech.glide.RequestBuilder
+import com.bumptech.glide.integration.recyclerview.RecyclerViewPreloader
 import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemeColorResolver
@@ -50,7 +55,7 @@ class FolderViewActivity : AppCompatActivity() {
     
     private var folderPath: String = ""
     private var folderName: String = ""
-    private var mediaItems: List<MediaItem> = emptyList()
+    private var mediaItems: List<MediaItemSkeleton> = emptyList()
     private var currentPackKey: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
@@ -63,8 +68,8 @@ class FolderViewActivity : AppCompatActivity() {
     private var fastScrollSections: List<FastScrollSection> = emptyList()
     private var lockedFastScrollRange = 0
     private var swipeRefreshEnabledBeforeFastScroll = true
-    private val detailedMetadataJobs = mutableMapOf<String, Job>()
-    private val detailedMetadataAttemptedPaths = mutableSetOf<String>()
+    private val pendingMetadataIds = mutableSetOf<Long>()
+    private var deferFastScrollerUntilFinalLoad = false
 
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -76,8 +81,10 @@ class FolderViewActivity : AppCompatActivity() {
 
         val changedFolderPath = data?.getStringExtra(MediaViewerActivity.RESULT_FOLDER_PATH)
         if (changedFolderPath.isNullOrEmpty() || changedFolderPath == folderPath) {
-            FolderMediaRepository.invalidate(folderPath)
-            loadMediaItems(showBlockingLoading = displayedItemCount == 0)
+            if (!applyViewerResultDeltas(data)) {
+                FolderMediaRepository.invalidate(folderPath)
+                loadMediaItems(showBlockingLoading = displayedItemCount == 0)
+            }
         }
 
         setResult(
@@ -136,7 +143,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         transformJob?.cancel()
-        cancelDetailedMetadataJobs()
+        resetDetailedMetadataRequests()
         super.onDestroy()
     }
     
@@ -219,7 +226,7 @@ class FolderViewActivity : AppCompatActivity() {
     private fun Int.withAlpha(alpha: Int): Int =
         (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
 
-    private fun bindFolderStats(items: List<MediaItem>) {
+    private fun bindFolderStats(items: List<MediaItemSkeleton>) {
         if (items.isEmpty()) {
             binding.folderHeroDivider.visibility = View.GONE
             binding.folderStatsTextView.visibility = View.GONE
@@ -249,14 +256,47 @@ class FolderViewActivity : AppCompatActivity() {
             onDetailedMetadataNeeded = ::requestDetailedMetadataForVisibleItem
         )
 
-        binding.recyclerView.adapter = if (currentGroupBy == FolderGroupBy.NONE) {
-            mediaAdapter
-        } else {
-            groupedMediaAdapter
+        binding.recyclerView.apply {
+            setHasFixedSize(true)
+            setItemViewCacheSize(20)
+            setRecycledViewPool(LiteGalleryApplication.sharedFolderViewPool)
+            addOnScrollListener(createThumbnailPreloader())
+            
+            adapter = if (currentGroupBy == FolderGroupBy.NONE) {
+                mediaAdapter
+            } else {
+                groupedMediaAdapter
+            }
         }
 
         // Apply view mode
         updateLayoutManager()
+    }
+
+    private fun createThumbnailPreloader(): RecyclerViewPreloader<Any> {
+        val requestManager = Glide.with(this)
+        val preloadModelProvider = object : ListPreloader.PreloadModelProvider<Any> {
+            override fun getPreloadItems(position: Int): MutableList<Any> {
+                val skeleton = when (binding.recyclerView.adapter) {
+                    mediaAdapter -> mediaAdapter.currentList.getOrNull(position)
+                    groupedMediaAdapter -> (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
+                    else -> null
+                }
+                if (skeleton == null || (skeleton.isSmb && skeleton.isVideo)) return mutableListOf()
+                return mutableListOf(skeleton.thumbnailModel())
+            }
+
+            override fun getPreloadRequestBuilder(item: Any): RequestBuilder<Drawable>? {
+                return requestManager.load(item).centerCrop()
+            }
+        }
+        val preloadSizeProvider = object : ListPreloader.PreloadSizeProvider<Any> {
+            override fun getPreloadSize(item: Any, adapterPosition: Int, perItemPosition: Int): IntArray {
+                val sizePx = (96 * resources.displayMetrics.density).roundToInt().coerceAtLeast(96)
+                return intArrayOf(sizePx, sizePx)
+            }
+        }
+        return RecyclerViewPreloader(requestManager, preloadModelProvider, preloadSizeProvider, 20)
     }
 
     private val displayedItemCount: Int
@@ -269,95 +309,184 @@ class FolderViewActivity : AppCompatActivity() {
             }
         }
 
-    private fun openMediaViewer(mediaItem: MediaItem, position: Int) {
+    private fun openMediaViewer(skeleton: MediaItemSkeleton, position: Int) {
         val intent = Intent(this, MediaViewerActivity::class.java).apply {
-            putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, mediaItem.path)
+            putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, skeleton.path)
             putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, folderPath)
             putExtra(MediaViewerActivity.EXTRA_CURRENT_POSITION, position)
         }
         mediaViewerLauncher.launch(intent)
     }
 
-    private fun cacheCurrentFolderMedia(items: List<MediaItem> = mediaItems) {
+    private fun cacheCurrentFolderMedia(items: List<MediaItemSkeleton> = mediaItems) {
         if (items.isEmpty()) {
             FolderMediaRepository.invalidate(folderPath)
             return
         }
-        FolderMediaRepository.put(
+        FolderMediaRepository.putSkeleton(
             folderPath = folderPath,
             items = items,
-            includesDeferredMetadata = items.none { MediaMetadataPolicy.needsDetailedMetadata(it) },
             sortOrder = currentSortOrder,
             groupBy = currentGroupBy
         )
     }
 
-    private fun requestDetailedMetadataForVisibleItem(item: MediaItem) {
-        if (currentViewMode != MediaAdapter.ViewMode.DETAILED) return
-        if (!MediaMetadataPolicy.needsDetailedMetadata(item)) return
-        if (item.isSmb || item.path.isBlank()) return
-        if (detailedMetadataAttemptedPaths.contains(item.path)) return
-        if (detailedMetadataJobs.containsKey(item.path)) return
+    private fun requestDetailedMetadataForVisibleItem(skeleton: MediaItemSkeleton) {
+        if (skeleton.id <= MediaItem.NO_MEDIASTORE_ID) return
+        if (skeleton.isSmb || skeleton.path.isBlank()) return
+        if (MediaMetadataCache.get(skeleton) != null) return
+        if (!pendingMetadataIds.add(skeleton.id)) return
 
-        detailedMetadataAttemptedPaths.add(item.path)
-        detailedMetadataJobs[item.path] = lifecycleScope.launch {
+        lifecycleScope.launch {
             try {
-                val enrichedItem = mediaScanner.enrichItemWithSizeAndDimensions(item)
-                if (enrichedItem != item) {
-                    applyLazyDetailedMetadata(item.path, enrichedItem)
+                val cachedItems = mediaScanner.getCachedMediaByIds(listOf(skeleton.id))
+                val item = cachedItems.firstOrNull() ?: return@launch
+                MediaMetadataCache.put(item)
+                notifyMetadataLoaded(item)
+            } catch (_: Exception) {
+            } finally {
+                pendingMetadataIds.remove(skeleton.id)
+            }
+        }
+    }
+
+    private fun applyViewerResultDeltas(data: Intent?): Boolean {
+        if (data == null || mediaItems.isEmpty()) return false
+
+        val deletedPaths = data.getStringArrayListExtra(MediaViewerActivity.RESULT_DELETED_PATHS)
+            ?.toSet()
+            .orEmpty()
+        val renamedOldPaths = data.getStringArrayListExtra(MediaViewerActivity.RESULT_RENAMED_OLD_PATHS).orEmpty()
+        val renamedNewPaths = data.getStringArrayListExtra(MediaViewerActivity.RESULT_RENAMED_NEW_PATHS).orEmpty()
+        val renamedNewNames = data.getStringArrayListExtra(MediaViewerActivity.RESULT_RENAMED_NEW_NAMES).orEmpty()
+        val renamedIds = data.getLongArrayExtra(MediaViewerActivity.RESULT_RENAMED_IDS) ?: LongArray(0)
+
+        if (deletedPaths.isEmpty() && renamedOldPaths.isEmpty()) return false
+
+        val updatedItems = mediaItems.toMutableList()
+        var changed = false
+
+        for (index in updatedItems.indices.reversed()) {
+            if (updatedItems[index].path in deletedPaths) {
+                MediaMetadataCache.remove(updatedItems[index].id)
+                updatedItems.removeAt(index)
+                changed = true
+            }
+        }
+
+        val renameCount = minOf(renamedOldPaths.size, renamedNewPaths.size, renamedNewNames.size)
+        repeat(renameCount) { renameIndex ->
+            val oldPath = renamedOldPaths[renameIndex]
+            val itemIndex = updatedItems.indexOfFirst { it.path == oldPath }
+            if (itemIndex < 0) return@repeat
+
+            val current = updatedItems[itemIndex]
+            val updatedId = renamedIds.getOrNull(renameIndex)
+                ?.takeIf { it > MediaItem.NO_MEDIASTORE_ID }
+                ?: current.id
+            val updated = current.copy(
+                id = updatedId,
+                path = renamedNewPaths[renameIndex],
+                name = renamedNewNames[renameIndex]
+            )
+            updatedItems[itemIndex] = updated
+            MediaMetadataCache.get(current.id)?.let { cached ->
+                if (current.id != updatedId) MediaMetadataCache.remove(current.id)
+                MediaMetadataCache.updatePath(updatedId, cached.copy(id = updatedId, name = updated.name, path = updated.path))
+            }
+            changed = true
+        }
+
+        if (!changed) return true
+
+        mediaItems = updatedItems
+        cacheCurrentFolderMedia(mediaItems)
+        if (mediaItems.isEmpty()) {
+            clearDisplayedItems()
+            binding.emptyView.visibility = View.VISIBLE
+            binding.recyclerView.visibility = View.GONE
+            bindFolderStats(mediaItems)
+        } else {
+            binding.emptyView.visibility = View.GONE
+            binding.recyclerView.visibility = View.VISIBLE
+            applyDisplayTransform(scrollToTop = false, bypassDiff = true)
+            bindFolderStats(mediaItems)
+        }
+        return true
+    }
+
+    private fun notifyMetadataLoaded(item: MediaItem) {
+        if (binding.recyclerView.adapter == groupedMediaAdapter) {
+            val adapterPos = groupedMediaAdapter.currentList.indexOfFirst {
+                it is FolderDisplayItem.Media && it.skeleton.id == item.id
+            }
+            if (adapterPos >= 0) {
+                groupedMediaAdapter.notifyItemChanged(adapterPos, MediaAdapter.PAYLOAD_META_LOADED)
+            }
+        } else {
+            val adapterPos = mediaAdapter.currentList.indexOfFirst { it.id == item.id }
+            if (adapterPos >= 0) {
+                mediaAdapter.notifyItemChanged(adapterPos, MediaAdapter.PAYLOAD_META_LOADED)
+            }
+        }
+    }
+
+    private fun prefetchMetadataRange() {
+        val lm = binding.recyclerView.layoutManager as? LinearLayoutManager ?: return
+        val first = lm.findFirstVisibleItemPosition()
+        val last = lm.findLastVisibleItemPosition()
+        if (first == RecyclerView.NO_POSITION || last == RecyclerView.NO_POSITION) return
+
+        val from = (first - 20).coerceAtLeast(0)
+        val to = (last + 50).coerceAtMost(displayedItemCount - 1)
+
+        val skeletonsToFetch = mutableListOf<MediaItemSkeleton>()
+        val isGrouped = binding.recyclerView.adapter == groupedMediaAdapter
+        
+        for (i in from..to) {
+            val skeleton = if (isGrouped) {
+                val item = groupedMediaAdapter.getItem(i)
+                if (item is FolderDisplayItem.Media) item.skeleton else null
+            } else {
+                mediaAdapter.getItem(i)
+            }
+            if (
+                skeleton != null &&
+                skeleton.id > MediaItem.NO_MEDIASTORE_ID &&
+                !skeleton.isSmb &&
+                MediaMetadataCache.get(skeleton) == null &&
+                skeleton.id !in pendingMetadataIds
+            ) {
+                skeletonsToFetch.add(skeleton)
+            }
+        }
+
+        if (skeletonsToFetch.isEmpty()) return
+
+        val idsToFetch = skeletonsToFetch.map { it.id }.distinct()
+        pendingMetadataIds.addAll(idsToFetch)
+
+        lifecycleScope.launch {
+            try {
+                val cachedItems = mediaScanner.getCachedMediaByIds(idsToFetch)
+                if (cachedItems.isEmpty()) return@launch
+
+                cachedItems.forEach { item ->
+                    MediaMetadataCache.put(item)
+                }
+
+                cachedItems.forEach { item ->
+                    notifyMetadataLoaded(item)
                 }
             } catch (_: Exception) {
-                // Keep detailed metadata enrichment best-effort; the row can still show base metadata.
             } finally {
-                detailedMetadataJobs.remove(item.path)
+                idsToFetch.forEach { pendingMetadataIds.remove(it) }
             }
         }
-    }
-
-    private fun applyLazyDetailedMetadata(originalPath: String, enrichedItem: MediaItem) {
-        val index = mediaItems.indexOfFirst { it.path == originalPath }
-        if (index < 0) return
-
-        val currentItem = mediaItems[index]
-        val updatedItem = currentItem.copy(
-            size = if (enrichedItem.size > 0L) enrichedItem.size else currentItem.size,
-            duration = if (enrichedItem.duration > 0L) enrichedItem.duration else currentItem.duration,
-            width = if (enrichedItem.width > 0) enrichedItem.width else currentItem.width,
-            height = if (enrichedItem.height > 0) enrichedItem.height else currentItem.height
-        )
-        if (updatedItem == currentItem) return
-
-        val sizeChanged = updatedItem.size != currentItem.size
-        mediaItems = mediaItems.toMutableList().also { it[index] = updatedItem }
-        cacheCurrentFolderMedia(mediaItems)
-
-        if (sizeChanged && (currentSortOrder.startsWith("size_") || currentGroupBy == FolderGroupBy.SIZE)) {
-            applyDisplayTransform(scrollToTop = false)
-            return
-        }
-
-        if (binding.recyclerView.adapter == groupedMediaAdapter) {
-            val updatedDisplayItems = groupedMediaAdapter.currentList.map { displayItem ->
-                if (displayItem is FolderDisplayItem.Media && displayItem.item.path == originalPath) {
-                    displayItem.copy(item = updatedItem)
-                } else {
-                    displayItem
-                }
-            }
-            groupedMediaAdapter.submitList(updatedDisplayItems)
-        } else {
-            mediaAdapter.submitList(mediaItems)
-        }
-    }
-
-    private fun cancelDetailedMetadataJobs() {
-        detailedMetadataJobs.values.forEach { it.cancel() }
-        detailedMetadataJobs.clear()
     }
 
     private fun resetDetailedMetadataRequests() {
-        cancelDetailedMetadataJobs()
-        detailedMetadataAttemptedPaths.clear()
+        pendingMetadataIds.clear()
     }
 
     private fun setupSwipeRefresh() {
@@ -416,9 +545,12 @@ class FolderViewActivity : AppCompatActivity() {
         binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 syncFastScrollerFromRecyclerView(showForScroll = dy != 0)
+                prefetchMetadataRange()
             }
         })
     }
+
+
 
     private fun scrollRecyclerViewForFastDrag(fraction: Float, delta: Int) {
         val recyclerView = binding.recyclerView
@@ -444,7 +576,8 @@ class FolderViewActivity : AppCompatActivity() {
         val scrollExtent = recyclerView.computeVerticalScrollExtent()
         val canScroll = recyclerView.visibility == View.VISIBLE &&
             displayedItemCount > 0 &&
-            scrollRange > scrollExtent
+            scrollRange > scrollExtent &&
+            !deferFastScrollerUntilFinalLoad
 
         binding.fastScrollerView.setScrollMetrics(scrollOffset, scrollRange, scrollExtent)
         binding.fastScrollerView.setEnabledForContent(canScroll)
@@ -756,8 +889,7 @@ class FolderViewActivity : AppCompatActivity() {
                 binding.recyclerView.adapter = groupedMediaAdapter
             }
             groupedMediaAdapter.viewMode = currentViewMode
-            if (bypassDiff) groupedMediaAdapter.submitList(null)
-            groupedMediaAdapter.submitList(result.displayItems) {
+            groupedMediaAdapter.submitList(result.displayItems, bypassDiff = bypassDiff) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
                 applyFastScrollSectionsAfterCommit(result.fastScrollSections)
             }
@@ -766,11 +898,27 @@ class FolderViewActivity : AppCompatActivity() {
                 binding.recyclerView.adapter = mediaAdapter
             }
             mediaAdapter.viewMode = currentViewMode
-            if (bypassDiff) mediaAdapter.submitList(null)
-            mediaAdapter.submitList(result.sortedMediaItems) {
+            mediaAdapter.submitList(result.sortedMediaItems, bypassDiff = bypassDiff) {
                 if (scrollToTop) binding.recyclerView.scrollToPosition(0)
-                applyFastScrollSectionsAfterCommit(emptyList())
+                applyFastScrollSectionsAfterCommit(result.fastScrollSections)
             }
+        }
+    }
+
+    private fun submitLoadingSkeletons(
+        items: List<MediaItemSkeleton>,
+        deltaItems: List<MediaItemSkeleton> = emptyList(),
+        replace: Boolean
+    ) {
+        if (binding.recyclerView.adapter != mediaAdapter) {
+            binding.recyclerView.adapter = mediaAdapter
+        }
+        mediaAdapter.viewMode = currentViewMode
+        if (replace) {
+            disableFastScrollerForListMutation()
+            mediaAdapter.submitList(items, bypassDiff = true)
+        } else {
+            mediaAdapter.appendSkeletons(deltaItems)
         }
     }
 
@@ -792,7 +940,7 @@ class FolderViewActivity : AppCompatActivity() {
         )
     }
 
-    private suspend fun buildDisplayResultForCurrentState(items: List<MediaItem>): FolderDisplayResult {
+    private suspend fun buildDisplayResultForCurrentState(items: List<MediaItemSkeleton>): FolderDisplayResult {
         while (true) {
             val sortOrderSnapshot = currentSortOrder
             val groupBySnapshot = currentGroupBy
@@ -832,63 +980,81 @@ class FolderViewActivity : AppCompatActivity() {
         }
 
         isLoadingMediaItems = true
+        deferFastScrollerUntilFinalLoad = true
         
         lifecycleScope.launch {
+            val loadedSkeletons = ArrayList<MediaItemSkeleton>()
             try {
                 transformJob?.cancel()
                 resetDetailedMetadataRequests()
-                val scannedItems = if (SmbPath.isSmb(folderPath)) {
-                    // SMB folder: use SmbMediaScanner
-                    val smbScanner = SmbMediaScanner(this@FolderViewActivity)
-                    smbScanner.scanSmbMediaInFolder(folderPath)
-                } else {
-                    // Detailed metadata is enriched lazily as detailed rows become visible.
-                    var localItems = mediaScanner.scanMediaInFolder(
-                        folderPath = folderPath,
-                        includeDeferredMetadata = false,
-                        mergeFileSystemFallback = false
-                    )
+                
+                FolderMediaRepository.loadFolderStreamed(this@FolderViewActivity, folderPath)
+                    .collect { event ->
+                        when (event) {
+                            is LoadEvent.FirstScreen -> {
+                                ++displayGeneration
+                                loadedSkeletons.clear()
+                                loadedSkeletons.addAll(event.items)
+                                mediaItems = loadedSkeletons.toList()
+                                cacheCurrentFolderMedia(mediaItems)
+                                submitLoadingSkeletons(mediaItems, replace = true)
+                                
+                                binding.progressBar.visibility = View.GONE
+                                binding.emptyView.visibility = if (mediaItems.isEmpty()) View.VISIBLE else View.GONE
+                                binding.recyclerView.visibility = if (mediaItems.isEmpty()) View.GONE else View.VISIBLE
+                            }
+                            is LoadEvent.Progress -> {
+                                if (event.deltaItems.isNotEmpty()) {
+                                    loadedSkeletons.addAll(event.deltaItems)
+                                    mediaItems = loadedSkeletons.toList()
+                                    cacheCurrentFolderMedia(mediaItems)
+                                    submitLoadingSkeletons(
+                                        items = mediaItems,
+                                        deltaItems = event.deltaItems,
+                                        replace = false
+                                    )
+                                    binding.emptyView.visibility = View.GONE
+                                    binding.recyclerView.visibility = View.VISIBLE
+                                }
 
-                    if (localItems.isEmpty()) {
-                        localItems = mediaScanner.scanMediaInFolder(
-                            folderPath = folderPath,
-                            includeDeferredMetadata = false,
-                            mergeFileSystemFallback = true
-                        )
+                                if (event.isFinal) {
+                                    val generation = ++displayGeneration
+                                    val displayResult = buildDisplayResultForCurrentState(loadedSkeletons.toList())
+                                    if (generation != displayGeneration) return@collect
+
+                                    deferFastScrollerUntilFinalLoad = false
+                                    mediaItems = displayResult.sortedMediaItems
+                                    cacheCurrentFolderMedia(mediaItems)
+                                    submitDisplayResult(displayResult, bypassDiff = true)
+
+                                    binding.progressBar.visibility = View.GONE
+                                    binding.emptyView.visibility = if (mediaItems.isEmpty()) View.VISIBLE else View.GONE
+                                    binding.recyclerView.visibility = if (mediaItems.isEmpty()) View.GONE else View.VISIBLE
+                                    bindFolderStats(mediaItems)
+                                    isLoadingMediaItems = false
+                                    binding.swipeRefresh.isRefreshing = false
+                                    binding.recyclerView.post {
+                                        syncFastScrollerFromRecyclerView(showForScroll = false)
+                                    }
+                                }
+                            }
+                            is LoadEvent.Failed -> {
+                                deferFastScrollerUntilFinalLoad = false
+                                binding.progressBar.visibility = View.GONE
+                                binding.emptyView.visibility = View.VISIBLE
+                                binding.recyclerView.visibility = View.GONE
+                                binding.fastScrollerView.setEnabledForContent(false)
+                                isLoadingMediaItems = false
+                                binding.swipeRefresh.isRefreshing = false
+                            }
+                        }
                     }
-                    localItems
-                }
-
-                if (scannedItems.isEmpty()) {
-                    mediaItems = emptyList()
-                    FolderMediaRepository.invalidate(folderPath)
-                    clearDisplayedItems()
-                    binding.progressBar.visibility = View.GONE
-                    binding.emptyView.visibility = View.VISIBLE
-                    binding.recyclerView.visibility = View.GONE
-                    bindFolderStats(mediaItems)
-                } else {
-                    val generation = ++displayGeneration
-                    val displayResult = buildDisplayResultForCurrentState(scannedItems)
-                    if (generation != displayGeneration) return@launch
-
-                    mediaItems = displayResult.sortedMediaItems
-                    cacheCurrentFolderMedia(mediaItems)
-                    submitDisplayResult(displayResult)
-                    binding.progressBar.visibility = View.GONE
-                    binding.emptyView.visibility = View.GONE
-                    binding.recyclerView.visibility = View.VISIBLE
-                    bindFolderStats(mediaItems)
-                    binding.recyclerView.post {
-                        syncFastScrollerFromRecyclerView(showForScroll = false)
-                    }
-                }
             } catch (e: Exception) {
+                deferFastScrollerUntilFinalLoad = false
                 binding.progressBar.visibility = View.GONE
                 binding.emptyView.visibility = View.VISIBLE
                 binding.recyclerView.visibility = View.GONE
                 binding.fastScrollerView.setEnabledForContent(false)
-            } finally {
                 isLoadingMediaItems = false
                 binding.swipeRefresh.isRefreshing = false
             }

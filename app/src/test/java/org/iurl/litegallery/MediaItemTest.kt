@@ -52,6 +52,7 @@ class MediaItemTest {
         path: String = "/storage/emulated/0/DCIM/photo.jpg",
         isVideo: Boolean = false
     ): MediaItem = MediaItem(
+        id = 1L,
         name = name,
         path = path,
         dateModified = 1L,
@@ -64,6 +65,7 @@ class MediaItemTest {
         duration: Long = 1_000L,
         isVideo: Boolean = true
     ): MediaItem = MediaItem(
+        id = 2L,
         name = "clip.mp4",
         path = "/storage/emulated/0/DCIM/clip.mp4",
         dateModified = 1L,

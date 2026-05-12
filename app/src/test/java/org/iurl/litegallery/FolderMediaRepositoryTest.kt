@@ -67,17 +67,55 @@ class FolderMediaRepositoryTest {
         assertEquals(FolderGroupBy.TYPE, snapshot?.groupBy)
     }
 
+    @Test
+    fun replaceItemsUpdatesSkeletonSnapshotWithoutCreatingFullSnapshot() {
+        FolderMediaRepository.putSkeleton(
+            folderPath = "/photos",
+            items = listOf(skeleton(id = 7L, name = "a.jpg", path = "/photos/a.jpg")),
+            sortOrder = "name_asc",
+            groupBy = FolderGroupBy.NONE
+        )
+
+        FolderMediaRepository.replaceItems(
+            folderPath = "/photos",
+            items = listOf(item(id = 7L, name = "renamed.jpg", path = "/photos/renamed.jpg"))
+        )
+
+        assertNull(FolderMediaRepository.get("/photos", "/photos/renamed.jpg"))
+        val skeletonSnapshot = FolderMediaRepository.getSkeleton("/photos")
+        assertEquals(listOf("renamed.jpg"), skeletonSnapshot?.items?.map { it.name })
+        assertEquals("name_asc", skeletonSnapshot?.sortOrder)
+        assertEquals(FolderGroupBy.NONE, skeletonSnapshot?.groupBy)
+    }
+
     private fun item(
+        id: Long = 1L,
         name: String = "a.jpg",
         path: String = "/photos/a.jpg",
         mimeType: String = "image/jpeg"
     ): MediaItem {
         return MediaItem(
+            id = id,
             name = name,
             path = path,
             dateModified = 1L,
             size = 100L,
             mimeType = mimeType
+        )
+    }
+
+    private fun skeleton(
+        id: Long = 1L,
+        name: String = "a.jpg",
+        path: String = "/photos/a.jpg"
+    ): MediaItemSkeleton {
+        return MediaItemSkeleton(
+            id = id,
+            name = name,
+            path = path,
+            dateModified = 1L,
+            size = 100L,
+            isVideo = false
         )
     }
 }

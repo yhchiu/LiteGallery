@@ -29,6 +29,11 @@ class MediaViewerActivity : AppCompatActivity() {
         const val EXTRA_CURRENT_POSITION = "extra_current_position"
         const val RESULT_MEDIA_CHANGED = "result_media_changed"
         const val RESULT_FOLDER_PATH = "result_folder_path"
+        const val RESULT_DELETED_PATHS = "result_deleted_paths"
+        const val RESULT_RENAMED_OLD_PATHS = "result_renamed_old_paths"
+        const val RESULT_RENAMED_NEW_PATHS = "result_renamed_new_paths"
+        const val RESULT_RENAMED_NEW_NAMES = "result_renamed_new_names"
+        const val RESULT_RENAMED_IDS = "result_renamed_ids"
         
         // Rename history constants
         private const val RENAME_HISTORY_PREFS = "rename_history"
@@ -53,6 +58,11 @@ class MediaViewerActivity : AppCompatActivity() {
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentPosition = 0
     private var hasMediaCollectionChanged = false
+    private val resultDeletedPaths = linkedSetOf<String>()
+    private val resultRenamedOldPaths = mutableListOf<String>()
+    private val resultRenamedNewPaths = mutableListOf<String>()
+    private val resultRenamedNewNames = mutableListOf<String>()
+    private val resultRenamedIds = mutableListOf<Long>()
     private var sourceFolderPath: String? = null
     
     // Video control variables
@@ -173,6 +183,15 @@ class MediaViewerActivity : AppCompatActivity() {
                 android.content.Intent().apply {
                     putExtra(RESULT_MEDIA_CHANGED, true)
                     sourceFolderPath?.let { putExtra(RESULT_FOLDER_PATH, it) }
+                    if (resultDeletedPaths.isNotEmpty()) {
+                        putStringArrayListExtra(RESULT_DELETED_PATHS, ArrayList(resultDeletedPaths))
+                    }
+                    if (resultRenamedOldPaths.isNotEmpty()) {
+                        putStringArrayListExtra(RESULT_RENAMED_OLD_PATHS, ArrayList(resultRenamedOldPaths))
+                        putStringArrayListExtra(RESULT_RENAMED_NEW_PATHS, ArrayList(resultRenamedNewPaths))
+                        putStringArrayListExtra(RESULT_RENAMED_NEW_NAMES, ArrayList(resultRenamedNewNames))
+                        putExtra(RESULT_RENAMED_IDS, resultRenamedIds.toLongArray())
+                    }
                 }
             )
         }
@@ -928,6 +947,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun onDeleteSuccess(item: MediaItem) {
         hasMediaCollectionChanged = true
+        resultDeletedPaths.add(item.path)
         android.widget.Toast.makeText(this@MediaViewerActivity, R.string.success, android.widget.Toast.LENGTH_SHORT).show()
         if (!item.path.startsWith("content://")) {
             notifyMediaScanner(item.path, null)
@@ -1165,6 +1185,14 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
+    private fun recordRenameResult(oldPath: String, updatedItem: MediaItem) {
+        hasMediaCollectionChanged = true
+        resultRenamedOldPaths.add(oldPath)
+        resultRenamedNewPaths.add(updatedItem.path)
+        resultRenamedNewNames.add(updatedItem.name)
+        resultRenamedIds.add(updatedItem.id)
+    }
+
     private fun shareCurrent() {
         val item = getCurrentMediaItem() ?: return
         try {
@@ -1394,8 +1422,15 @@ class MediaViewerActivity : AppCompatActivity() {
                 try {
                     val targetPath = mediaPath
                     val cachedSnapshot = FolderMediaRepository.get(path, targetPath)
-                    mediaItems = cachedSnapshot?.items ?: scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
-                        FolderMediaRepository.put(folderPath = path, items = scannedItems)
+                    mediaItems = cachedSnapshot?.items ?: run {
+                        val skeletonSnapshot = FolderMediaRepository.getSkeleton(path)
+                        if (skeletonSnapshot != null && (targetPath.isNullOrBlank() || skeletonSnapshot.items.any { it.path == targetPath })) {
+                            skeletonSnapshot.items.map { it.toMediaItem() }
+                        } else {
+                            scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
+                                FolderMediaRepository.put(folderPath = path, items = scannedItems)
+                            }
+                        }
                     }
 
                     mediaViewerAdapter.submitList(mediaItems) {
@@ -1495,6 +1530,7 @@ class MediaViewerActivity : AppCompatActivity() {
                 getMediaDimensionsFromPath(path)
             }
             val mediaItem = MediaItem(
+                id = MediaItem.NO_MEDIASTORE_ID,
                 name = fileName,
                 path = path,
                 dateModified = System.currentTimeMillis(),
@@ -1537,6 +1573,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
                 binding.fileNameTextView.text = fileName
                 val mediaItem = MediaItem(
+                    id = MediaItem.NO_MEDIASTORE_ID,
                     name = fileName,
                     path = uri.toString(),
                     dateModified = System.currentTimeMillis(),
@@ -1959,6 +1996,7 @@ class MediaViewerActivity : AppCompatActivity() {
             .filter { it.isFile && isLikelyMediaDocument(it) }
             .map { file ->
                 MediaItem(
+                    id = MediaItem.NO_MEDIASTORE_ID,
                     name = file.name ?: getString(R.string.unknown_value),
                     path = file.uri.toString(),
                     dateModified = file.lastModified().coerceAtLeast(0L),
@@ -2742,7 +2780,6 @@ class MediaViewerActivity : AppCompatActivity() {
                 val success = renameResult == RenameOperationResult.SUCCESS
                 
                 if (success) {
-                    hasMediaCollectionChanged = true
                     if (sourcePosition !in mediaItems.indices) {
                         android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
                         return@launch
@@ -2758,6 +2795,7 @@ class MediaViewerActivity : AppCompatActivity() {
                     val updatedList = mediaItems.toMutableList()
                     updatedList[sourcePosition] = updatedMediaItem
                     mediaItems = updatedList
+                    recordRenameResult(originalFile.absolutePath, updatedMediaItem)
                     replaceSourceFolderCache(mediaItems)
                     mediaScanner.updateIndexedMediaItem(originalFile.absolutePath, updatedMediaItem)
 
@@ -2848,7 +2886,6 @@ class MediaViewerActivity : AppCompatActivity() {
                 val success = renameResult == RenameOperationResult.SUCCESS
 
                 if (success) {
-                    hasMediaCollectionChanged = true
                     if (sourcePosition !in mediaItems.indices) {
                         android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
                         return@launch
@@ -2864,6 +2901,7 @@ class MediaViewerActivity : AppCompatActivity() {
                     val updatedList = mediaItems.toMutableList()
                     updatedList[sourcePosition] = updatedMediaItem
                     mediaItems = updatedList
+                    recordRenameResult(originalItem.path, updatedMediaItem)
                     replaceSourceFolderCache(mediaItems)
 
                     val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
