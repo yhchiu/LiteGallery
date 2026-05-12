@@ -41,6 +41,50 @@ class FolderDisplayBuilderTest {
     }
 
     @Test
+    fun searchQueryFiltersBeforeSortGroupAndStats() {
+        val result = FolderDisplayBuilder.build(
+            items = listOf(
+                item("IMG_002.jpg", dateModified = 2L, size = 200L, mimeType = "image/jpeg"),
+                item("clip.mp4", dateModified = 3L, size = 300L, mimeType = "video/mp4"),
+                item("IMG_001.jpg", dateModified = 1L, size = 100L, mimeType = "image/jpeg")
+            ),
+            sortOrder = "name_asc",
+            groupBy = FolderGroupBy.TYPE,
+            labels = labels,
+            searchQuery = MediaSearchQuery(
+                normalizedNameQuery = "IMG*",
+                nameMatcher = NameMatcher.compile("IMG*"),
+                typeFilter = MediaTypeFilter.IMAGES
+            )
+        )
+
+        assertEquals(listOf("IMG_001.jpg", "IMG_002.jpg"), result.sortedMediaItems.map { it.name })
+        assertEquals(listOf("Image"), result.headers().map { it.title })
+        assertEquals(2, result.stats.itemCount)
+        assertEquals(300L, result.stats.totalSizeBytes)
+        assertEquals(0, result.stats.videoCount)
+    }
+
+    @Test
+    fun searchQueryWithNoMatchesReturnsEmptyResult() {
+        val result = FolderDisplayBuilder.build(
+            items = listOf(item("photo.jpg"), item("clip.mp4", mimeType = "video/mp4")),
+            sortOrder = "date_desc",
+            groupBy = FolderGroupBy.DATE,
+            labels = labels,
+            searchQuery = MediaSearchQuery(
+                normalizedNameQuery = "missing",
+                nameMatcher = NameMatcher.compile("missing")
+            )
+        )
+
+        assertTrue(result.sortedMediaItems.isEmpty())
+        assertTrue(result.displayItems.isEmpty())
+        assertTrue(result.fastScrollSections.isEmpty())
+        assertEquals(0, result.stats.itemCount)
+    }
+
+    @Test
     fun dateGroupingHandlesUnknownAndFollowsDateSortDirection() {
         val items = listOf(
             item("unknown.jpg", dateModified = 0L),

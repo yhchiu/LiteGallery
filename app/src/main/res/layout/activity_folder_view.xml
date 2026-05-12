@@ -17,6 +17,67 @@
         app:navigationIcon="@drawable/ic_arrow_back"
         app:navigationIconTint="?attr/colorOnSurface" />
 
+    <HorizontalScrollView
+        android:id="@+id/searchFilterRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true"
+        android:paddingHorizontal="6dp"
+        android:paddingBottom="6dp"
+        android:scrollbars="none"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/searchTypeChip"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:minHeight="36dp"
+                android:text="@string/search_chip_type_all"
+                app:ensureMinTouchTargetSize="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/searchDateChip"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:minHeight="36dp"
+                android:text="@string/search_chip_date_any"
+                app:ensureMinTouchTargetSize="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/searchSizeChip"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:minHeight="36dp"
+                android:text="@string/search_chip_size_any"
+                app:ensureMinTouchTargetSize="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/searchClearChip"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="36dp"
+                android:text="@string/search_clear_filters"
+                android:visibility="gone"
+                app:ensureMinTouchTargetSize="true"
+                tools:visibility="visible" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:id="@+id/folderCoordinator"
         android:layout_width="match_parent"
@@ -185,15 +246,36 @@
 
         </FrameLayout>
 
-        <TextView
+        <LinearLayout
             android:id="@+id/emptyView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/no_media_found"
-            android:textSize="16sp"
+            android:gravity="center"
+            android:orientation="vertical"
             android:visibility="gone"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+            <TextView
+                android:id="@+id/folderEmptyTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/no_media_found"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="16sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/folderClearFiltersButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/search_clear_filters"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/progressBar"

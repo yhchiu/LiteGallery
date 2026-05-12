@@ -41,10 +41,16 @@ object FolderDisplayBuilder {
         items: List<MediaItemSkeleton>,
         sortOrder: String,
         groupBy: FolderGroupBy,
-        labels: FolderDisplayLabels
+        labels: FolderDisplayLabels,
+        searchQuery: MediaSearchQuery? = null
     ): FolderDisplayResult {
-        val stats = buildStats(items)
-        val sortedItems = sortMediaItems(items, sortOrder)
+        val filteredItems = if (searchQuery == null || searchQuery.isEmpty || items.isEmpty()) {
+            items
+        } else {
+            items.filter { searchQuery.matches(it) }
+        }
+        val stats = buildStats(filteredItems)
+        val sortedItems = sortMediaItems(filteredItems, sortOrder)
         if (groupBy == FolderGroupBy.NONE || sortedItems.isEmpty()) {
             val flatSections = if (sortedItems.isNotEmpty()) buildIndexForFlatList(sortedItems, sortOrder, labels) else emptyList()
             return FolderDisplayResult(

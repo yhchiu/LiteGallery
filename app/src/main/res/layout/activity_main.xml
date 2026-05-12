@@ -25,6 +25,57 @@
             app:titleTextAppearance="?attr/textAppearanceHeadlineSmall"
             app:titleTextColor="?attr/colorOnSurface" />
 
+        <HorizontalScrollView
+            android:id="@+id/searchFilterRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fillViewport="true"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="6dp"
+            android:scrollbars="none"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/searchDateChip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:minHeight="36dp"
+                    android:text="@string/search_chip_date_any"
+                    app:ensureMinTouchTargetSize="true" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/searchSizeChip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:minHeight="36dp"
+                    android:text="@string/search_chip_size_any"
+                    app:ensureMinTouchTargetSize="true" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/searchClearChip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="36dp"
+                    android:text="@string/search_clear_filters"
+                    android:visibility="gone"
+                    app:ensureMinTouchTargetSize="true"
+                    tools:visibility="visible" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
+
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -62,6 +113,7 @@
             app:tint="?attr/colorOnSurfaceVariant" />
 
         <TextView
+            android:id="@+id/homeEmptyTitleTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -71,6 +123,7 @@
             android:textColor="?attr/colorOnSurfaceVariant" />
 
         <TextView
+            android:id="@+id/homeEmptySubtitleTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -78,6 +131,16 @@
             android:text="@string/tap_to_scan_media"
             android:textAppearance="?attr/textAppearanceBodyMedium"
             android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/homeClearFiltersButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/search_clear_filters"
+            android:visibility="gone"
+            tools:visibility="visible" />
 
     </LinearLayout>
 

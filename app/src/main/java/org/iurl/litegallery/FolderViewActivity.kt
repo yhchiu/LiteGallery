@@ -1,5 +1,6 @@
 package org.iurl.litegallery
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.graphics.Color
@@ -9,8 +10,10 @@ import android.text.format.Formatter
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,12 +23,14 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.ListPreloader
 import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.integration.recyclerview.RecyclerViewPreloader
+import com.google.android.material.datepicker.MaterialDatePicker
 import org.iurl.litegallery.databinding.ActivityFolderViewBinding
 import org.iurl.litegallery.theme.GradientHelper
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -46,6 +51,7 @@ class FolderViewActivity : AppCompatActivity() {
         private const val PREF_REMEMBER_FOLDER_GROUP_BY = "remember_folder_group_by"
         private const val PREF_LAST_FOLDER_GROUP_BY = "last_folder_group_by"
         private const val FAST_SCROLL_JUMP_VIEWPORT_MULTIPLIER = 2
+        private const val SEARCH_DEBOUNCE_MS = 250L
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -55,22 +61,43 @@ class FolderViewActivity : AppCompatActivity() {
     
     private var folderPath: String = ""
     private var folderName: String = ""
+    private var unfilteredMediaItems: List<MediaItemSkeleton> = emptyList()
     private var mediaItems: List<MediaItemSkeleton> = emptyList()
     private var currentPackKey: String? = null
     private var currentViewMode: MediaAdapter.ViewMode = MediaAdapter.ViewMode.GRID
     private var currentSortOrder: String = "date_desc"
     private var currentGroupBy: FolderGroupBy = FolderGroupBy.NONE
     private var sortMenuItem: MenuItem? = null
+    private var searchMenuItem: MenuItem? = null
+    private var searchView: SearchView? = null
     private var isLoadingMediaItems = false
     private var lastSwipeRefreshAtMs = 0L
     private var transformJob: Job? = null
     private var mediaIndexSyncJob: Job? = null
+    private var searchDebounceJob: Job? = null
     private var displayGeneration = 0
     private var fastScrollSections: List<FastScrollSection> = emptyList()
     private var lockedFastScrollRange = 0
     private var swipeRefreshEnabledBeforeFastScroll = true
     private val pendingMetadataIds = mutableSetOf<Long>()
     private var deferFastScrollerUntilFinalLoad = false
+    private var suppressSearchEvents = false
+    private var currentSearchName = ""
+    private var currentSearchFilters = SearchFilterState()
+    private var currentSearchQuery: MediaSearchQuery? = null
+    private val emptySearchKey = SearchQueryKey("", SearchFilterState())
+    private var lastAppliedSearchKey = emptySearchKey
+
+    private data class SearchFilterState(
+        val typeFilter: MediaTypeFilter = MediaTypeFilter.ALL,
+        val dateRange: TimeRange? = null,
+        val sizeRangeBytes: LongRange? = null
+    )
+
+    private data class SearchQueryKey(
+        val normalizedNameQuery: String,
+        val filters: SearchFilterState
+    )
 
     private val mediaViewerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -133,6 +160,7 @@ class FolderViewActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupSwipeRefresh()
+        setupSearchFilters()
         setupFastScroller()
         ThemeHelper.applyRuntimeCustomColors(this)
         applyFolderHeroGradientAccent()
@@ -145,6 +173,7 @@ class FolderViewActivity : AppCompatActivity() {
     override fun onDestroy() {
         transformJob?.cancel()
         mediaIndexSyncJob?.cancel()
+        searchDebounceJob?.cancel()
         resetDetailedMetadataRequests()
         super.onDestroy()
     }
@@ -169,6 +198,8 @@ class FolderViewActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.folder_view_menu, menu)
         sortMenuItem = menu.findItem(R.id.action_sort)
+        searchMenuItem = menu.findItem(R.id.action_search)
+        setupSearchMenuItem(searchMenuItem)
         updateSortIndicator()
         return true
     }
@@ -230,12 +261,19 @@ class FolderViewActivity : AppCompatActivity() {
         (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
 
     private fun bindFolderStats(stats: FolderDisplayStats) {
-        if (stats.itemCount == 0) {
+        val showSearchCount = currentSearchQuery != null && unfilteredMediaItems.isNotEmpty()
+        if (stats.itemCount == 0 && !showSearchCount) {
             binding.folderHeroDivider.visibility = View.GONE
             binding.folderStatsTextView.visibility = View.GONE
             return
         }
-        val parts = mutableListOf(getString(R.string.items_count, stats.itemCount))
+        val parts = mutableListOf(
+            if (showSearchCount) {
+                getString(R.string.search_count_format, stats.itemCount, unfilteredMediaItems.size)
+            } else {
+                getString(R.string.items_count, stats.itemCount)
+            }
+        )
         val totalSize = stats.totalSizeBytes
         if (totalSize > 0L) {
             parts.add(Formatter.formatShortFileSize(this, totalSize))
@@ -354,7 +392,7 @@ class FolderViewActivity : AppCompatActivity() {
     }
 
     private fun applyViewerResultDeltas(data: Intent?): Boolean {
-        if (data == null || mediaItems.isEmpty()) return false
+        if (data == null || unfilteredMediaItems.isEmpty()) return false
 
         val deletedPaths = data.getStringArrayListExtra(MediaViewerActivity.RESULT_DELETED_PATHS)
             ?.toSet()
@@ -366,7 +404,7 @@ class FolderViewActivity : AppCompatActivity() {
 
         if (deletedPaths.isEmpty() && renamedOldPaths.isEmpty()) return false
 
-        val updatedItems = mediaItems.toMutableList()
+        val updatedItems = unfilteredMediaItems.toMutableList()
         var changed = false
 
         for (index in updatedItems.indices.reversed()) {
@@ -402,11 +440,11 @@ class FolderViewActivity : AppCompatActivity() {
 
         if (!changed) return true
 
-        mediaItems = updatedItems
-        cacheCurrentFolderMedia(mediaItems)
-        if (mediaItems.isEmpty()) {
+        unfilteredMediaItems = updatedItems
+        if (unfilteredMediaItems.isEmpty()) {
+            mediaItems = emptyList()
             clearDisplayedItems()
-            binding.emptyView.visibility = View.VISIBLE
+            showFolderEmptyState()
             binding.recyclerView.visibility = View.GONE
         } else {
             binding.emptyView.visibility = View.GONE
@@ -489,6 +527,156 @@ class FolderViewActivity : AppCompatActivity() {
     private fun resetDetailedMetadataRequests() {
         pendingMetadataIds.clear()
     }
+
+    private fun setupSearchMenuItem(item: MenuItem?) {
+        val view = item?.actionView as? SearchView ?: return
+        searchView = view
+        view.queryHint = getString(R.string.search_hint_folder)
+        view.maxWidth = Int.MAX_VALUE
+        view.setIconifiedByDefault(false)
+        view.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                if (suppressSearchEvents) return true
+                currentSearchName = query.orEmpty()
+                searchDebounceJob?.cancel()
+                applyFolderSearchNow(scrollToTop = true)
+                view.clearFocus()
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                if (suppressSearchEvents) return true
+                currentSearchName = newText.orEmpty()
+                searchDebounceJob?.cancel()
+                searchDebounceJob = lifecycleScope.launch {
+                    delay(SEARCH_DEBOUNCE_MS)
+                    applyFolderSearchNow(scrollToTop = true)
+                }
+                updateSearchFilterChips()
+                return true
+            }
+        })
+        view.setOnCloseListener {
+            searchMenuItem?.collapseActionView()
+            true
+        }
+        item.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                binding.searchFilterRow.visibility = View.VISIBLE
+                updateSearchFilterChips()
+                view.post {
+                    view.requestFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                    imm?.showSoftInput(view.findFocus() ?: view, InputMethodManager.SHOW_IMPLICIT)
+                }
+                return true
+            }
+
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                binding.searchFilterRow.visibility = View.GONE
+                clearFolderSearch(collapseSearchView = false)
+                return true
+            }
+        })
+    }
+
+    private fun setupSearchFilters() {
+        binding.searchTypeChip.setOnClickListener {
+            val nextType = when (currentSearchFilters.typeFilter) {
+                MediaTypeFilter.ALL -> MediaTypeFilter.IMAGES
+                MediaTypeFilter.IMAGES -> MediaTypeFilter.VIDEOS
+                MediaTypeFilter.VIDEOS -> MediaTypeFilter.ALL
+            }
+            currentSearchFilters = currentSearchFilters.copy(typeFilter = nextType)
+            applyFolderSearchNow(scrollToTop = true)
+        }
+        binding.searchDateChip.setOnClickListener {
+            showFolderDateRangePicker()
+        }
+        binding.searchSizeChip.setOnClickListener {
+            SearchFilterUi.showSizeRangeDialog(this, currentSearchFilters.sizeRangeBytes) { range ->
+                currentSearchFilters = currentSearchFilters.copy(sizeRangeBytes = range)
+                applyFolderSearchNow(scrollToTop = true)
+            }
+        }
+        binding.searchClearChip.setOnClickListener {
+            clearFolderSearch(collapseSearchView = false)
+        }
+        binding.folderClearFiltersButton.setOnClickListener {
+            clearFolderSearch(collapseSearchView = false)
+        }
+    }
+
+    private fun showFolderDateRangePicker() {
+        val picker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText(getString(R.string.search_date_title))
+            .build()
+        picker.addOnPositiveButtonClickListener { selection ->
+            val range = SearchDateRangeConverter.toTimeRangeOrNull(selection?.first, selection?.second)
+            if (range == null) {
+                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                currentSearchFilters = currentSearchFilters.copy(dateRange = range)
+                applyFolderSearchNow(scrollToTop = true)
+            }
+        }
+        picker.show(supportFragmentManager, "folder_search_date")
+    }
+
+    private fun clearFolderSearch(collapseSearchView: Boolean) {
+        searchDebounceJob?.cancel()
+        currentSearchName = ""
+        currentSearchFilters = SearchFilterState()
+
+        suppressSearchEvents = true
+        searchView?.setQuery("", false)
+        searchView?.clearFocus()
+        suppressSearchEvents = false
+
+        applyFolderSearchNow(scrollToTop = true, force = true)
+        if (collapseSearchView) {
+            searchMenuItem?.collapseActionView()
+        }
+    }
+
+    private fun applyFolderSearchNow(scrollToTop: Boolean, force: Boolean = false) {
+        val normalizedName = NameMatcher.normalizePattern(currentSearchName)
+        val key = SearchQueryKey(normalizedName, currentSearchFilters)
+        if (!force && key == lastAppliedSearchKey) {
+            updateSearchFilterChips()
+            return
+        }
+
+        lastAppliedSearchKey = key
+        currentSearchQuery = buildFolderSearchQueryOrNull(normalizedName)
+        updateSearchFilterChips()
+        applyDisplayTransform(scrollToTop = scrollToTop, bypassDiff = true)
+    }
+
+    private fun buildFolderSearchQueryOrNull(normalizedName: String): MediaSearchQuery? {
+        val query = MediaSearchQuery(
+            normalizedNameQuery = normalizedName,
+            nameMatcher = NameMatcher.compile(normalizedName),
+            typeFilter = currentSearchFilters.typeFilter,
+            dateRange = currentSearchFilters.dateRange,
+            sizeRangeBytes = currentSearchFilters.sizeRangeBytes
+        )
+        return query.takeUnless { it.isEmpty }
+    }
+
+    private fun updateSearchFilterChips() {
+        binding.searchTypeChip.text = when (currentSearchFilters.typeFilter) {
+            MediaTypeFilter.ALL -> getString(R.string.search_chip_type_all)
+            MediaTypeFilter.IMAGES -> getString(R.string.search_chip_type_images)
+            MediaTypeFilter.VIDEOS -> getString(R.string.search_chip_type_videos)
+        }
+        binding.searchDateChip.text = SearchFilterUi.formatDateRange(this, currentSearchFilters.dateRange)
+        binding.searchSizeChip.text = SearchFilterUi.formatSizeRange(this, currentSearchFilters.sizeRangeBytes)
+        binding.searchClearChip.visibility = if (hasAnySearchInput()) View.VISIBLE else View.GONE
+    }
+
+    private fun hasAnySearchInput(): Boolean =
+        currentSearchName.isNotBlank() || currentSearchFilters != SearchFilterState()
 
     private fun synchronizeMediaIndexInBackground() {
         if (!::mediaScanner.isInitialized || isLoadingMediaItems || SmbPath.isSmb(folderPath)) return
@@ -859,16 +1047,19 @@ class FolderViewActivity : AppCompatActivity() {
     private fun applyDisplayTransform(scrollToTop: Boolean, bypassDiff: Boolean = false) {
         transformJob?.cancel()
         if (isLoadingMediaItems) return
-        if (mediaItems.isEmpty()) {
+        if (unfilteredMediaItems.isEmpty()) {
+            mediaItems = emptyList()
             FolderMediaRepository.invalidate(folderPath)
             clearDisplayedItems()
+            showFolderEmptyState()
             return
         }
 
         val generation = ++displayGeneration
-        val sourceItems = mediaItems
+        val sourceItems = unfilteredMediaItems
         val sortOrderSnapshot = currentSortOrder
         val groupBySnapshot = currentGroupBy
+        val searchQuerySnapshot = currentSearchQuery
         val labels = folderDisplayLabels()
 
         transformJob = lifecycleScope.launch {
@@ -877,7 +1068,8 @@ class FolderViewActivity : AppCompatActivity() {
                     items = sourceItems,
                     sortOrder = sortOrderSnapshot,
                     groupBy = groupBySnapshot,
-                    labels = labels
+                    labels = labels,
+                    searchQuery = searchQuerySnapshot
                 )
             }
             if (generation != displayGeneration) return@launch
@@ -885,6 +1077,7 @@ class FolderViewActivity : AppCompatActivity() {
             mediaItems = result.sortedMediaItems
             cacheCurrentFolderMedia(mediaItems)
             submitDisplayResult(result, scrollToTop, bypassDiff)
+            bindFolderContentVisibility()
         }
     }
 
@@ -940,6 +1133,25 @@ class FolderViewActivity : AppCompatActivity() {
         groupedMediaAdapter.submitList(emptyList())
     }
 
+    private fun showFolderEmptyState() {
+        val noResultsFromSearch = currentSearchQuery != null && unfilteredMediaItems.isNotEmpty()
+        binding.folderEmptyTextView.setText(
+            if (noResultsFromSearch) R.string.search_no_results else R.string.no_media_found
+        )
+        binding.folderClearFiltersButton.visibility = if (noResultsFromSearch) View.VISIBLE else View.GONE
+        binding.emptyView.visibility = View.VISIBLE
+    }
+
+    private fun bindFolderContentVisibility() {
+        if (mediaItems.isEmpty()) {
+            showFolderEmptyState()
+            binding.recyclerView.visibility = View.GONE
+        } else {
+            binding.emptyView.visibility = View.GONE
+            binding.recyclerView.visibility = View.VISIBLE
+        }
+    }
+
     private fun folderDisplayLabels(): FolderDisplayLabels {
         val appContext = applicationContext
         return FolderDisplayLabels(
@@ -956,16 +1168,22 @@ class FolderViewActivity : AppCompatActivity() {
         while (true) {
             val sortOrderSnapshot = currentSortOrder
             val groupBySnapshot = currentGroupBy
+            val searchQuerySnapshot = currentSearchQuery
+            val searchKeySnapshot = lastAppliedSearchKey
             val labels = folderDisplayLabels()
             val result = withContext(Dispatchers.Default) {
                 FolderDisplayBuilder.build(
                     items = items,
                     sortOrder = sortOrderSnapshot,
                     groupBy = groupBySnapshot,
-                    labels = labels
+                    labels = labels,
+                    searchQuery = searchQuerySnapshot
                 )
             }
-            if (sortOrderSnapshot == currentSortOrder && groupBySnapshot == currentGroupBy) {
+            if (sortOrderSnapshot == currentSortOrder &&
+                groupBySnapshot == currentGroupBy &&
+                searchKeySnapshot == lastAppliedSearchKey
+            ) {
                 return result
             }
         }
@@ -1011,18 +1229,25 @@ class FolderViewActivity : AppCompatActivity() {
                                 ++displayGeneration
                                 loadedSkeletons.clear()
                                 loadedSkeletons.addAll(event.items)
-                                mediaItems = loadedSkeletons.toList()
+                                unfilteredMediaItems = loadedSkeletons.toList()
+                                mediaItems = unfilteredMediaItems
                                 cacheCurrentFolderMedia(mediaItems)
                                 submitLoadingSkeletons(mediaItems, replace = true)
                                 
                                 binding.progressBar.visibility = View.GONE
-                                binding.emptyView.visibility = if (mediaItems.isEmpty()) View.VISIBLE else View.GONE
-                                binding.recyclerView.visibility = if (mediaItems.isEmpty()) View.GONE else View.VISIBLE
+                                if (mediaItems.isEmpty()) {
+                                    showFolderEmptyState()
+                                    binding.recyclerView.visibility = View.GONE
+                                } else {
+                                    binding.emptyView.visibility = View.GONE
+                                    binding.recyclerView.visibility = View.VISIBLE
+                                }
                             }
                             is LoadEvent.Progress -> {
                                 if (event.deltaItems.isNotEmpty()) {
                                     loadedSkeletons.addAll(event.deltaItems)
-                                    mediaItems = loadedSkeletons.toList()
+                                    unfilteredMediaItems = loadedSkeletons.toList()
+                                    mediaItems = unfilteredMediaItems
                                     cacheCurrentFolderMedia(mediaItems)
                                     submitLoadingSkeletons(
                                         items = mediaItems,
@@ -1035,7 +1260,8 @@ class FolderViewActivity : AppCompatActivity() {
 
                                 if (event.isFinal) {
                                     val generation = ++displayGeneration
-                                    val displayResult = buildDisplayResultForCurrentState(loadedSkeletons.toList())
+                                    unfilteredMediaItems = loadedSkeletons.toList()
+                                    val displayResult = buildDisplayResultForCurrentState(unfilteredMediaItems)
                                     if (generation != displayGeneration) return@collect
 
                                     deferFastScrollerUntilFinalLoad = false
@@ -1044,8 +1270,7 @@ class FolderViewActivity : AppCompatActivity() {
                                     submitDisplayResult(displayResult, bypassDiff = true)
 
                                     binding.progressBar.visibility = View.GONE
-                                    binding.emptyView.visibility = if (mediaItems.isEmpty()) View.VISIBLE else View.GONE
-                                    binding.recyclerView.visibility = if (mediaItems.isEmpty()) View.GONE else View.VISIBLE
+                                    bindFolderContentVisibility()
                                     isLoadingMediaItems = false
                                     binding.swipeRefresh.isRefreshing = false
                                     binding.recyclerView.post {
@@ -1056,7 +1281,7 @@ class FolderViewActivity : AppCompatActivity() {
                             is LoadEvent.Failed -> {
                                 deferFastScrollerUntilFinalLoad = false
                                 binding.progressBar.visibility = View.GONE
-                                binding.emptyView.visibility = View.VISIBLE
+                                showFolderEmptyState()
                                 binding.recyclerView.visibility = View.GONE
                                 binding.fastScrollerView.setEnabledForContent(false)
                                 isLoadingMediaItems = false
@@ -1067,7 +1292,7 @@ class FolderViewActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 deferFastScrollerUntilFinalLoad = false
                 binding.progressBar.visibility = View.GONE
-                binding.emptyView.visibility = View.VISIBLE
+                showFolderEmptyState()
                 binding.recyclerView.visibility = View.GONE
                 binding.fastScrollerView.setEnabledForContent(false)
                 isLoadingMediaItems = false
