@@ -7,13 +7,17 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
 import android.text.format.Formatter
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -31,7 +35,6 @@ import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -52,7 +55,9 @@ class FolderViewActivity : AppCompatActivity() {
         private const val PREF_REMEMBER_FOLDER_GROUP_BY = "remember_folder_group_by"
         private const val PREF_LAST_FOLDER_GROUP_BY = "last_folder_group_by"
         private const val FAST_SCROLL_JUMP_VIEWPORT_MULTIPLIER = 2
-        private const val SEARCH_DEBOUNCE_MS = 250L
+        private const val SEARCH_PROMPT_TOP_MARGIN_DP = 32
+        private const val SEARCH_PROMPT_HORIZONTAL_PADDING_DP = 24
+        private const val SEARCH_PROMPT_VERTICAL_PADDING_DP = 16
     }
     
     private lateinit var binding: ActivityFolderViewBinding
@@ -75,7 +80,6 @@ class FolderViewActivity : AppCompatActivity() {
     private var lastSwipeRefreshAtMs = 0L
     private var transformJob: Job? = null
     private var mediaIndexSyncJob: Job? = null
-    private var searchDebounceJob: Job? = null
     private var displayGeneration = 0
     private var fastScrollSections: List<FastScrollSection> = emptyList()
     private var lockedFastScrollRange = 0
@@ -86,6 +90,7 @@ class FolderViewActivity : AppCompatActivity() {
     private var currentSearchName = ""
     private var currentSearchFilters = SearchFilterState()
     private var currentSearchQuery: MediaSearchQuery? = null
+    private var appliedSearchTitle = ""
     private val emptySearchKey = SearchQueryKey("", SearchFilterState())
     private var lastAppliedSearchKey = emptySearchKey
 
@@ -174,7 +179,6 @@ class FolderViewActivity : AppCompatActivity() {
     override fun onDestroy() {
         transformJob?.cancel()
         mediaIndexSyncJob?.cancel()
-        searchDebounceJob?.cancel()
         resetDetailedMetadataRequests()
         super.onDestroy()
     }
@@ -231,13 +235,23 @@ class FolderViewActivity : AppCompatActivity() {
             // Title lives in the hero block below the toolbar, not the toolbar itself.
             title = ""
         }
-        binding.folderTitleTextView.text = folderName
+        bindFolderHeroTitle()
         binding.folderHeroDivider.visibility = View.GONE
         binding.folderStatsTextView.visibility = View.GONE
         binding.groupStatusChip.setOnClickListener { showGroupDialog() }
         binding.sortStatusChip.setOnClickListener { showSortDialog() }
         updateGroupIndicator()
         updateSortIndicator()
+    }
+
+    private fun bindFolderHeroTitle() {
+        if (currentSearchQuery != null) {
+            binding.folderEyebrowTextView.text = getString(R.string.folder_search_eyebrow_format, folderName)
+            binding.folderTitleTextView.text = appliedSearchTitle.ifBlank { folderName }
+        } else {
+            binding.folderEyebrowTextView.setText(R.string.folder_eyebrow)
+            binding.folderTitleTextView.text = folderName
+        }
     }
 
     private fun applyFolderHeroGradientAccent() {
@@ -260,6 +274,8 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun Int.withAlpha(alpha: Int): Int =
         (this and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
+
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).roundToInt()
 
     private fun bindFolderStats(stats: FolderDisplayStats) {
         val showSearchCount = currentSearchQuery != null && unfilteredMediaItems.isNotEmpty()
@@ -542,24 +558,21 @@ class FolderViewActivity : AppCompatActivity() {
         view.queryHint = getString(R.string.search_hint_folder)
         view.maxWidth = Int.MAX_VALUE
         view.setIconifiedByDefault(false)
+        view.setSubmitButtonEnabled(false)
+        view.imeOptions = EditorInfo.IME_ACTION_SEARCH
+        view.findViewById<View>(androidx.appcompat.R.id.search_mag_icon)?.setOnClickListener {
+            submitFolderSearchFromView(view)
+        }
         view.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 if (suppressSearchEvents) return true
-                currentSearchName = query.orEmpty()
-                searchDebounceJob?.cancel()
-                applyFolderSearchNow(scrollToTop = true)
-                view.clearFocus()
+                submitFolderSearchFromView(view)
                 return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (suppressSearchEvents) return true
                 currentSearchName = newText.orEmpty()
-                searchDebounceJob?.cancel()
-                searchDebounceJob = lifecycleScope.launch {
-                    delay(SEARCH_DEBOUNCE_MS)
-                    applyFolderSearchNow(scrollToTop = true)
-                }
                 updateSearchFilterChips()
                 return true
             }
@@ -586,6 +599,12 @@ class FolderViewActivity : AppCompatActivity() {
                 return true
             }
         })
+    }
+
+    private fun submitFolderSearchFromView(view: SearchView) {
+        currentSearchName = view.query?.toString().orEmpty()
+        applyFolderSearchNow(scrollToTop = true)
+        view.clearFocus()
     }
 
     private fun setupSearchFilters() {
@@ -632,7 +651,6 @@ class FolderViewActivity : AppCompatActivity() {
     }
 
     private fun clearFolderSearch(collapseSearchView: Boolean) {
-        searchDebounceJob?.cancel()
         currentSearchName = ""
         currentSearchFilters = SearchFilterState()
 
@@ -650,13 +668,19 @@ class FolderViewActivity : AppCompatActivity() {
     private fun applyFolderSearchNow(scrollToTop: Boolean, force: Boolean = false) {
         val normalizedName = NameMatcher.normalizePattern(currentSearchName)
         val key = SearchQueryKey(normalizedName, currentSearchFilters)
+        val nextSearchQuery = buildFolderSearchQueryOrNull(normalizedName)
         if (!force && key == lastAppliedSearchKey) {
+            currentSearchQuery = nextSearchQuery
+            appliedSearchTitle = if (nextSearchQuery != null) currentSearchName.trim() else ""
+            bindFolderHeroTitle()
             updateSearchFilterChips()
             return
         }
 
         lastAppliedSearchKey = key
-        currentSearchQuery = buildFolderSearchQueryOrNull(normalizedName)
+        currentSearchQuery = nextSearchQuery
+        appliedSearchTitle = if (nextSearchQuery != null) currentSearchName.trim() else ""
+        bindFolderHeroTitle()
         updateSearchFilterChips()
         applyDisplayTransform(scrollToTop = scrollToTop, bypassDiff = true)
     }
@@ -1147,12 +1171,26 @@ class FolderViewActivity : AppCompatActivity() {
     }
 
     private fun showFolderEmptyState() {
+        applyFolderEmptyLayout()
         val noResultsFromSearch = currentSearchQuery != null && unfilteredMediaItems.isNotEmpty()
         binding.folderEmptyTextView.setText(
             if (noResultsFromSearch) R.string.search_no_results else R.string.no_media_found
         )
         binding.folderClearFiltersButton.visibility = if (noResultsFromSearch) View.VISIBLE else View.GONE
         binding.emptyView.visibility = View.VISIBLE
+        binding.progressBar.visibility = View.GONE
+    }
+
+    private fun applyFolderEmptyLayout() {
+        val params = binding.emptyView.layoutParams as? CoordinatorLayout.LayoutParams ?: return
+        params.width = ViewGroup.LayoutParams.MATCH_PARENT
+        params.height = ViewGroup.LayoutParams.WRAP_CONTENT
+        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        params.topMargin = SEARCH_PROMPT_TOP_MARGIN_DP.dpToPx()
+        binding.emptyView.layoutParams = params
+        val horizontalPadding = SEARCH_PROMPT_HORIZONTAL_PADDING_DP.dpToPx()
+        val verticalPadding = SEARCH_PROMPT_VERTICAL_PADDING_DP.dpToPx()
+        binding.emptyView.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
     }
 
     private fun bindFolderContentVisibility() {

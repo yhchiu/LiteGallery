@@ -425,6 +425,7 @@
 
     <!-- Folder View -->
     <string name="folder_eyebrow">Folder</string>
+    <string name="folder_search_eyebrow_format">Search in %1$s</string>
     <string name="folder_stat_videos_format">%d videos</string>
 
     <!-- Media Viewer -->
