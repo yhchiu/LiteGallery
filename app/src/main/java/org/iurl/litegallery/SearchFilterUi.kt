@@ -2,15 +2,20 @@ package org.iurl.litegallery
 
 import android.app.AlertDialog
 import android.content.Context
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.text.DateFormat
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 
 object SearchFilterUi {
@@ -44,6 +49,51 @@ object SearchFilterUi {
                 "$min - $max"
             }
         }
+    }
+
+    fun showDateRangeDialog(
+        activity: AppCompatActivity,
+        currentRange: TimeRange?,
+        onRangeSelected: (TimeRange?) -> Unit
+    ) {
+        val zoneId = ZoneId.systemDefault()
+        val today = LocalDate.now(zoneId)
+        val quickRanges = listOf(
+            null,
+            SearchDateRangeConverter.localDateRangeToTimeRange(today, today, zoneId),
+            SearchDateRangeConverter.localDateRangeToTimeRange(today.minusDays(6L), today, zoneId),
+            SearchDateRangeConverter.localDateRangeToTimeRange(today.minusDays(29L), today, zoneId),
+            SearchDateRangeConverter.localDateRangeToTimeRange(LocalDate.of(today.year, 1, 1), today, zoneId),
+            SearchDateRangeConverter.localDateRangeToTimeRange(
+                LocalDate.of(today.year - 1, 1, 1),
+                LocalDate.of(today.year - 1, 12, 31),
+                zoneId
+            )
+        )
+        val labels = arrayOf(
+            activity.getString(R.string.search_chip_date_any),
+            activity.getString(R.string.search_date_today),
+            activity.getString(R.string.search_date_last_7_days),
+            activity.getString(R.string.search_date_last_30_days),
+            activity.getString(R.string.search_date_this_year),
+            activity.getString(R.string.search_date_last_year),
+            activity.getString(R.string.search_date_custom)
+        )
+        val checked = quickRanges.indexOf(currentRange).takeIf { it >= 0 } ?: labels.lastIndex
+
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.search_date_title)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                if (which < quickRanges.size) {
+                    onRangeSelected(quickRanges[which])
+                    dialog.dismiss()
+                } else {
+                    dialog.dismiss()
+                    showCustomDateRangePicker(activity, currentRange, onRangeSelected)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .showThemed()
     }
 
     fun showSizeRangeDialog(
@@ -100,6 +150,66 @@ object SearchFilterUi {
             }
             .setNegativeButton(R.string.cancel, null)
             .showThemed()
+    }
+
+    private fun showCustomDateRangePicker(
+        activity: AppCompatActivity,
+        currentRange: TimeRange?,
+        onRangeSelected: (TimeRange?) -> Unit
+    ) {
+        val zoneId = ZoneId.systemDefault()
+        val startEditText = EditText(activity).apply {
+            hint = activity.getString(R.string.search_date_format_hint)
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            installDateSlashFormatter()
+        }
+        val endEditText = EditText(activity).apply {
+            hint = activity.getString(R.string.search_date_format_hint)
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            installDateSlashFormatter()
+        }
+
+        currentRange?.let { range ->
+            startEditText.setText(SearchDateRangeConverter.localMsToInputDateText(range.startMsInclusive, zoneId))
+            endEditText.setText(SearchDateRangeConverter.localMsToInputDateText(range.endMsExclusive - 1L, zoneId))
+        }
+
+        val content = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            val padding = (20 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding / 2, padding, 0)
+            addView(dateInputLabel(activity, R.string.search_date_start_label), matchWidthParams())
+            addView(startEditText, matchWidthParams())
+            addView(dateInputLabel(activity, R.string.search_date_end_label), dateLabelWithTopMargin(activity))
+            addView(endEditText, matchWidthParams())
+        }
+
+        val dialog = AlertDialog.Builder(activity)
+            .setTitle(R.string.search_date_title)
+            .setView(content)
+            .setPositiveButton(R.string.ok, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            ThemeHelper.applyRuntimeCustomColors(dialog)
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val range = SearchDateRangeConverter.inputTextToTimeRangeOrNull(
+                    startEditText.text?.toString(),
+                    endEditText.text?.toString(),
+                    zoneId
+                )
+                if (range == null) {
+                    Toast.makeText(activity, R.string.search_date_invalid, Toast.LENGTH_SHORT).show()
+                } else {
+                    onRangeSelected(range)
+                    dialog.dismiss()
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun showCustomSizeDialog(
@@ -175,6 +285,50 @@ object SearchFilterUi {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+
+    private fun dateLabelWithTopMargin(context: Context): LinearLayout.LayoutParams =
+        matchWidthParams().apply {
+            topMargin = (12 * context.resources.displayMetrics.density).toInt()
+        }
+
+    private fun dateInputLabel(context: Context, labelResId: Int): TextView =
+        TextView(context).apply {
+            text = context.getString(labelResId)
+        }
+
+    private fun EditText.installDateSlashFormatter() {
+        addTextChangedListener(object : TextWatcher {
+            private var formatting = false
+            private var deletingTrailingSeparator = false
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                val previous = s?.toString().orEmpty()
+                deletingTrailingSeparator = count > after &&
+                    count == 1 &&
+                    after == 0 &&
+                    start == previous.length - 1 &&
+                    previous.getOrNull(start) == '/'
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+
+            override fun afterTextChanged(s: Editable?) {
+                if (formatting) return
+                val currentText = s?.toString().orEmpty()
+                val formatted = if (deletingTrailingSeparator) {
+                    SearchDateRangeConverter.formatInputDateDigits(currentText.filter(Char::isDigit).dropLast(1))
+                } else {
+                    SearchDateRangeConverter.formatInputDateDigits(currentText)
+                }
+                if (s?.toString() == formatted) return
+
+                formatting = true
+                setText(formatted)
+                setSelection(formatted.length)
+                formatting = false
+            }
+        })
+    }
 
     private fun AlertDialog.Builder.showThemed(): AlertDialog {
         val dialog = create()

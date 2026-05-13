@@ -22,7 +22,6 @@ import androidx.recyclerview.widget.GridLayoutManager
 import org.iurl.litegallery.databinding.ActivityMainBinding
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
-import com.google.android.material.datepicker.MaterialDatePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -331,7 +330,10 @@ class MainActivity : AppCompatActivity() {
             updateHomeSearchChips()
         }
         binding.searchDateChip.setOnClickListener {
-            showHomeDateRangePicker()
+            SearchFilterUi.showDateRangeDialog(this, currentHomeFilters.dateRange) { range ->
+                currentHomeFilters = currentHomeFilters.copy(dateRange = range)
+                updateHomeSearchChips()
+            }
         }
         binding.searchSizeChip.setOnClickListener {
             SearchFilterUi.showSizeRangeDialog(this, currentHomeFilters.sizeRangeBytes) { range ->
@@ -345,22 +347,6 @@ class MainActivity : AppCompatActivity() {
         binding.homeClearFiltersButton.setOnClickListener {
             clearHomeSearch(collapseSearchView = false)
         }
-    }
-
-    private fun showHomeDateRangePicker() {
-        val picker = MaterialDatePicker.Builder.dateRangePicker()
-            .setTitleText(getString(R.string.search_date_title))
-            .build()
-        picker.addOnPositiveButtonClickListener { selection ->
-            val range = SearchDateRangeConverter.toTimeRangeOrNull(selection?.first, selection?.second)
-            if (range == null) {
-                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
-            } else {
-                currentHomeFilters = currentHomeFilters.copy(dateRange = range)
-                updateHomeSearchChips()
-            }
-        }
-        picker.show(supportFragmentManager, "home_search_date")
     }
 
     private fun clearHomeSearch(collapseSearchView: Boolean) {

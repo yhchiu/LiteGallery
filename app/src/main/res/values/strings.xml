@@ -508,6 +508,12 @@
     <string name="search_chip_type_videos">Videos</string>
     <string name="search_chip_date_any">Any date</string>
     <string name="search_chip_date_format">%1$s - %2$s</string>
+    <string name="search_date_today">Today</string>
+    <string name="search_date_last_7_days">Last 7 days</string>
+    <string name="search_date_last_30_days">Last 30 days</string>
+    <string name="search_date_this_year">This year</string>
+    <string name="search_date_last_year">Last year</string>
+    <string name="search_date_custom">Custom...</string>
     <string name="search_chip_size_any">Any size</string>
     <string name="search_chip_size_lt_1mb">&lt; 1 MB</string>
     <string name="search_chip_size_1_10mb">1-10 MB</string>
@@ -530,4 +536,8 @@
     <string name="search_size_min">Minimum</string>
     <string name="search_size_max">Maximum</string>
     <string name="search_date_title">Date range</string>
+    <string name="search_date_start_label">Start date</string>
+    <string name="search_date_end_label">End date</string>
+    <string name="search_date_format_hint">YYYY/MM/DD</string>
+    <string name="search_date_invalid">Invalid date range</string>
 </resources>

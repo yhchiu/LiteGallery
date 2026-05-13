@@ -28,7 +28,6 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.ListPreloader
 import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.integration.recyclerview.RecyclerViewPreloader
-import com.google.android.material.datepicker.MaterialDatePicker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -428,7 +427,10 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             submitGlobalSearch(scrollToTop = true)
         }
         binding.searchDateChip.setOnClickListener {
-            showDateRangePicker()
+            SearchFilterUi.showDateRangeDialog(this, currentSearchFilters.dateRange) { range ->
+                currentSearchFilters = currentSearchFilters.copy(dateRange = range)
+                submitGlobalSearch(scrollToTop = true)
+            }
         }
         binding.searchSizeChip.setOnClickListener {
             SearchFilterUi.showSizeRangeDialog(this, currentSearchFilters.sizeRangeBytes) { range ->
@@ -443,22 +445,6 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             clearGlobalSearch(collapseSearchView = false)
         }
         updateSearchFilterChips()
-    }
-
-    private fun showDateRangePicker() {
-        val picker = MaterialDatePicker.Builder.dateRangePicker()
-            .setTitleText(getString(R.string.search_date_title))
-            .build()
-        picker.addOnPositiveButtonClickListener { selection ->
-            val range = SearchDateRangeConverter.toTimeRangeOrNull(selection?.first, selection?.second)
-            if (range == null) {
-                android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
-            } else {
-                currentSearchFilters = currentSearchFilters.copy(dateRange = range)
-                submitGlobalSearch(scrollToTop = true)
-            }
-        }
-        picker.show(supportFragmentManager, "global_search_date")
     }
 
     private fun submitGlobalSearch(scrollToTop: Boolean) {

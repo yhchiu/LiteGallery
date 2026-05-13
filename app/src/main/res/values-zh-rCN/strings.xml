@@ -504,6 +504,12 @@
     <string name="search_chip_type_videos">视频</string>
     <string name="search_chip_date_any">不限日期</string>
     <string name="search_chip_date_format">%1$s - %2$s</string>
+    <string name="search_date_today">今天</string>
+    <string name="search_date_last_7_days">最近 7 天</string>
+    <string name="search_date_last_30_days">最近 30 天</string>
+    <string name="search_date_this_year">今年</string>
+    <string name="search_date_last_year">去年</string>
+    <string name="search_date_custom">自定义...</string>
     <string name="search_chip_size_any">不限大小</string>
     <string name="search_chip_size_lt_1mb">&lt; 1 MB</string>
     <string name="search_chip_size_1_10mb">1-10 MB</string>
@@ -520,6 +526,10 @@
     <string name="search_size_min">最小值</string>
     <string name="search_size_max">最大值</string>
     <string name="search_date_title">日期范围</string>
+    <string name="search_date_start_label">开始日期</string>
+    <string name="search_date_end_label">结束日期</string>
+    <string name="search_date_format_hint">YYYY/MM/DD</string>
+    <string name="search_date_invalid">日期范围无效</string>
     <string name="search_hint_global_media">搜索名称</string>
     <string name="global_search_title">所有媒体</string>
     <string name="global_search_eyebrow">全局搜索</string>

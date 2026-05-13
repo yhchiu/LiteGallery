@@ -5,6 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -53,6 +54,73 @@ class SearchDateRangeConverterTest {
         assertNull(SearchDateRangeConverter.toTimeRangeOrNull(null, may11))
         assertNull(SearchDateRangeConverter.toTimeRangeOrNull(may11, null))
         assertNull(SearchDateRangeConverter.toTimeRangeOrNull(may11, may10))
+    }
+
+    @Test
+    fun convertsLocalDateRangeToHalfOpenLocalTimeRange() {
+        val zone = ZoneId.of("Asia/Taipei")
+
+        val range = SearchDateRangeConverter.localDateRangeToTimeRange(
+            LocalDate.of(2026, 1, 1),
+            LocalDate.of(2026, 1, 31),
+            zone
+        )!!
+
+        assertEquals(epochMs(2026, 1, 1, zone), range.startMsInclusive)
+        assertEquals(epochMs(2026, 2, 1, zone), range.endMsExclusive)
+    }
+
+    @Test
+    fun convertsLocalDayBackToPickerUtcMidnight() {
+        val zone = ZoneId.of("Asia/Taipei")
+        val localStart = epochMs(2026, 5, 11, zone)
+
+        val pickerUtcMs = SearchDateRangeConverter.localDayStartMsToPickerUtcMs(localStart, zone)
+
+        assertEquals(Instant.parse("2026-05-11T00:00:00Z").toEpochMilli(), pickerUtcMs)
+    }
+
+    @Test
+    fun parsesInputDateFormats() {
+        assertEquals(LocalDate.of(2026, 5, 11), SearchDateRangeConverter.parseInputDateOrNull("2026/05/11"))
+        assertEquals(LocalDate.of(2026, 5, 11), SearchDateRangeConverter.parseInputDateOrNull("2026-05-11"))
+        assertEquals(LocalDate.of(2026, 5, 11), SearchDateRangeConverter.parseInputDateOrNull("2026.5.11"))
+        assertEquals(LocalDate.of(2026, 5, 11), SearchDateRangeConverter.parseInputDateOrNull("20260511"))
+    }
+
+    @Test
+    fun formatsDateInputDigitsWithSlashes() {
+        assertEquals("202", SearchDateRangeConverter.formatInputDateDigits("202"))
+        assertEquals("2026/", SearchDateRangeConverter.formatInputDateDigits("2026"))
+        assertEquals("2026/05/", SearchDateRangeConverter.formatInputDateDigits("202605"))
+        assertEquals("2026/05/11", SearchDateRangeConverter.formatInputDateDigits("20260511"))
+        assertEquals("2026/05/11", SearchDateRangeConverter.formatInputDateDigits("2026/05/1199"))
+    }
+
+    @Test
+    fun convertsInputDateTextToTimeRange() {
+        val zone = ZoneId.of("Asia/Taipei")
+
+        val range = SearchDateRangeConverter.inputTextToTimeRangeOrNull("20260511", "2026/05/12", zone)!!
+
+        assertEquals(epochMs(2026, 5, 11, zone), range.startMsInclusive)
+        assertEquals(epochMs(2026, 5, 13, zone), range.endMsExclusive)
+    }
+
+    @Test
+    fun invalidInputDateTextReturnsNull() {
+        assertNull(SearchDateRangeConverter.inputTextToTimeRangeOrNull("", "2026/05/12"))
+        assertNull(SearchDateRangeConverter.inputTextToTimeRangeOrNull("not-a-date", "2026/05/12"))
+        assertNull(SearchDateRangeConverter.inputTextToTimeRangeOrNull("2026/05/12", "2026/05/11"))
+    }
+
+    @Test
+    fun formatsLocalMsForInputDate() {
+        val zone = ZoneId.of("Asia/Taipei")
+
+        val text = SearchDateRangeConverter.localMsToInputDateText(epochMs(2026, 5, 11, zone), zone)
+
+        assertEquals("2026/05/11", text)
     }
 
     private fun epochMs(year: Int, month: Int, day: Int, zoneId: ZoneId): Long =
