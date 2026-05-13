@@ -54,6 +54,8 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
     private var currentSortOrder: String = "date_desc"
     private var currentGroupBy: FolderGroupBy = FolderGroupBy.NONE
     private var currentSearchName = ""
+    private var appliedSearchTitle = ""
+    private var indexedMediaTotalCount = 0
     private var currentSearchFilters = SearchFilterState()
     private var appliedSearchQuery: MediaSearchQuery? = null
     private var appliedSearchKey: SearchQueryKey? = null
@@ -129,6 +131,8 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         }
 
         currentSearchName = intent.getStringExtra(EXTRA_NAME_QUERY).orEmpty()
+        appliedSearchTitle = currentSearchName.trim()
+        indexedMediaTotalCount = intent.getIntExtra(EXTRA_INDEXED_MEDIA_TOTAL_COUNT, 0)
         currentSearchFilters = readSearchFilters(intent)
         currentPackKey = ThemeHelper.getCurrentPack(this).key
 
@@ -350,7 +354,6 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (suppressSearchEvents) return true
                 currentSearchName = newText.orEmpty()
-                bindSearchTitle()
                 if (currentSearchName.isEmpty()) {
                     clearResultsForEmptySearchText()
                     return true
@@ -459,7 +462,6 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
     }
 
     private fun submitGlobalSearch(scrollToTop: Boolean) {
-        bindSearchTitle()
         val normalizedName = NameMatcher.normalizePattern(currentSearchName)
         val query = HomeSearchQueryFactory.buildGlobalMediaQuery(
             normalizedName = normalizedName,
@@ -471,6 +473,8 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         if (query == null) {
             appliedSearchQuery = null
             appliedSearchKey = null
+            appliedSearchTitle = ""
+            bindSearchTitle()
             clearDisplayedItems()
             showSearchPrompt()
             return
@@ -478,6 +482,8 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
 
         appliedSearchQuery = query
         appliedSearchKey = SearchQueryKey(normalizedName, currentSearchFilters)
+        appliedSearchTitle = currentSearchName.trim()
+        bindSearchTitle()
         updateSearchFilterChips()
         loadSearchResults(query, showBlockingLoading = true, scrollToTop = scrollToTop)
     }
@@ -493,6 +499,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         currentSearchFilters = SearchFilterState()
         appliedSearchQuery = null
         appliedSearchKey = null
+        appliedSearchTitle = ""
         unfilteredMediaItems = emptyList()
         mediaItems = emptyList()
 
@@ -518,6 +525,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         transformJob?.cancel()
         appliedSearchQuery = null
         appliedSearchKey = null
+        appliedSearchTitle = ""
         unfilteredMediaItems = emptyList()
         mediaItems = emptyList()
         clearDisplayedItems(folderKeyToInvalidate)
@@ -527,7 +535,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
     }
 
     private fun bindSearchTitle() {
-        val title = currentSearchName.trim().ifBlank { getString(R.string.global_search_title) }
+        val title = appliedSearchTitle.ifBlank { getString(R.string.global_search_title) }
         binding.folderTitleTextView.text = title
     }
 
@@ -762,14 +770,19 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             binding.folderStatsTextView.visibility = View.GONE
             return
         }
-        val parts = mutableListOf(getString(R.string.items_count, stats.itemCount))
+        val countText = if (indexedMediaTotalCount > 0) {
+            getString(R.string.search_count_format, stats.itemCount, indexedMediaTotalCount)
+        } else {
+            getString(R.string.items_count, stats.itemCount)
+        }
+        val parts = mutableListOf(countText)
         if (stats.totalSizeBytes > 0L) {
             parts.add(Formatter.formatShortFileSize(this, stats.totalSizeBytes))
         }
         if (stats.videoCount > 0) {
             parts.add(getString(R.string.folder_stat_videos_format, stats.videoCount))
         }
-        binding.folderStatsTextView.text = parts.joinToString(" / ")
+        binding.folderStatsTextView.text = parts.joinToString(" · ")
         binding.folderHeroDivider.visibility = View.VISIBLE
         binding.folderStatsTextView.visibility = View.VISIBLE
     }
@@ -1282,6 +1295,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
         private const val EXTRA_HAS_SIZE_RANGE = "extra_has_size_range"
         private const val EXTRA_SIZE_MIN_BYTES = "extra_size_min_bytes"
         private const val EXTRA_SIZE_MAX_BYTES = "extra_size_max_bytes"
+        private const val EXTRA_INDEXED_MEDIA_TOTAL_COUNT = "extra_indexed_media_total_count"
         private const val SEARCH_FOLDER_KEY_PREFIX = "search://global-media/"
         private const val SWIPE_REFRESH_THROTTLE_MS = 1_200L
         private const val FAST_SCROLL_JUMP_VIEWPORT_MULTIPLIER = 2
@@ -1297,11 +1311,13 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             nameQuery: String,
             typeFilter: MediaTypeFilter,
             dateRange: TimeRange?,
-            sizeRangeBytes: LongRange?
+            sizeRangeBytes: LongRange?,
+            indexedMediaTotalCount: Int
         ): Intent {
             return Intent(context, GlobalSearchResultsActivity::class.java).apply {
                 putExtra(EXTRA_NAME_QUERY, nameQuery)
                 putExtra(EXTRA_TYPE_FILTER, typeFilter.name)
+                putExtra(EXTRA_INDEXED_MEDIA_TOTAL_COUNT, indexedMediaTotalCount)
                 dateRange?.let { range ->
                     putExtra(EXTRA_HAS_DATE_RANGE, true)
                     putExtra(EXTRA_DATE_START_MS, range.startMsInclusive)

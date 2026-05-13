@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private var currentHomeSearchName = ""
     private var currentHomeFilters = HomeFilterState()
     private var homeDisplayGeneration = 0
+    private var currentHomeIndexedMediaTotalCount = 0
 
     private data class HomeFilterState(
         val typeFilter: MediaTypeFilter = MediaTypeFilter.ALL,
@@ -418,7 +419,8 @@ class MainActivity : AppCompatActivity() {
             nameQuery = currentHomeSearchName,
             typeFilter = currentHomeFilters.typeFilter,
             dateRange = currentHomeFilters.dateRange,
-            sizeRangeBytes = currentHomeFilters.sizeRangeBytes
+            sizeRangeBytes = currentHomeFilters.sizeRangeBytes,
+            indexedMediaTotalCount = currentHomeIndexedMediaTotalCount
         )
         folderViewLauncher.launch(intent)
     }
@@ -573,8 +575,10 @@ class MainActivity : AppCompatActivity() {
                     thumbnail = null
                 )
                 val folders = buildHomeDisplayFolders()
-                
-                headerAdapter.submitStats(buildOverviewStats(scannedFolders))
+                val overviewStats = buildOverviewStats(scannedFolders)
+                currentHomeIndexedMediaTotalCount = overviewStats.totalItems
+
+                headerAdapter.submitStats(overviewStats)
                 renderHomeFolders(folders)
                 binding.progressBar.visibility = View.GONE
             } catch (e: Exception) {
