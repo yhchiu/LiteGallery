@@ -65,7 +65,10 @@ class MediaScanner(private val context: Context) {
             return projection.toTypedArray()
         }
 
-        internal fun streamSkeletonLoadEvents(cursor: Cursor): Flow<LoadEvent> = flow {
+        internal fun streamSkeletonLoadEvents(
+            cursor: Cursor,
+            exactFolderPath: String? = null
+        ): Flow<LoadEvent> = flow {
             cursor.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
                 val dataCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
@@ -82,6 +85,8 @@ class MediaScanner(private val context: Context) {
                 while (c.moveToNext()) {
                     val mediaType = c.getInt(mediaTypeCol)
                     val path = c.getString(dataCol) ?: continue
+                    if (!isPathInExactFolder(path, exactFolderPath)) continue
+
                     val name = if (nameCol >= 0) c.getString(nameCol) else File(path).name
                     val skeleton = MediaItemSkeleton(
                         id = c.getLong(idCol),
@@ -118,6 +123,34 @@ class MediaScanner(private val context: Context) {
             }
         }
 
+        internal fun streamFilesCursorOrFallback(
+            cursor: Cursor?,
+            exactFolderPath: String?,
+            fallbackSkeletons: suspend () -> List<MediaItemSkeleton>
+        ): Flow<LoadEvent> = flow {
+            if (cursor == null) {
+                streamSkeletonListLoadEvents(fallbackSkeletons()).collect { emit(it) }
+                return@flow
+            }
+
+            var emittedAnySkeleton = false
+            streamSkeletonLoadEvents(cursor, exactFolderPath).collect { event ->
+                if (emittedAnySkeleton) {
+                    emit(event)
+                    return@collect
+                }
+
+                if (event.hasSkeletons()) {
+                    emittedAnySkeleton = true
+                    emit(event)
+                }
+            }
+
+            if (!emittedAnySkeleton) {
+                streamSkeletonListLoadEvents(fallbackSkeletons()).collect { emit(it) }
+            }
+        }
+
         internal fun streamSkeletonListLoadEvents(skeletons: List<MediaItemSkeleton>): Flow<LoadEvent> = flow {
             val firstScreenCount = FIRST_SCREEN_LIMIT.coerceAtMost(skeletons.size)
             emit(LoadEvent.FirstScreen(skeletons.take(firstScreenCount)))
@@ -129,6 +162,24 @@ class MediaScanner(private val context: Context) {
                 nextIndex = endIndex
             }
             emit(LoadEvent.Progress(emptyList(), skeletons.size, isFinal = true))
+        }
+
+        internal fun isPathInExactFolder(path: String, exactFolderPath: String?): Boolean {
+            if (exactFolderPath.isNullOrBlank()) return true
+            if (path.startsWith("content://")) return true
+
+            val normalizedFolder = exactFolderPath.trimEnd('/', '\\')
+            val parent = path.substringBeforeLast('/', missingDelimiterValue = "")
+                .trimEnd('/', '\\')
+            return parent == normalizedFolder
+        }
+
+        private fun LoadEvent.hasSkeletons(): Boolean {
+            return when (this) {
+                is LoadEvent.FirstScreen -> items.isNotEmpty()
+                is LoadEvent.Progress -> totalLoaded > 0 || deltaItems.isNotEmpty()
+                is LoadEvent.Failed -> false
+            }
         }
     }
     
@@ -300,12 +351,13 @@ class MediaScanner(private val context: Context) {
             selection,
             selectionArgs,
             "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
-        ) ?: run {
-            streamSkeletonListLoadEvents(scanSkeletonsInFolder(folderPath)).collect { emit(it) }
-            return@flow
-        }
+        )
 
-        streamSkeletonLoadEvents(cursor).collect { emit(it) }
+        streamFilesCursorOrFallback(
+            cursor = cursor,
+            exactFolderPath = folderPath,
+            fallbackSkeletons = { scanSkeletonsInFolder(folderPath) }
+        ).collect { emit(it) }
     }
 
     suspend fun getCachedMediaInFolder(folderPath: String): List<MediaItem> {
