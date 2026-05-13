@@ -2,6 +2,7 @@ package org.iurl.litegallery
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -86,6 +87,49 @@ class FolderMediaRepositoryTest {
         assertEquals(listOf("renamed.jpg"), skeletonSnapshot?.items?.map { it.name })
         assertEquals("name_asc", skeletonSnapshot?.sortOrder)
         assertEquals(FolderGroupBy.NONE, skeletonSnapshot?.groupBy)
+    }
+
+    @Test
+    fun getCompleteSkeletonReturnsNullForIncompleteSnapshot() {
+        FolderMediaRepository.putSkeleton(
+            folderPath = "/photos",
+            items = listOf(skeleton(path = "/photos/a.jpg")),
+            isComplete = false
+        )
+
+        assertNotNull(FolderMediaRepository.getSkeleton("/photos"))
+        assertNull(FolderMediaRepository.getCompleteSkeleton("/photos", "/photos/a.jpg"))
+    }
+
+    @Test
+    fun getCompleteSkeletonRequiresTargetPathWhenProvided() {
+        FolderMediaRepository.putSkeleton(
+            folderPath = "/photos",
+            items = listOf(skeleton(path = "/photos/a.jpg")),
+            isComplete = true
+        )
+
+        assertNotNull(FolderMediaRepository.getCompleteSkeleton("/photos", "/photos/a.jpg"))
+        assertNull(FolderMediaRepository.getCompleteSkeleton("/photos", "/photos/missing.jpg"))
+    }
+
+    @Test
+    fun replaceItemsPreservesIncompleteSkeletonSnapshot() {
+        FolderMediaRepository.putSkeleton(
+            folderPath = "/photos",
+            items = listOf(skeleton(id = 7L, path = "/photos/a.jpg")),
+            isComplete = false
+        )
+
+        FolderMediaRepository.replaceItems(
+            folderPath = "/photos",
+            items = listOf(item(id = 7L, name = "renamed.jpg", path = "/photos/renamed.jpg"))
+        )
+
+        val skeletonSnapshot = FolderMediaRepository.getSkeleton("/photos")
+        assertEquals(listOf("renamed.jpg"), skeletonSnapshot?.items?.map { it.name })
+        assertEquals(false, skeletonSnapshot?.isComplete)
+        assertNull(FolderMediaRepository.getCompleteSkeleton("/photos", "/photos/renamed.jpg"))
     }
 
     private fun item(

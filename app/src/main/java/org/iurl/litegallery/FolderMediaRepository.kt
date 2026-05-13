@@ -33,6 +33,7 @@ object FolderMediaRepository {
     data class SkeletonSnapshot(
         val folderPath: String,
         val items: List<MediaItemSkeleton>,
+        val isComplete: Boolean,
         val sortOrder: String?,
         val groupBy: FolderGroupBy?,
         val cachedAtMs: Long = System.currentTimeMillis()
@@ -75,6 +76,7 @@ object FolderMediaRepository {
     fun putSkeleton(
         folderPath: String,
         items: List<MediaItemSkeleton>,
+        isComplete: Boolean = true,
         sortOrder: String? = null,
         groupBy: FolderGroupBy? = null
     ) {
@@ -84,6 +86,7 @@ object FolderMediaRepository {
         skeletonSnapshots[folderPath] = SkeletonSnapshot(
             folderPath = folderPath,
             items = items,
+            isComplete = isComplete,
             sortOrder = sortOrder,
             groupBy = groupBy,
             cachedAtMs = nowMs
@@ -116,6 +119,14 @@ object FolderMediaRepository {
     }
 
     @Synchronized
+    fun getCompleteSkeleton(folderPath: String, targetPath: String? = null): SkeletonSnapshot? {
+        val snapshot = getSkeleton(folderPath) ?: return null
+        if (!snapshot.isComplete) return null
+        if (!targetPath.isNullOrBlank() && snapshot.items.none { it.path == targetPath }) return null
+        return snapshot
+    }
+
+    @Synchronized
     fun replaceItems(folderPath: String?, items: List<MediaItem>) {
         if (folderPath.isNullOrBlank()) return
         val existing = snapshots[folderPath]
@@ -142,6 +153,7 @@ object FolderMediaRepository {
                         isVideo = it.isVideo
                     )
                 },
+                isComplete = existingSkeleton.isComplete,
                 sortOrder = existingSkeleton.sortOrder,
                 groupBy = existingSkeleton.groupBy
             )
@@ -149,12 +161,17 @@ object FolderMediaRepository {
     }
 
     @Synchronized
-    fun replaceSkeletonItems(folderPath: String?, items: List<MediaItemSkeleton>) {
+    fun replaceSkeletonItems(
+        folderPath: String?,
+        items: List<MediaItemSkeleton>,
+        isComplete: Boolean? = null
+    ) {
         if (folderPath.isNullOrBlank()) return
         val existing = skeletonSnapshots[folderPath]
         putSkeleton(
             folderPath = folderPath,
             items = items,
+            isComplete = isComplete ?: existing?.isComplete ?: true,
             sortOrder = existing?.sortOrder,
             groupBy = existing?.groupBy
         )

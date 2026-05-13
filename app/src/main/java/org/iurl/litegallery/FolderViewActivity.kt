@@ -359,7 +359,10 @@ class FolderViewActivity : AppCompatActivity() {
         mediaViewerLauncher.launch(intent)
     }
 
-    private fun cacheCurrentFolderMedia(items: List<MediaItemSkeleton> = mediaItems) {
+    private fun cacheCurrentFolderMedia(
+        items: List<MediaItemSkeleton> = mediaItems,
+        isComplete: Boolean
+    ) {
         if (items.isEmpty()) {
             FolderMediaRepository.invalidate(folderPath)
             return
@@ -367,6 +370,7 @@ class FolderViewActivity : AppCompatActivity() {
         FolderMediaRepository.putSkeleton(
             folderPath = folderPath,
             items = items,
+            isComplete = isComplete,
             sortOrder = currentSortOrder,
             groupBy = currentGroupBy
         )
@@ -1084,7 +1088,7 @@ class FolderViewActivity : AppCompatActivity() {
             if (generation != displayGeneration) return@launch
 
             mediaItems = result.sortedMediaItems
-            cacheCurrentFolderMedia(mediaItems)
+            cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null)
             submitDisplayResult(result, scrollToTop, bypassDiff)
             bindFolderContentVisibility()
         }
@@ -1240,7 +1244,7 @@ class FolderViewActivity : AppCompatActivity() {
                                 loadedSkeletons.addAll(event.items)
                                 unfilteredMediaItems = loadedSkeletons.toList()
                                 mediaItems = unfilteredMediaItems
-                                cacheCurrentFolderMedia(mediaItems)
+                                cacheCurrentFolderMedia(mediaItems, isComplete = false)
                                 submitLoadingSkeletons(mediaItems, replace = true)
                                 
                                 binding.progressBar.visibility = View.GONE
@@ -1257,7 +1261,7 @@ class FolderViewActivity : AppCompatActivity() {
                                     loadedSkeletons.addAll(event.deltaItems)
                                     unfilteredMediaItems = loadedSkeletons.toList()
                                     mediaItems = unfilteredMediaItems
-                                    cacheCurrentFolderMedia(mediaItems)
+                                    cacheCurrentFolderMedia(mediaItems, isComplete = false)
                                     submitLoadingSkeletons(
                                         items = mediaItems,
                                         deltaItems = event.deltaItems,
@@ -1275,7 +1279,7 @@ class FolderViewActivity : AppCompatActivity() {
 
                                     deferFastScrollerUntilFinalLoad = false
                                     mediaItems = displayResult.sortedMediaItems
-                                    cacheCurrentFolderMedia(mediaItems)
+                                    cacheCurrentFolderMedia(mediaItems, isComplete = currentSearchQuery == null)
                                     submitDisplayResult(displayResult, bypassDiff = true)
 
                                     binding.progressBar.visibility = View.GONE

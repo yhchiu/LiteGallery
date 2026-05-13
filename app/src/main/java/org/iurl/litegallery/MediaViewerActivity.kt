@@ -16,6 +16,7 @@ import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
 import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1423,8 +1424,8 @@ class MediaViewerActivity : AppCompatActivity() {
                     val targetPath = mediaPath
                     val cachedSnapshot = FolderMediaRepository.get(path, targetPath)
                     mediaItems = cachedSnapshot?.items ?: run {
-                        val skeletonSnapshot = FolderMediaRepository.getSkeleton(path)
-                        if (skeletonSnapshot != null && (targetPath.isNullOrBlank() || skeletonSnapshot.items.any { it.path == targetPath })) {
+                        val skeletonSnapshot = FolderMediaRepository.getCompleteSkeleton(path, targetPath)
+                        if (skeletonSnapshot != null) {
                             skeletonSnapshot.items.map { it.toMediaItem() }
                         } else {
                             scanFolderMediaForViewer(path, targetPath).also { scannedItems ->
@@ -1451,6 +1452,8 @@ class MediaViewerActivity : AppCompatActivity() {
                             mediaViewerAdapter.setActivePosition(androidx.recyclerview.widget.RecyclerView.NO_POSITION)
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // Handle error - could show toast or error message
                 }
