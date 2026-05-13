@@ -497,8 +497,7 @@
     <string name="fast_scroll_thumb_content_description">快速滚动控制点</string>
     <string name="fast_scroll_position_content_description">当前滚动分组</string>
     <string name="search">搜索</string>
-    <string name="search_hint_folder">搜索媒体</string>
-    <string name="search_hint_home">搜索文件夹</string>
+    <string name="search_hint_folder">搜索名称</string>
     <string name="search_chip_type_all">全部</string>
     <string name="search_chip_type_images">图片</string>
     <string name="search_chip_type_videos">视频</string>
@@ -520,4 +519,13 @@
     <string name="search_size_min">最小值</string>
     <string name="search_size_max">最大值</string>
     <string name="search_date_title">日期范围</string>
+    <string name="search_hint_global_media">搜索名称</string>
+    <string name="global_search_title">所有媒体</string>
+    <string name="global_search_eyebrow">全局搜索</string>
+    <string name="search_no_media">没有符合筛选条件的媒体</string>
+    <string name="search_global_media_prompt_title">搜索所有媒体</string>
+    <string name="search_global_media_prompt_subtitle">输入名称或选择筛选条件，搜索已索引的照片与视频。</string>
+    <string name="search_global_media_error">无法搜索已索引媒体</string>
+    <string name="search_result_folder_content_description">文件夹：%1$s</string>
+    <string name="search_wait_until_loaded">请等待搜索结果加载完成后再打开媒体。</string>
 </resources>

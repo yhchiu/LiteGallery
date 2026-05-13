@@ -39,6 +39,36 @@ class MediaIndexEntityTest {
     }
 
     @Test
+    fun mediaIndexEntityMapsToSkeleton() {
+        val entity = MediaIndexEntity(
+            mediaType = MEDIA_INDEX_TYPE_VIDEO,
+            mediaStoreId = 7L,
+            path = "/photos/movie.mp4",
+            folderPath = "/photos",
+            name = "movie.mp4",
+            dateModifiedMs = 123_000L,
+            sizeBytes = 456L,
+            mimeType = "video/mp4",
+            durationMs = 10_000L,
+            width = 1920,
+            height = 1080,
+            generationAdded = 1L,
+            generationModified = 2L,
+            lastSeenScanId = 3L,
+            updatedAtMs = 4L
+        )
+
+        val skeleton = entity.toMediaItemSkeleton()
+
+        assertEquals(7L, skeleton.id)
+        assertEquals("movie.mp4", skeleton.name)
+        assertEquals("/photos/movie.mp4", skeleton.path)
+        assertEquals(123_000L, skeleton.dateModified)
+        assertEquals(456L, skeleton.size)
+        assertEquals(true, skeleton.isVideo)
+    }
+
+    @Test
     fun folderAggregateMapsToFolderIndexEntity() {
         val aggregate = FolderAggregateRow(
             path = "/storage/emulated/0/DCIM/Camera",

@@ -1,6 +1,8 @@
 package org.iurl.litegallery
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,6 +76,15 @@ class MediaSearchQueryTest {
         assertFalse(query.matches(item("photo.jpg", isVideo = false, dateModified = 150L, size = 5L)))
         assertFalse(query.matches(item("IMG_001.jpg", isVideo = false, dateModified = 250L, size = 5L)))
         assertFalse(query.matches(item("IMG_001.jpg", isVideo = false, dateModified = 150L, size = 50L)))
+    }
+
+    @Test
+    fun sqlLikePatternEscapesSqlWildcardsAndPreservesStarWildcards() {
+        assertEquals("%IMG%", MediaSearchSql.likePatternForNormalizedName("IMG"))
+        assertEquals("IMG%", MediaSearchSql.likePatternForNormalizedName("IMG*"))
+        assertEquals("%.jpg", MediaSearchSql.likePatternForNormalizedName("*.jpg"))
+        assertEquals("%file\\_100\\%%", MediaSearchSql.likePatternForNormalizedName("file_100%"))
+        assertNull(MediaSearchSql.likePatternForNormalizedName(""))
     }
 
     private fun namedQuery(pattern: String): MediaSearchQuery {

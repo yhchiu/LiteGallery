@@ -497,8 +497,7 @@
     <string name="fast_scroll_thumb_content_description">快速捲動控制點</string>
     <string name="fast_scroll_position_content_description">目前捲動分組</string>
     <string name="search">搜尋</string>
-    <string name="search_hint_folder">搜尋媒體</string>
-    <string name="search_hint_home">搜尋資料夾</string>
+    <string name="search_hint_folder">搜尋名稱</string>
     <string name="search_chip_type_all">全部</string>
     <string name="search_chip_type_images">圖片</string>
     <string name="search_chip_type_videos">影片</string>
@@ -520,4 +519,13 @@
     <string name="search_size_min">最小值</string>
     <string name="search_size_max">最大值</string>
     <string name="search_date_title">日期範圍</string>
+    <string name="search_hint_global_media">搜尋名稱</string>
+    <string name="global_search_title">所有媒體</string>
+    <string name="global_search_eyebrow">全域搜尋</string>
+    <string name="search_no_media">沒有符合篩選的媒體</string>
+    <string name="search_global_media_prompt_title">搜尋所有媒體</string>
+    <string name="search_global_media_prompt_subtitle">輸入名稱或選擇篩選條件，搜尋已索引的照片與影片。</string>
+    <string name="search_global_media_error">無法搜尋已索引媒體</string>
+    <string name="search_result_folder_content_description">資料夾：%1$s</string>
+    <string name="search_wait_until_loaded">請等搜尋結果載入完成後再開啟媒體。</string>
 </resources>

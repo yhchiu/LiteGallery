@@ -280,6 +280,14 @@ class MediaScanner(private val context: Context) {
         return mediaIndexRepository.getCachedFolders()
     }
 
+    suspend fun searchIndexedMedia(query: MediaSearchQuery, limit: Int): List<MediaItemSkeleton> {
+        return mediaIndexRepository.searchMedia(query, limit)
+    }
+
+    fun searchIndexedMediaStreamed(query: MediaSearchQuery, sortOrder: String): Flow<LoadEvent> {
+        return mediaIndexRepository.searchMediaStreamed(query, sortOrder)
+    }
+
     private fun isTrashedFile(file: File): Boolean {
         return file.name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)
     }

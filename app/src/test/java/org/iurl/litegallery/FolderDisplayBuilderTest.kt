@@ -214,6 +214,31 @@ class FolderDisplayBuilderTest {
     }
 
     @Test
+    fun buildsDisplayForMoreThanFiftyThousandSkeletons() {
+        val items = (1..50_001).map { index ->
+            item(
+                name = "IMG_$index.jpg",
+                dateModified = index.toLong(),
+                size = index.toLong(),
+                mimeType = if (index % 10 == 0) "video/mp4" else "image/jpeg"
+            )
+        }
+
+        val result = FolderDisplayBuilder.build(
+            items = items,
+            sortOrder = "date_desc",
+            groupBy = FolderGroupBy.TYPE,
+            labels = labels
+        )
+
+        assertEquals(50_001, result.stats.itemCount)
+        assertEquals(5_000, result.stats.videoCount)
+        assertEquals("IMG_50001.jpg", result.sortedMediaItems.first().name)
+        assertTrue(result.displayItems.size > result.sortedMediaItems.size)
+        assertTrue(result.fastScrollSections.isNotEmpty())
+    }
+
+    @Test
     fun invalidGroupPreferenceFallsBackToNone() {
         assertEquals(FolderGroupBy.NONE, FolderGroupBy.fromPreference("bad"))
         assertEquals(FolderGroupBy.NONE, FolderGroupBy.fromPreference(null))

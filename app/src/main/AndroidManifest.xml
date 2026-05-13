@@ -47,6 +47,12 @@
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
 
         <activity
+            android:name=".GlobalSearchResultsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
+
+        <activity
             android:name=".MediaViewerActivity"
             android:exported="true"
             android:theme="@style/Theme.LiteGallery.Pack.FirstLight.FullScreen">

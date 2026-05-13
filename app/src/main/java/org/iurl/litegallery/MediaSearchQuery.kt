@@ -62,3 +62,23 @@ data class MediaSearchQuery(
         return true
     }
 }
+
+object MediaSearchSql {
+    fun likePatternForNormalizedName(normalizedNameQuery: String): String? {
+        if (normalizedNameQuery.isBlank()) return null
+        return buildString {
+            if ('*' !in normalizedNameQuery) append('%')
+            normalizedNameQuery.forEach { char ->
+                when (char) {
+                    '*' -> append('%')
+                    '%', '_', '\\' -> {
+                        append('\\')
+                        append(char)
+                    }
+                    else -> append(char)
+                }
+            }
+            if ('*' !in normalizedNameQuery) append('%')
+        }
+    }
+}

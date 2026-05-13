@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -24,7 +25,6 @@ import org.iurl.litegallery.theme.ThemeVariant
 import com.google.android.material.datepicker.MaterialDatePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var folderAdapter: FolderAdapter
     private lateinit var headerAdapter: HomeOverviewAdapter
+    private lateinit var folderConcatAdapter: ConcatAdapter
     private lateinit var mediaScanner: MediaScanner
     private var permissionsGrantedOnStart = false
     private var isLoadingFolders = false
@@ -41,25 +42,17 @@ class MainActivity : AppCompatActivity() {
     private var currentHomeFolders: List<MediaFolder> = emptyList()
     private var mediaIndexSyncJob: Job? = null
     private var homeTransformJob: Job? = null
-    private var homeSearchDebounceJob: Job? = null
     private var searchMenuItem: MenuItem? = null
     private var searchView: SearchView? = null
     private var suppressSearchEvents = false
     private var currentHomeSearchName = ""
     private var currentHomeFilters = HomeFilterState()
-    private var currentHomeSearchQuery: FolderSearchQuery? = null
-    private val emptyHomeSearchKey = HomeSearchQueryKey("", HomeFilterState())
-    private var lastAppliedHomeSearchKey = emptyHomeSearchKey
     private var homeDisplayGeneration = 0
 
     private data class HomeFilterState(
+        val typeFilter: MediaTypeFilter = MediaTypeFilter.ALL,
         val dateRange: TimeRange? = null,
         val sizeRangeBytes: LongRange? = null
-    )
-
-    private data class HomeSearchQueryKey(
-        val normalizedNameQuery: String,
-        val filters: HomeFilterState
     )
     
     private val permissionLauncher = registerForActivityResult(
@@ -76,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     private val folderViewLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        collapseHomeSearchIfNeeded()
         val data = result.data
         val hasMediaChanged = result.resultCode == RESULT_OK &&
             data?.getBooleanExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, false) == true
@@ -87,6 +81,7 @@ class MainActivity : AppCompatActivity() {
     private val trashBinLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        collapseHomeSearchIfNeeded()
         val data = result.data
         val hasMediaChanged = result.resultCode == RESULT_OK &&
             data?.getBooleanExtra(MediaViewerActivity.RESULT_MEDIA_CHANGED, false) == true
@@ -134,7 +129,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         homeTransformJob?.cancel()
-        homeSearchDebounceJob?.cancel()
         mediaIndexSyncJob?.cancel()
         super.onDestroy()
     }
@@ -154,6 +148,8 @@ class MainActivity : AppCompatActivity() {
         }
         currentPackKey = newPackKey
         if (ThemeHelper.checkAndRecreateForCustomThemeChange(this)) return
+
+        collapseHomeSearchIfNeeded()
 
         val homeSortOrderChanged = loadHomeSortOrderPreference()
         if (homeSortOrderChanged) {
@@ -178,7 +174,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 showPermissionRequired()
             }
-        } else if (folderAdapter.itemCount == 0) {
+        } else if (currentHomeFolders.isEmpty()) {
             loadMediaFolders()
             cleanupExpiredTrashInBackground()
         } else {
@@ -239,6 +235,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        folderConcatAdapter = ConcatAdapter(headerAdapter, folderAdapter)
+        showFolderAdapter()
+    }
+
+    private fun showFolderAdapter() {
+        if (binding.recyclerView.adapter === folderConcatAdapter) return
         val gridManager = GridLayoutManager(this@MainActivity, GRID_SPAN_COUNT).apply {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
@@ -248,7 +250,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.recyclerView.apply {
-            adapter = ConcatAdapter(headerAdapter, folderAdapter)
+            adapter = folderConcatAdapter
             layoutManager = gridManager
         }
     }
@@ -265,27 +267,24 @@ class MainActivity : AppCompatActivity() {
     private fun setupSearchMenuItem(item: MenuItem?) {
         val view = item?.actionView as? SearchView ?: return
         searchView = view
-        view.queryHint = getString(R.string.search_hint_home)
+        view.queryHint = getString(R.string.search_hint_global_media)
         view.maxWidth = Int.MAX_VALUE
         view.setIconifiedByDefault(false)
+        view.setSubmitButtonEnabled(false)
+        view.imeOptions = EditorInfo.IME_ACTION_SEARCH
+        view.findViewById<View>(androidx.appcompat.R.id.search_mag_icon)?.setOnClickListener {
+            submitHomeSearchFromView(view)
+        }
         view.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 if (suppressSearchEvents) return true
-                currentHomeSearchName = query.orEmpty()
-                homeSearchDebounceJob?.cancel()
-                applyHomeQueryNow(scrollToTop = true)
-                view.clearFocus()
+                submitHomeSearchFromView(view)
                 return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (suppressSearchEvents) return true
                 currentHomeSearchName = newText.orEmpty()
-                homeSearchDebounceJob?.cancel()
-                homeSearchDebounceJob = lifecycleScope.launch {
-                    delay(SEARCH_DEBOUNCE_MS)
-                    applyHomeQueryNow(scrollToTop = true)
-                }
                 updateHomeSearchChips()
                 return true
             }
@@ -314,14 +313,29 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    private fun submitHomeSearchFromView(view: SearchView) {
+        currentHomeSearchName = view.query?.toString().orEmpty()
+        openGlobalSearchResultsIfReady()
+        view.clearFocus()
+    }
+
     private fun setupSearchFilters() {
+        binding.searchTypeChip.setOnClickListener {
+            val nextType = when (currentHomeFilters.typeFilter) {
+                MediaTypeFilter.ALL -> MediaTypeFilter.IMAGES
+                MediaTypeFilter.IMAGES -> MediaTypeFilter.VIDEOS
+                MediaTypeFilter.VIDEOS -> MediaTypeFilter.ALL
+            }
+            currentHomeFilters = currentHomeFilters.copy(typeFilter = nextType)
+            updateHomeSearchChips()
+        }
         binding.searchDateChip.setOnClickListener {
             showHomeDateRangePicker()
         }
         binding.searchSizeChip.setOnClickListener {
             SearchFilterUi.showSizeRangeDialog(this, currentHomeFilters.sizeRangeBytes) { range ->
                 currentHomeFilters = currentHomeFilters.copy(sizeRangeBytes = range)
-                applyHomeQueryNow(scrollToTop = true)
+                updateHomeSearchChips()
             }
         }
         binding.searchClearChip.setOnClickListener {
@@ -342,14 +356,13 @@ class MainActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
             } else {
                 currentHomeFilters = currentHomeFilters.copy(dateRange = range)
-                applyHomeQueryNow(scrollToTop = true)
+                updateHomeSearchChips()
             }
         }
         picker.show(supportFragmentManager, "home_search_date")
     }
 
     private fun clearHomeSearch(collapseSearchView: Boolean) {
-        homeSearchDebounceJob?.cancel()
         currentHomeSearchName = ""
         currentHomeFilters = HomeFilterState()
 
@@ -358,44 +371,80 @@ class MainActivity : AppCompatActivity() {
         searchView?.clearFocus()
         suppressSearchEvents = false
 
-        applyHomeQueryNow(scrollToTop = true, force = true)
+        updateHomeSearchChips()
         if (collapseSearchView) {
             searchMenuItem?.collapseActionView()
         }
     }
 
-    private fun applyHomeQueryNow(scrollToTop: Boolean, force: Boolean = false) {
-        val normalizedName = NameMatcher.normalizePattern(currentHomeSearchName)
-        val key = HomeSearchQueryKey(normalizedName, currentHomeFilters)
-        if (!force && key == lastAppliedHomeSearchKey) {
-            updateHomeSearchChips()
-            return
-        }
-
-        lastAppliedHomeSearchKey = key
-        currentHomeSearchQuery = buildHomeQueryOrNull(normalizedName)
-        updateHomeSearchChips()
-        applyHomeDisplayTransform(scrollToTop = scrollToTop)
-    }
-
-    private fun buildHomeQueryOrNull(normalizedName: String): FolderSearchQuery? {
-        val query = FolderSearchQuery(
-            normalizedNameQuery = normalizedName,
-            nameMatcher = NameMatcher.compile(normalizedName),
+    private fun buildGlobalMediaQueryOrNull(normalizedName: String): MediaSearchQuery? {
+        return HomeSearchQueryFactory.buildGlobalMediaQuery(
+            normalizedName = normalizedName,
+            typeFilter = currentHomeFilters.typeFilter,
             dateRange = currentHomeFilters.dateRange,
             sizeRangeBytes = currentHomeFilters.sizeRangeBytes
         )
-        return query.takeUnless { it.isEmpty }
     }
 
     private fun updateHomeSearchChips() {
+        binding.searchTypeChip.text = when (currentHomeFilters.typeFilter) {
+            MediaTypeFilter.ALL -> getString(R.string.search_chip_type_all)
+            MediaTypeFilter.IMAGES -> getString(R.string.search_chip_type_images)
+            MediaTypeFilter.VIDEOS -> getString(R.string.search_chip_type_videos)
+        }
         binding.searchDateChip.text = SearchFilterUi.formatDateRange(this, currentHomeFilters.dateRange)
         binding.searchSizeChip.text = SearchFilterUi.formatSizeRange(this, currentHomeFilters.sizeRangeBytes)
         binding.searchClearChip.visibility = if (hasAnyHomeSearchInput()) View.VISIBLE else View.GONE
     }
 
     private fun hasAnyHomeSearchInput(): Boolean =
-        currentHomeSearchName.isNotBlank() || currentHomeFilters != HomeFilterState()
+        currentHomeSearchName.isNotBlank() ||
+            currentHomeFilters != HomeFilterState()
+
+    private fun openGlobalSearchResultsIfReady() {
+        val normalizedName = NameMatcher.normalizePattern(currentHomeSearchName)
+        val query = buildGlobalMediaQueryOrNull(normalizedName)
+        if (query == null) {
+            android.widget.Toast.makeText(
+                this,
+                R.string.search_global_media_prompt_subtitle,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        val intent = GlobalSearchResultsActivity.createIntent(
+            context = this,
+            nameQuery = currentHomeSearchName,
+            typeFilter = currentHomeFilters.typeFilter,
+            dateRange = currentHomeFilters.dateRange,
+            sizeRangeBytes = currentHomeFilters.sizeRangeBytes
+        )
+        folderViewLauncher.launch(intent)
+    }
+
+    private fun collapseHomeSearchIfNeeded() {
+        val shouldCollapse = searchMenuItem?.isActionViewExpanded == true ||
+            binding.searchFilterRow.visibility == View.VISIBLE ||
+            hasAnyHomeSearchInput()
+        if (!shouldCollapse) return
+        val item = searchMenuItem
+        if (item?.isActionViewExpanded == true) {
+            item.collapseActionView()
+        } else {
+            binding.searchFilterRow.visibility = View.GONE
+            clearHomeSearch(collapseSearchView = false)
+        }
+        restoreHomeSearchMenuIcon()
+    }
+
+    private fun restoreHomeSearchMenuIcon() {
+        searchMenuItem?.isVisible = true
+        binding.toolbar.post {
+            searchMenuItem?.isVisible = true
+            invalidateOptionsMenu()
+        }
+    }
 
     private fun refreshFromUserAction(fromSwipeRefresh: Boolean) {
         if (!hasStoragePermissions()) {
@@ -415,7 +464,7 @@ class MainActivity : AppCompatActivity() {
         }
         lastUserRefreshAtMs = now
 
-        val showBlockingLoading = !fromSwipeRefresh && folderAdapter.itemCount == 0
+        val showBlockingLoading = !fromSwipeRefresh && currentHomeFolders.isEmpty()
         loadMediaFolders(showBlockingLoading = showBlockingLoading, fromSwipeRefresh = fromSwipeRefresh)
     }
     
@@ -623,37 +672,37 @@ class MainActivity : AppCompatActivity() {
     private fun applyHomeDisplayTransform(scrollToTop: Boolean) {
         homeTransformJob?.cancel()
         val generation = ++homeDisplayGeneration
+
         val sourceFolders = currentHomeFolders
-        val query = currentHomeSearchQuery
         val sortOrder = currentHomeSortOrder
+        binding.progressBar.visibility = View.GONE
+        showFolderAdapter()
 
         if (sourceFolders.size > HOME_BACKGROUND_THRESHOLD) {
             homeTransformJob = lifecycleScope.launch {
                 val folders = withContext(Dispatchers.Default) {
-                    buildHomeDisplayFolders(sourceFolders, query, sortOrder)
+                    buildHomeDisplayFolders(sourceFolders, sortOrder)
                 }
                 if (generation != homeDisplayGeneration) return@launch
                 renderHomeFolders(folders, scrollToTop)
             }
         } else {
-            renderHomeFolders(buildHomeDisplayFolders(sourceFolders, query, sortOrder), scrollToTop)
+            renderHomeFolders(buildHomeDisplayFolders(sourceFolders, sortOrder), scrollToTop)
         }
     }
 
     private fun buildHomeDisplayFolders(
         sourceFolders: List<MediaFolder> = currentHomeFolders,
-        query: FolderSearchQuery? = currentHomeSearchQuery,
         sortOrder: String = currentHomeSortOrder
     ): List<MediaFolder> {
-        val filtered = HomeFolderFilter.apply(sourceFolders, query)
-        return HomeFolderSorter.sort(filtered, sortOrder)
+        return HomeFolderSorter.sort(sourceFolders, sortOrder)
     }
 
     private fun renderHomeFolders(folders: List<MediaFolder>, scrollToTop: Boolean = false) {
+        showFolderAdapter()
+        binding.progressBar.visibility = View.GONE
         if (folders.isEmpty()) {
-            showHomeEmptyState(
-                noResultsFromSearch = currentHomeSearchQuery != null && currentHomeFolders.isNotEmpty()
-            )
+            showHomeEmptyState(noResultsFromSearch = false)
             binding.recyclerView.visibility = View.GONE
             return
         }
@@ -734,7 +783,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REFRESH_THROTTLE_MS = 1_200L
-        private const val SEARCH_DEBOUNCE_MS = 250L
         private const val HOME_BACKGROUND_THRESHOLD = 500
         private const val GRID_SPAN_COUNT = 2
         private const val PREF_HOME_FOLDER_SORT_ORDER = "home_folder_sort_order"

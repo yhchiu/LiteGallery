@@ -498,8 +498,10 @@
     <string name="fast_scroll_thumb_content_description">Fast scroll thumb</string>
     <string name="fast_scroll_position_content_description">Current scroll section</string>
     <string name="search">Search</string>
-    <string name="search_hint_folder">Search media</string>
-    <string name="search_hint_home">Search folders</string>
+    <string name="search_hint_folder">Search by name</string>
+    <string name="search_hint_global_media">Search by name</string>
+    <string name="global_search_title">All media</string>
+    <string name="global_search_eyebrow">Global search</string>
     <string name="search_chip_type_all">All</string>
     <string name="search_chip_type_images">Images</string>
     <string name="search_chip_type_videos">Videos</string>
@@ -513,6 +515,12 @@
     <string name="search_chip_size_custom">Custom</string>
     <string name="search_no_results">No results matching filters</string>
     <string name="search_no_folders">No folders matching filters</string>
+    <string name="search_no_media">No media matching filters</string>
+    <string name="search_global_media_prompt_title">Search all media</string>
+    <string name="search_global_media_prompt_subtitle">Enter a name or choose filters to search indexed photos and videos.</string>
+    <string name="search_global_media_error">Unable to search indexed media</string>
+    <string name="search_result_folder_content_description">Folder: %1$s</string>
+    <string name="search_wait_until_loaded">Finish loading results before opening media.</string>
     <string name="search_clear_filters">Clear filters</string>
     <string name="search_count_format">%1$d of %2$d</string>
     <string name="search_size_invalid">Invalid size range</string>

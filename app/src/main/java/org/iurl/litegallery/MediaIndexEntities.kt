@@ -14,6 +14,11 @@ internal const val MEDIA_INDEX_TYPE_VIDEO = "video"
         Index(value = ["path"], unique = true),
         Index(value = ["folderPath"]),
         Index(value = ["dateModifiedMs"]),
+        Index(value = ["name"]),
+        Index(value = ["sizeBytes"]),
+        Index(value = ["mediaType", "dateModifiedMs"]),
+        Index(value = ["mediaType", "name"]),
+        Index(value = ["mediaType", "sizeBytes"]),
         Index(value = ["lastSeenScanId"])
     ]
 )
@@ -81,6 +86,17 @@ fun MediaIndexEntity.toMediaItem(): MediaItem {
         duration = durationMs,
         width = width,
         height = height
+    )
+}
+
+fun MediaIndexEntity.toMediaItemSkeleton(): MediaItemSkeleton {
+    return MediaItemSkeleton(
+        id = mediaStoreId,
+        path = path,
+        name = name,
+        dateModified = dateModifiedMs,
+        size = sizeBytes,
+        isVideo = mediaType == MEDIA_INDEX_TYPE_VIDEO
     )
 }
 

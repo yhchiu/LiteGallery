@@ -4,6 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 
 @Dao
 interface MediaIndexDao {
@@ -127,6 +129,30 @@ interface MediaIndexDao {
 
     @Query("SELECT * FROM media_items WHERE mediaStoreId = :id LIMIT 1")
     suspend fun findById(id: Long): MediaIndexEntity?
+
+    @Query("""
+        SELECT * FROM media_items
+        WHERE (:nameLikePattern IS NULL OR name LIKE :nameLikePattern ESCAPE '\' COLLATE NOCASE)
+            AND (:mediaType IS NULL OR mediaType = :mediaType)
+            AND (:dateStartMs IS NULL OR dateModifiedMs >= :dateStartMs)
+            AND (:dateEndMs IS NULL OR dateModifiedMs < :dateEndMs)
+            AND (:sizeMinBytes IS NULL OR (sizeBytes > 0 AND sizeBytes >= :sizeMinBytes))
+            AND (:sizeMaxBytes IS NULL OR (sizeBytes > 0 AND sizeBytes <= :sizeMaxBytes))
+        ORDER BY dateModifiedMs DESC, name COLLATE NOCASE ASC
+        LIMIT :limit
+    """)
+    suspend fun searchMedia(
+        nameLikePattern: String?,
+        mediaType: String?,
+        dateStartMs: Long?,
+        dateEndMs: Long?,
+        sizeMinBytes: Long?,
+        sizeMaxBytes: Long?,
+        limit: Int
+    ): List<MediaIndexEntity>
+
+    @RawQuery
+    suspend fun searchMediaWindow(query: SupportSQLiteQuery): List<MediaIndexEntity>
 
     @Query("""
         SELECT * FROM media_items 

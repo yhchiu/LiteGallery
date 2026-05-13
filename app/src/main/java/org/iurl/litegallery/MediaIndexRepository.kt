@@ -8,7 +8,12 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.room.withTransaction
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -48,6 +53,93 @@ class MediaIndexRepository(context: Context) {
     suspend fun getCachedMediaInFolder(folderPath: String): List<MediaItem> = withContext(Dispatchers.IO) {
         dao.getMediaInFolder(folderPath).map { it.toMediaItem() }
     }
+
+    suspend fun searchMedia(query: MediaSearchQuery, limit: Int): List<MediaItemSkeleton> = withContext(Dispatchers.IO) {
+        if (query.isEmpty || limit <= 0) return@withContext emptyList()
+        synchronizeIfNeeded()
+
+        val mediaType = when (query.typeFilter) {
+            MediaTypeFilter.IMAGES -> MEDIA_INDEX_TYPE_IMAGE
+            MediaTypeFilter.VIDEOS -> MEDIA_INDEX_TYPE_VIDEO
+            MediaTypeFilter.ALL -> null
+        }
+        val candidates = dao.searchMedia(
+            nameLikePattern = MediaSearchSql.likePatternForNormalizedName(query.normalizedNameQuery),
+            mediaType = mediaType,
+            dateStartMs = query.dateRange?.startMsInclusive,
+            dateEndMs = query.dateRange?.endMsExclusive,
+            sizeMinBytes = query.sizeRangeBytes?.first,
+            sizeMaxBytes = query.sizeRangeBytes?.last,
+            limit = limit
+        )
+
+        candidates.asSequence()
+            .map { it.toMediaItemSkeleton() }
+            .filter { query.matches(it) }
+            .take(limit)
+            .toList()
+    }
+
+    fun searchMediaStreamed(query: MediaSearchQuery, sortOrder: String): Flow<LoadEvent> = flow {
+        if (query.isEmpty) {
+            emit(LoadEvent.FirstScreen(emptyList()))
+            emit(LoadEvent.Progress(emptyList(), totalLoaded = 0, isFinal = true))
+            return@flow
+        }
+
+        synchronizeIfNeeded()
+
+        val firstScreen = ArrayList<MediaItemSkeleton>(MediaScanner.FIRST_SCREEN_LIMIT)
+        val pendingDelta = ArrayList<MediaItemSkeleton>(MediaScanner.CHUNK_SIZE)
+        var firstScreenSent = false
+        var totalLoaded = 0
+        var offset = 0
+
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val candidates = dao.searchMediaWindow(
+                MediaIndexSearchSql.buildQuery(
+                    query = query,
+                    sortOrder = sortOrder,
+                    limit = SEARCH_CANDIDATE_WINDOW_SIZE,
+                    offset = offset
+                )
+            )
+            if (candidates.isEmpty()) break
+
+            candidates.forEach { entity ->
+                currentCoroutineContext().ensureActive()
+                val skeleton = entity.toMediaItemSkeleton()
+                if (!query.matches(skeleton)) return@forEach
+
+                totalLoaded++
+                if (!firstScreenSent) {
+                    firstScreen.add(skeleton)
+                    if (firstScreen.size >= MediaScanner.FIRST_SCREEN_LIMIT) {
+                        emit(LoadEvent.FirstScreen(firstScreen.toList()))
+                        firstScreenSent = true
+                    }
+                } else {
+                    pendingDelta.add(skeleton)
+                    if (pendingDelta.size >= MediaScanner.CHUNK_SIZE) {
+                        emit(LoadEvent.Progress(pendingDelta.toList(), totalLoaded, isFinal = false))
+                        pendingDelta.clear()
+                    }
+                }
+            }
+
+            offset += candidates.size
+            if (candidates.size < SEARCH_CANDIDATE_WINDOW_SIZE) break
+        }
+
+        if (!firstScreenSent) {
+            emit(LoadEvent.FirstScreen(firstScreen.toList()))
+        }
+        if (pendingDelta.isNotEmpty()) {
+            emit(LoadEvent.Progress(pendingDelta.toList(), totalLoaded, isFinal = false))
+        }
+        emit(LoadEvent.Progress(emptyList(), totalLoaded, isFinal = true))
+    }.flowOn(Dispatchers.IO)
 
     suspend fun removePath(path: String) = withContext(Dispatchers.IO) {
         if (path.isBlank()) return@withContext
@@ -528,6 +620,7 @@ class MediaIndexRepository(context: Context) {
         private const val LEGACY_EXTERNAL_VOLUME = "external"
         private const val LEGACY_SYNC_THROTTLE_MS = 60_000L
         private const val SQLITE_BIND_PARAMETER_LIMIT = 900
+        private const val SEARCH_CANDIDATE_WINDOW_SIZE = 5_000
         private val syncMutex = Mutex()
     }
 }
