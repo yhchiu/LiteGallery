@@ -1,6 +1,7 @@
 package org.iurl.litegallery
 
 import android.database.MatrixCursor
+import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -10,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
@@ -113,11 +115,109 @@ class MediaScannerStreamedLoadTest {
         assertTrue(finalProgress.isFinal)
     }
 
+    @Test
+    fun streamSkeletonLoadEventsFiltersTrashBinItems() = runBlocking {
+        val folderPath = "/storage/emulated/0/DCIM/Camera"
+        val cursor = MatrixCursor(filesProjection()).apply {
+            addMediaRow(
+                id = 1L,
+                path = "$folderPath/photo.jpg",
+                name = "photo.jpg",
+                isVideo = false
+            )
+            addMediaRow(
+                id = 2L,
+                path = "$folderPath/${TrashBinStore.TRASH_FILE_PREFIX}old.jpg",
+                name = "${TrashBinStore.TRASH_FILE_PREFIX}old.jpg",
+                isVideo = false
+            )
+            addMediaRow(
+                id = 3L,
+                path = "$folderPath/${TrashBinStore.TRASH_FILE_PREFIX}path-only.jpg",
+                name = "path-only.jpg",
+                isVideo = false
+            )
+        }
+
+        val events = MediaScanner.streamSkeletonLoadEvents(cursor, exactFolderPath = folderPath).toList()
+        val firstScreen = events.first() as LoadEvent.FirstScreen
+        val finalProgress = events.last() as LoadEvent.Progress
+
+        assertEquals(listOf(1L), firstScreen.items.map { it.id })
+        assertEquals(1, finalProgress.totalLoaded)
+        assertTrue(finalProgress.isFinal)
+    }
+
+    @Test
+    fun streamSkeletonLoadEventsResolvesNullDataFromRelativePath() = runBlocking {
+        val folderPath = File(Environment.getExternalStorageDirectory(), "DCIM/Camera").absolutePath
+        val cursor = MatrixCursor(filesProjection()).apply {
+            addMediaRow(
+                id = 1L,
+                path = null,
+                name = "photo.jpg",
+                relativePath = "DCIM/Camera/",
+                isVideo = false
+            )
+            addMediaRow(
+                id = 2L,
+                path = null,
+                name = "nested.jpg",
+                relativePath = "DCIM/Camera/Sub/",
+                isVideo = false
+            )
+        }
+
+        val events = MediaScanner.streamSkeletonLoadEvents(cursor, exactFolderPath = folderPath).toList()
+        val firstScreen = events.first() as LoadEvent.FirstScreen
+        val finalProgress = events.last() as LoadEvent.Progress
+
+        assertEquals(listOf(1L), firstScreen.items.map { it.id })
+        val expectedPath = File(File(Environment.getExternalStorageDirectory(), "DCIM/Camera/"), "photo.jpg").absolutePath
+        assertEquals(expectedPath, firstScreen.items.single().path)
+        assertEquals(1, finalProgress.totalLoaded)
+        assertTrue(finalProgress.isFinal)
+    }
+
+    @Test
+    fun streamFilesCursorOrFallbackUsesFallbackWhenFilesCursorRowsHaveNoUsablePath() = runBlocking {
+        val fallbackItem = MediaItemSkeleton(
+            id = 43L,
+            path = "/storage/emulated/0/DCIM/Camera/fallback.jpg",
+            name = "fallback.jpg",
+            dateModified = 1_700_000_000_000L,
+            size = 4096L,
+            isVideo = false
+        )
+        val cursor = MatrixCursor(filesProjection()).apply {
+            addMediaRow(
+                id = 1L,
+                path = null,
+                name = "missing-path.jpg",
+                relativePath = null,
+                isVideo = false
+            )
+        }
+
+        val events = MediaScanner.streamFilesCursorOrFallback(
+            cursor = cursor,
+            exactFolderPath = "/storage/emulated/0/DCIM/Camera",
+            fallbackSkeletons = { listOf(fallbackItem) }
+        ).toList()
+        val firstScreen = events.first() as LoadEvent.FirstScreen
+        val finalProgress = events.last() as LoadEvent.Progress
+
+        assertEquals(listOf(43L), firstScreen.items.map { it.id })
+        assertEquals(1, finalProgress.totalLoaded)
+        assertTrue(finalProgress.isFinal)
+    }
+
     private fun filesProjection(): Array<String> {
         return arrayOf(
             MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.DATA,
             MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.RELATIVE_PATH,
             MediaStore.Files.FileColumns.DATE_MODIFIED,
             MediaStore.Files.FileColumns.SIZE,
             MediaStore.Files.FileColumns.MEDIA_TYPE,
@@ -127,8 +227,9 @@ class MediaScannerStreamedLoadTest {
 
     private fun MatrixCursor.addMediaRow(
         id: Long,
-        path: String,
-        name: String,
+        path: String?,
+        name: String?,
+        relativePath: String? = null,
         dateModifiedSeconds: Long = 1_700_000_000L + id,
         size: Long = 1024L + id,
         isVideo: Boolean
@@ -138,6 +239,7 @@ class MediaScannerStreamedLoadTest {
                 id,
                 path,
                 name,
+                relativePath,
                 dateModifiedSeconds,
                 size,
                 if (isVideo) {

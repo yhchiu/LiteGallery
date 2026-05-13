@@ -71,8 +71,9 @@ class MediaScanner(private val context: Context) {
         ): Flow<LoadEvent> = flow {
             cursor.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
-                val dataCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+                val dataCol = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
                 val nameCol = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                val relativePathCol = c.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH)
                 val dateCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
                 val sizeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
                 val mediaTypeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
@@ -84,14 +85,17 @@ class MediaScanner(private val context: Context) {
 
                 while (c.moveToNext()) {
                     val mediaType = c.getInt(mediaTypeCol)
-                    val path = c.getString(dataCol) ?: continue
-                    if (!isPathInExactFolder(path, exactFolderPath)) continue
+                    val name = if (nameCol >= 0) c.getString(nameCol) else null
+                    if (isTrashedMediaName(name)) continue
 
-                    val name = if (nameCol >= 0) c.getString(nameCol) else File(path).name
+                    val path = resolveSkeletonPath(c, dataCol, relativePathCol, name) ?: continue
+                    if (!isPathInExactFolder(path, exactFolderPath)) continue
+                    if (isTrashedMediaPath(path)) continue
+
                     val skeleton = MediaItemSkeleton(
                         id = c.getLong(idCol),
                         path = path,
-                        name = name ?: "",
+                        name = name ?: File(path).name,
                         dateModified = c.getLong(dateCol) * 1000L,
                         size = c.getLong(sizeCol).coerceAtLeast(0L),
                         isVideo = mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
@@ -168,9 +172,10 @@ class MediaScanner(private val context: Context) {
             if (exactFolderPath.isNullOrBlank()) return true
             if (path.startsWith("content://")) return true
 
-            val normalizedFolder = exactFolderPath.trimEnd('/', '\\')
-            val parent = path.substringBeforeLast('/', missingDelimiterValue = "")
-                .trimEnd('/', '\\')
+            val normalizedFolder = exactFolderPath.replace('\\', '/').trimEnd('/')
+            val parent = path.replace('\\', '/')
+                .substringBeforeLast('/', missingDelimiterValue = "")
+                .trimEnd('/')
             return parent == normalizedFolder
         }
 
@@ -180,6 +185,31 @@ class MediaScanner(private val context: Context) {
                 is LoadEvent.Progress -> totalLoaded > 0 || deltaItems.isNotEmpty()
                 is LoadEvent.Failed -> false
             }
+        }
+
+        private fun resolveSkeletonPath(
+            cursor: Cursor,
+            dataColumn: Int,
+            relativePathColumn: Int,
+            displayName: String?
+        ): String? {
+            if (dataColumn >= 0) {
+                cursor.getString(dataColumn)?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+            if (relativePathColumn < 0) return null
+            val relativePath = cursor.getString(relativePathColumn)
+            if (relativePath.isNullOrBlank() || displayName.isNullOrBlank()) return null
+            val root = Environment.getExternalStorageDirectory()?.absolutePath ?: return null
+            return File(File(root, relativePath), displayName).absolutePath
+        }
+
+        private fun isTrashedMediaName(fileName: String?): Boolean {
+            return fileName?.startsWith(TrashBinStore.TRASH_FILE_PREFIX) == true
+        }
+
+        private fun isTrashedMediaPath(path: String): Boolean {
+            if (path.startsWith("content://")) return false
+            return File(path).name.startsWith(TrashBinStore.TRASH_FILE_PREFIX)
         }
     }
     
@@ -327,6 +357,7 @@ class MediaScanner(private val context: Context) {
             MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.DATA,
             MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.RELATIVE_PATH,
             MediaStore.Files.FileColumns.DATE_MODIFIED,
             MediaStore.Files.FileColumns.SIZE,
             MediaStore.Files.FileColumns.MEDIA_TYPE,
