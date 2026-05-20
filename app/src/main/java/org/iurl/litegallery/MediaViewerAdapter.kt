@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.signature.ObjectKey
 import org.iurl.litegallery.databinding.ItemMediaViewerBinding
 
 class MediaViewerAdapter(
@@ -135,6 +136,7 @@ class MediaViewerAdapter(
                         binding.videoThumbnail?.clearColorFilter()
                         Glide.with(context)
                             .load(mediaItem.path)
+                            .signature(ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}"))
                             .fitCenter()
                             .into(binding.videoThumbnail)
                     }
@@ -171,6 +173,7 @@ class MediaViewerAdapter(
                 if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                     Glide.with(context)
                         .load(mediaItem.path)
+                        .signature(ObjectKey("${mediaItem.path}_${mediaItem.dateModified}_${mediaItem.size}"))
                         .fitCenter()
                         .into(binding.photoImageView)
                 }
