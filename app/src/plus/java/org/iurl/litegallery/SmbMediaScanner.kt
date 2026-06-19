@@ -15,66 +15,6 @@ class SmbMediaScanner(private val context: Context) {
     private val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv")
 
     /**
-     * Scan an SMB directory for media folders (folders that contain media files).
-     */
-    suspend fun scanSmbFolders(
-        host: String,
-        shareName: String,
-        rootPath: String = ""
-    ): List<MediaFolder> = withContext(Dispatchers.IO) {
-        val folders = mutableListOf<MediaFolder>()
-
-        try {
-            val files = SmbClient.listFiles(context, host, shareName, rootPath)
-
-            // Check root level for media files
-            val rootMediaCount = files.count { !it.isDirectory && it.isMedia }
-            if (rootMediaCount > 0) {
-                val thumbnail = files.firstOrNull { !it.isDirectory && it.isMedia }
-                val folderSmbPath = if (rootPath.isBlank()) {
-                    "smb://$host/$shareName"
-                } else {
-                    "smb://$host/$shareName/$rootPath"
-                }
-                folders.add(
-                    MediaFolder(
-                        name = if (rootPath.isBlank()) shareName else rootPath.substringAfterLast('/'),
-                        path = folderSmbPath,
-                        itemCount = rootMediaCount,
-                        thumbnail = thumbnail?.let { "smb://$host/$shareName/${it.path}" }
-                    )
-                )
-            }
-
-            // Scan subdirectories (one level deep for performance)
-            val subDirs = files.filter { it.isDirectory }
-            for (dir in subDirs) {
-                try {
-                    val subFiles = SmbClient.listFiles(context, host, shareName, dir.path)
-                    val mediaCount = subFiles.count { !it.isDirectory && it.isMedia }
-                    if (mediaCount > 0) {
-                        val thumbnail = subFiles.firstOrNull { !it.isDirectory && it.isMedia }
-                        folders.add(
-                            MediaFolder(
-                                name = dir.name,
-                                path = "smb://$host/$shareName/${dir.path}",
-                                itemCount = mediaCount,
-                                thumbnail = thumbnail?.let { "smb://$host/$shareName/${it.path}" }
-                            )
-                        )
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("SmbMediaScanner", "Failed to scan subdir: ${dir.name}", e)
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("SmbMediaScanner", "Failed to scan SMB folders", e)
-        }
-
-        folders.sortedBy { it.name }
-    }
-
-    /**
      * Scan an SMB directory for media items (files only, not recursive).
      */
     suspend fun scanSmbMediaInFolder(folderSmbPath: String): List<MediaItem> = withContext(Dispatchers.IO) {
