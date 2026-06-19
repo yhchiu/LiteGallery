@@ -220,8 +220,11 @@ object SmbClient {
                     SMB2CreateDisposition.FILE_OPEN,
                     null
                 )
-                file.rename(newSmbPath)
-                file.close()
+                try {
+                    file.rename(newSmbPath)
+                } finally {
+                    file.close()
+                }
                 true
             }
         } catch (e: Exception) {
