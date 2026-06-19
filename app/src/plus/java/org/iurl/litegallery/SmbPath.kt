@@ -55,6 +55,14 @@ data class SmbPath(
         }
 
         /**
+         * Build a full smb:// URL from its components. [relativePath] is the share-relative
+         * path (the form held by SmbClient.SmbFileInfo.path); an empty value yields the share root.
+         */
+        fun toUrl(host: String, share: String, relativePath: String): String {
+            return if (relativePath.isEmpty()) "smb://$host/$share" else "smb://$host/$share/$relativePath"
+        }
+
+        /**
          * Check if a path string is an SMB path.
          */
         fun isSmb(path: String): Boolean = path.startsWith("smb://")

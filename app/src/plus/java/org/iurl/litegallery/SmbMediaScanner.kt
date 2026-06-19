@@ -87,7 +87,7 @@ class SmbMediaScanner(private val context: Context) {
             for (file in files) {
                 if (file.isDirectory || !file.isMedia) continue
 
-                val fileSmbPath = "smb://${smbPath.host}/${smbPath.share}/${file.path}"
+                val fileSmbPath = SmbPath.toUrl(smbPath.host, smbPath.share, file.path)
                 val ext = file.name.substringAfterLast('.', "").lowercase()
 
                 items.add(

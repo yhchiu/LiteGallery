@@ -439,6 +439,10 @@ class SmbBrowseActivity : AppCompatActivity() {
             if (it.path.isBlank()) it.share else it.path.substringAfterLast('/')
         } ?: getString(R.string.smb_browse_title)
 
+        // Give the adapter the host/share so it can build full smb:// urls for thumbnails.
+        browseAdapter.shareHost = smbPath?.host
+        browseAdapter.shareName = smbPath?.share
+
         lifecycleScope.launch {
             try {
                 val items = smbMediaScanner.listSmbDirectory(smbAddress)
@@ -738,6 +742,10 @@ class SmbBrowseAdapter(
 
     private var items: List<SmbClient.SmbFileInfo> = emptyList()
 
+    /** Host + share of the directory currently shown, used to build full smb:// urls for thumbnails. */
+    var shareHost: String? = null
+    var shareName: String? = null
+
     fun submitList(newItems: List<SmbClient.SmbFileInfo>) {
         items = newItems
         notifyDataSetChanged()
@@ -779,11 +787,19 @@ class SmbBrowseAdapter(
                 if (item.isMedia) {
                     // Show thumbnail for media files
                     thumbnailView.visibility = View.VISIBLE
-                    // Build full SMB path for Glide
+                    // SmbModelLoader only handles full smb:// urls, so build one from the
+                    // host/share context plus the file's share-relative path.
+                    val host = shareHost
+                    val share = shareName
+                    val model = if (host != null && share != null) {
+                        SmbPath.toUrl(host, share, item.path)
+                    } else {
+                        item.path
+                    }
                     val context = itemView.context
                     if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                         Glide.with(context)
-                            .load(item.path) // Note: This is relative path, full path is built elsewhere
+                            .load(model)
                             .centerCrop()
                             .placeholder(R.drawable.ic_image_placeholder)
                             .error(R.drawable.ic_image_placeholder)

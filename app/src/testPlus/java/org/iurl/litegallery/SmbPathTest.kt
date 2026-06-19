@@ -51,4 +51,13 @@ class SmbPathTest {
         assertFalse(SmbPath.isSmb("SMB://server/share"))
         assertFalse(SmbPath.isSmb("/storage/emulated/0/DCIM/file.jpg"))
     }
+
+    @Test
+    fun toUrl_buildsFullUrlFromShareRelativePath() {
+        assertEquals(
+            "smb://nas/media/Trips\\2026\\file.jpg",
+            SmbPath.toUrl("nas", "media", "Trips\\2026\\file.jpg")
+        )
+        assertEquals("smb://nas/media", SmbPath.toUrl("nas", "media", ""))
+    }
 }
