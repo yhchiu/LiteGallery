@@ -487,13 +487,18 @@ class SmbBrowseActivity : AppCompatActivity() {
     }
 
     private fun openMediaViewer(item: SmbClient.SmbFileInfo) {
-        // Open FolderViewActivity with the current SMB folder path
-        // The FolderViewActivity will detect SMB path and use SmbMediaScanner
-        val intent = Intent(this, FolderViewActivity::class.java).apply {
-            putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, currentPath)
-            putExtra(FolderViewActivity.EXTRA_FOLDER_NAME, SmbPath.parse(currentPath)?.let {
-                if (it.path.isBlank()) it.share else it.path.substringAfterLast('/')
-            } ?: "SMB")
+        // Open the media viewer directly on the clicked file. The viewer scans the SMB
+        // folder through MediaSourceRegistry/SmbMediaSource for swipe context and positions
+        // itself to the target path, so tapping a file lands on that exact photo/video.
+        val smbPath = SmbPath.parse(currentPath)
+        val targetUrl = if (smbPath != null) {
+            SmbPath.toUrl(smbPath.host, smbPath.share, item.path)
+        } else {
+            item.path
+        }
+        val intent = Intent(this, MediaViewerActivity::class.java).apply {
+            putExtra(MediaViewerActivity.EXTRA_FOLDER_PATH, currentPath)
+            putExtra(MediaViewerActivity.EXTRA_MEDIA_PATH, targetUrl)
         }
         startActivity(intent)
     }
