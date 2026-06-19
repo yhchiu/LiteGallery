@@ -41,7 +41,7 @@ object HomeFolderSorter {
     }
 
     private fun recentComparator(ascending: Boolean): Comparator<MediaFolder> {
-        val comparator = compareBy<MediaFolder> { SmbPath.isSmb(it.path) }
+        val comparator = compareBy<MediaFolder> { MediaSourceRegistry.isManaged(it.path) }
             .thenBy { it.latestDateModifiedMs <= 0L }
 
         return if (ascending) {
@@ -58,7 +58,7 @@ object HomeFolderSorter {
     }
 
     private fun nameComparator(descending: Boolean): Comparator<MediaFolder> {
-        val comparator = compareBy<MediaFolder> { SmbPath.isSmb(it.path) }
+        val comparator = compareBy<MediaFolder> { MediaSourceRegistry.isManaged(it.path) }
 
         return if (descending) {
             comparator
@@ -72,7 +72,7 @@ object HomeFolderSorter {
     }
 
     private fun sizeComparator(ascending: Boolean): Comparator<MediaFolder> {
-        val comparator = compareBy<MediaFolder> { SmbPath.isSmb(it.path) }
+        val comparator = compareBy<MediaFolder> { MediaSourceRegistry.isManaged(it.path) }
             .thenBy { it.totalSizeBytes <= 0L }
 
         return if (ascending) {

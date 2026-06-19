@@ -1,8 +1,6 @@
 package org.iurl.litegallery
 
 import android.app.Application
-import com.bumptech.glide.Glide
-import java.io.InputStream
 
 class LiteGalleryApplication : Application() {
 
@@ -18,17 +16,13 @@ class LiteGalleryApplication : Application() {
         // Apply theme when app starts (consults the active pack to decide night mode)
         ThemeHelper.applyTheme(this)
 
-        // Register SMB model loader with Glide for loading images from SMB shares
-        Glide.get(this).registry.prepend(
-            String::class.java,
-            InputStream::class.java,
-            SmbModelLoaderFactory(this)
-        )
+        // Register any optional media sources for the current flavor (no-op in `core`).
+        MediaSourceBootstrap.init(this)
     }
 
     override fun onTerminate() {
         super.onTerminate()
-        // Clean up SMB connections
-        SmbClient.disconnectAll()
+        // Release any media-source resources (e.g. SMB connections).
+        MediaSourceRegistry.all().forEach { it.shutdown() }
     }
 }

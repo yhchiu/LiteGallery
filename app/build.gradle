@@ -34,7 +34,24 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    
+
+    flavorDimensions = ["connectivity"]
+    productFlavors {
+        // Network-free build: no SMB code, no INTERNET permission.
+        create("core") {
+            dimension "connectivity"
+            versionNameSuffix "-core"
+        }
+        // Adds SMB network shares (INTERNET permission + smbj live only here).
+        // NOTE: must use create("plus") rather than `plus { }` because "plus"
+        // collides with Groovy's Collection.plus operator on the container.
+        create("plus") {
+            dimension "connectivity"
+            versionNameSuffix "-plus"
+            proguardFiles 'proguard-smb.pro'
+        }
+    }
+
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -84,9 +101,9 @@ dependencies {
     implementation "androidx.media3:media3-ui:1.2.0"
     implementation "androidx.media3:media3-common:1.2.0"
     implementation "androidx.media3:media3-datasource:1.2.0"
-    // SMB client
-    implementation 'com.hierynomus:smbj:0.14.0'
-    implementation 'org.slf4j:slf4j-android:1.7.36'
+    // SMB client (plus flavor only — keeps the core build network-free)
+    plusImplementation 'com.hierynomus:smbj:0.14.0'
+    plusImplementation 'org.slf4j:slf4j-android:1.7.36'
     
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'androidx.test:core:1.5.0'
@@ -103,7 +120,7 @@ tasks.withType(Test).configureEach {
 }
 
 tasks.register('jacocoTestDebugUnitTestReport', JacocoReport) {
-    dependsOn 'testDebugUnitTest'
+    dependsOn 'testPlusDebugUnitTest'
 
     reports {
         xml.required = true
@@ -124,12 +141,12 @@ tasks.register('jacocoTestDebugUnitTestReport', JacocoReport) {
     ]
 
     classDirectories.setFrom(files([
-            fileTree(dir: "$buildDir/intermediates/javac/debug/classes", excludes: coverageExcludes),
-            fileTree(dir: "$buildDir/tmp/kotlin-classes/debug", excludes: coverageExcludes)
+            fileTree(dir: "$buildDir/intermediates/javac/plusDebug/classes", excludes: coverageExcludes),
+            fileTree(dir: "$buildDir/tmp/kotlin-classes/plusDebug", excludes: coverageExcludes)
     ]))
-    sourceDirectories.setFrom(files("$projectDir/src/main/java"))
+    sourceDirectories.setFrom(files(["$projectDir/src/main/java", "$projectDir/src/plus/java"]))
     executionData.setFrom(fileTree(dir: buildDir, includes: [
-            'jacoco/testDebugUnitTest.exec',
-            'outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec'
+            'jacoco/testPlusDebugUnitTest.exec',
+            'outputs/unit_test_code_coverage/plusDebugUnitTest/testPlusDebugUnitTest.exec'
     ]))
 }

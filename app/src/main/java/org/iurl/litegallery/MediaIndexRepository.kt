@@ -151,7 +151,7 @@ class MediaIndexRepository(context: Context) {
     }
 
     suspend fun updateMediaItem(oldPath: String, item: MediaItem) = withContext(Dispatchers.IO) {
-        if (oldPath.isBlank() || item.path.isBlank() || item.isSmb) return@withContext
+        if (oldPath.isBlank() || item.path.isBlank() || item.isRemote) return@withContext
         val folderPath = folderPathForMediaItem(item) ?: return@withContext
         val nowMs = System.currentTimeMillis()
         database.withTransaction {
@@ -175,7 +175,7 @@ class MediaIndexRepository(context: Context) {
     }
 
     suspend fun updateMetadata(items: List<MediaItem>) = withContext(Dispatchers.IO) {
-        val localItems = items.filter { !it.isSmb && it.path.isNotBlank() }
+        val localItems = items.filter { !it.isRemote && it.path.isNotBlank() }
         if (localItems.isEmpty()) return@withContext
 
         val nowMs = System.currentTimeMillis()

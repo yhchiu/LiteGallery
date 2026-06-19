@@ -224,8 +224,9 @@ class MainActivity : AppCompatActivity() {
         updateHomeSortIndicator()
 
         folderAdapter = FolderAdapter { folder ->
-            if (SmbPath.isSmb(folder.path)) {
-                startActivity(Intent(this, SmbBrowseActivity::class.java))
+            val source = MediaSourceRegistry.forPath(folder.path)
+            if (source != null) {
+                startActivity(source.browseIntent(this))
             } else {
                 val intent = Intent(this, FolderViewActivity::class.java).apply {
                     putExtra(FolderViewActivity.EXTRA_FOLDER_PATH, folder.path)
@@ -550,16 +551,12 @@ class MainActivity : AppCompatActivity() {
             try {
                 val scannedFolders = mediaScanner.scanMediaFolders()
 
-                // Add SMB virtual folder, then sort through the same path as user-initiated changes.
-                val smbServerCount = withContext(Dispatchers.IO) {
-                    SmbConfigStore.getAllServers(this@MainActivity).size
+                // Append optional media-source home entries (e.g. SMB in the plus flavor),
+                // then sort through the same path as user-initiated changes.
+                val sourceEntries = withContext(Dispatchers.IO) {
+                    MediaSourceRegistry.all().mapNotNull { it.homeEntry(this@MainActivity) }
                 }
-                currentHomeFolders = scannedFolders + MediaFolder(
-                    name = getString(R.string.smb_browse_title),
-                    path = "smb://",
-                    itemCount = smbServerCount,
-                    thumbnail = null
-                )
+                currentHomeFolders = scannedFolders + sourceEntries
                 val folders = buildHomeDisplayFolders()
                 val overviewStats = buildOverviewStats(scannedFolders)
                 currentHomeIndexedMediaTotalCount = overviewStats.totalItems

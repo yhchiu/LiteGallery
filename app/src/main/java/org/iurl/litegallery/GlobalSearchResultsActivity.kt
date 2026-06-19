@@ -291,7 +291,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
                     groupedMediaAdapter -> (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
                     else -> null
                 }
-                if (skeleton == null || (skeleton.isSmb && skeleton.isVideo)) return mutableListOf()
+                if (skeleton == null || (skeleton.isRemote && skeleton.isVideo)) return mutableListOf()
                 return mutableListOf(skeleton.thumbnailModel())
             }
 
@@ -1010,7 +1010,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
 
     private fun requestDetailedMetadataForVisibleItem(skeleton: MediaItemSkeleton) {
         if (skeleton.id <= MediaItem.NO_MEDIASTORE_ID) return
-        if (skeleton.isSmb || skeleton.path.isBlank()) return
+        if (skeleton.isRemote || skeleton.path.isBlank()) return
         if (MediaMetadataCache.get(skeleton) != null) return
         if (!pendingMetadataIds.add(skeleton.id)) return
 
@@ -1065,7 +1065,7 @@ class GlobalSearchResultsActivity : AppCompatActivity() {
             if (
                 skeleton != null &&
                 skeleton.id > MediaItem.NO_MEDIASTORE_ID &&
-                !skeleton.isSmb &&
+                !skeleton.isRemote &&
                 MediaMetadataCache.get(skeleton) == null &&
                 skeleton.id !in pendingMetadataIds
             ) {

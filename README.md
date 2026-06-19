@@ -2,10 +2,21 @@
 
 A lightweight, fast, and privacy-first gallery app for Android that helps you browse and manage your photos and videos.
 
+## Editions
+
+LiteGallery builds in two product flavors, so you can choose your own feature/trust trade-off:
+
+| Edition | Network | Use it if |
+| --- | --- | --- |
+| **Core** (default) | **None** — declares no `INTERNET` permission and bundles no networking code | You want a provably offline, network-free gallery |
+| **Plus** | Adds optional **SMB** network-share browsing/streaming (requests `INTERNET`) | You need to view media from a NAS / Windows share |
+
+Both editions share all local-gallery functionality; only the optional SMB feature — and the network permission it requires — is exclusive to **Plus**.
+
 ## Privacy First
 
-**Your privacy is our priority:**
-- ✅ **No internet permission** - Your data never leaves your device
+**The Core edition is built so your data can never leave the device:**
+- ✅ **No internet permission** - The Core build declares no `INTERNET` permission, so it cannot make network connections
 - ✅ **No background services** - No sneaky background activities
 - ✅ **Only storage permissions** - We only access what's necessary to show your media
 - ✅ **No ads, no tracking** - 100% ad-free and tracker-free
@@ -13,6 +24,8 @@ A lightweight, fast, and privacy-first gallery app for Android that helps you br
 - ✅ **Offline-only** - Works completely offline, no server connections ever
 
 **All your photos and videos stay on your device, always.**
+
+> The **Plus** edition adds opt-in SMB network-share support and therefore requests the `INTERNET` permission. If a verifiable network-free build matters to you, use **Core**.
 
 ## Features
 
@@ -26,6 +39,11 @@ A lightweight, fast, and privacy-first gallery app for Android that helps you br
 - **Image viewer** - View images with smooth zooming and panning
 - **Video player** - Play videos with customizable gesture controls
 - **Fullscreen mode** - Immersive viewing experience
+
+### Network Shares (Plus edition)
+- **SMB browsing** - Browse photos and videos on SMB / Windows network shares
+- **Streaming playback** - Stream videos directly from a share with seek support
+- **Saved servers** - Bookmark servers with guest or username/password login
 
 ### File Management
 - **Quick rename** - Easily rename files with prefix/suffix shortcuts
@@ -41,14 +59,15 @@ A lightweight, fast, and privacy-first gallery app for Android that helps you br
 
 ### Privacy & Permissions
 **Minimal permissions for maximum privacy:**
-- **Storage permissions only** - No network, camera, microphone, location, or any other invasive permissions
+- **Core edition — storage permissions only** - No network, camera, microphone, location, or any other invasive permissions
 - **Required permissions**:
   - 📷 Read Media Images (Android 13+) - To display your photos
   - 🎥 Read Media Video (Android 13+) - To display your videos
   - 📁 Read External Storage (Android 12 and below) - To access your media files
   - 📂 Manage External Storage (optional) - Only if you want to access non-media folders
+- **Plus edition** additionally requests `INTERNET` and `ACCESS_NETWORK_STATE`, used solely for SMB network shares.
 
-**That's it! No hidden permissions, no background access, no internet connection.**
+**Core edition: no hidden permissions, no background access, no internet connection.**
 
 ## Requirements
 
@@ -74,10 +93,19 @@ cd LiteGallery
    - Click **Run > Run 'app'** or press `Shift+F10` (Windows/Linux) or `Ctrl+R` (Mac)
 
 ### Build APK
+
+LiteGallery has two product flavors: **core** (network-free) and **plus** (adds SMB).
+
 ```bash
-./gradlew assembleRelease
+# Network-free edition (declares no INTERNET permission)
+./gradlew assembleCoreRelease    # -> app/build/outputs/apk/core/release/
+
+# Edition with SMB network shares
+./gradlew assemblePlusRelease    # -> app/build/outputs/apk/plus/release/
 ```
-The APK will be generated in `app/build/outputs/apk/release/`
+
+`./gradlew assembleRelease` builds both flavors at once. In Android Studio, pick
+`coreDebug` or `plusDebug` in the **Build Variants** panel to run a specific edition.
 
 ## Testing and Coverage
 
@@ -85,41 +113,49 @@ LiteGallery currently uses JVM unit tests under `app/src/test` for pure Kotlin/J
 
 ### Run all unit tests
 
+The project has two flavors (`core`, `plus`), so unit tests run per flavor.
+SMB-related tests live in the `plus` test source set (`app/src/testPlus`) and run
+only under `testPlusDebugUnitTest`.
+
 On Windows PowerShell:
 ```powershell
-.\gradlew.bat testDebugUnitTest
+.\gradlew.bat testCoreDebugUnitTest testPlusDebugUnitTest
 ```
 
 On macOS/Linux:
 ```bash
-./gradlew testDebugUnitTest
+./gradlew testCoreDebugUnitTest testPlusDebugUnitTest
 ```
 
-The HTML test report is generated at:
+HTML test reports are generated per flavor at:
 ```text
-app/build/reports/tests/testDebugUnitTest/index.html
+app/build/reports/tests/testCoreDebugUnitTest/index.html
+app/build/reports/tests/testPlusDebugUnitTest/index.html
 ```
 
 Raw JUnit XML files are generated at:
 ```text
-app/build/test-results/testDebugUnitTest/
+app/build/test-results/testCoreDebugUnitTest/
+app/build/test-results/testPlusDebugUnitTest/
 ```
 
 ### Run a single test class or method
 
 Windows PowerShell examples:
 ```powershell
-.\gradlew.bat testDebugUnitTest --tests org.iurl.litegallery.SmbPathTest
-.\gradlew.bat testDebugUnitTest --tests "org.iurl.litegallery.MediaUriPathResolverTest.resolveRealPath_returnsFilePathForFileScheme"
+.\gradlew.bat testPlusDebugUnitTest --tests org.iurl.litegallery.SmbPathTest
+.\gradlew.bat testCoreDebugUnitTest --tests "org.iurl.litegallery.MediaUriPathResolverTest.resolveRealPath_returnsFilePathForFileScheme"
 ```
 
 macOS/Linux examples:
 ```bash
-./gradlew testDebugUnitTest --tests org.iurl.litegallery.SmbPathTest
-./gradlew testDebugUnitTest --tests "org.iurl.litegallery.MediaUriPathResolverTest.resolveRealPath_returnsFilePathForFileScheme"
+./gradlew testPlusDebugUnitTest --tests org.iurl.litegallery.SmbPathTest
+./gradlew testCoreDebugUnitTest --tests "org.iurl.litegallery.MediaUriPathResolverTest.resolveRealPath_returnsFilePathForFileScheme"
 ```
 
 ### Generate the JaCoCo coverage report
+
+This task builds and covers the `plus` variant (the superset that also includes the SMB code).
 
 On Windows PowerShell:
 ```powershell
@@ -147,7 +183,7 @@ The current JVM test suite covers:
 - MediaStore projection builders and URI path resolution
 - Trash bin persistence and cleanup behavior
 - File-system media scanning helpers
-- SMB path parsing, SMB config persistence, and SMB Glide image detection
+- SMB path parsing, SMB config persistence, and SMB Glide image detection (plus flavor)
 - Locale, playback diagnostics, and basic media model behavior
 
 ### Remaining test gaps

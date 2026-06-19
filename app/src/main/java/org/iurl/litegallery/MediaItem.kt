@@ -18,12 +18,12 @@ data class MediaItem(
         const val NO_MEDIASTORE_ID = 0L
     }
 
-    /** Whether this item is from an SMB share. */
-    val isSmb: Boolean
-        get() = SmbPath.isSmb(path)
+    /** Whether this item is served by a non-local [MediaSource] (e.g. an SMB share). */
+    val isRemote: Boolean
+        get() = MediaSourceRegistry.isManaged(path)
 
     fun getFile(): File {
-        if (isSmb) throw UnsupportedOperationException("Cannot create File from SMB path: $path")
+        if (isRemote) throw UnsupportedOperationException("Cannot create File from remote path: $path")
         return File(path)
     }
 

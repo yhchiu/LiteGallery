@@ -338,7 +338,7 @@ class FolderViewActivity : AppCompatActivity() {
                     groupedMediaAdapter -> (groupedMediaAdapter.currentList.getOrNull(position) as? FolderDisplayItem.Media)?.skeleton
                     else -> null
                 }
-                if (skeleton == null || (skeleton.isSmb && skeleton.isVideo)) return mutableListOf()
+                if (skeleton == null || (skeleton.isRemote && skeleton.isVideo)) return mutableListOf()
                 return mutableListOf(skeleton.thumbnailModel())
             }
 
@@ -393,7 +393,7 @@ class FolderViewActivity : AppCompatActivity() {
 
     private fun requestDetailedMetadataForVisibleItem(skeleton: MediaItemSkeleton) {
         if (skeleton.id <= MediaItem.NO_MEDIASTORE_ID) return
-        if (skeleton.isSmb || skeleton.path.isBlank()) return
+        if (skeleton.isRemote || skeleton.path.isBlank()) return
         if (MediaMetadataCache.get(skeleton) != null) return
         if (!pendingMetadataIds.add(skeleton.id)) return
 
@@ -513,7 +513,7 @@ class FolderViewActivity : AppCompatActivity() {
             if (
                 skeleton != null &&
                 skeleton.id > MediaItem.NO_MEDIASTORE_ID &&
-                !skeleton.isSmb &&
+                !skeleton.isRemote &&
                 MediaMetadataCache.get(skeleton) == null &&
                 skeleton.id !in pendingMetadataIds
             ) {
@@ -697,7 +697,7 @@ class FolderViewActivity : AppCompatActivity() {
         currentSearchName.isNotBlank() || currentSearchFilters != SearchFilterState()
 
     private fun synchronizeMediaIndexInBackground() {
-        if (!::mediaScanner.isInitialized || isLoadingMediaItems || SmbPath.isSmb(folderPath)) return
+        if (!::mediaScanner.isInitialized || isLoadingMediaItems || MediaSourceRegistry.isManaged(folderPath)) return
         if (mediaIndexSyncJob?.isActive == true) return
 
         mediaIndexSyncJob = lifecycleScope.launch {
@@ -1255,7 +1255,7 @@ class FolderViewActivity : AppCompatActivity() {
                 transformJob?.cancel()
                 resetDetailedMetadataRequests()
 
-                if (fromSwipeRefresh && !SmbPath.isSmb(folderPath)) {
+                if (fromSwipeRefresh && !MediaSourceRegistry.isManaged(folderPath)) {
                     mediaScanner.synchronizeMediaIndexIfNeeded()
                 }
                 

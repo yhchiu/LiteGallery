@@ -177,7 +177,7 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
-            if (skeleton.isSmb && skeleton.isVideo) {
+            if (skeleton.isRemote && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
@@ -235,7 +235,7 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
-            if (skeleton.isSmb && skeleton.isVideo) {
+            if (skeleton.isRemote && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)
@@ -284,7 +284,7 @@ class MediaAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(skeleton: MediaItemSkeleton, mediaItem: MediaItem, position: Int) {
-            if (skeleton.isSmb && skeleton.isVideo) {
+            if (skeleton.isRemote && skeleton.isVideo) {
                 binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
             } else {
                 Glide.with(binding.root.context)

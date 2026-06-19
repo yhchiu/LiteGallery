@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Network permissions are declared only in the `plus` flavor, for SMB file sharing.
+         The `core` flavor never requests them, so it is verifiably network-free. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application>
+        <activity
+            android:name=".SmbBrowseActivity"
+            android:exported="false"
+            android:label="@string/smb_browse_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.LiteGallery.Pack.FirstLight.NoActionBar" />
+    </application>
+
+</manifest>

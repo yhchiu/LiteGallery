@@ -186,13 +186,10 @@ class VideoViewHolder(
         hideLoadingIndicator()
         showLoadingUi()
 
-        if (SmbPath.isSmb(item.path)) {
-            // SMB streaming: use custom DataSource with ProgressiveMediaSource
-            val context = binding.root.context
-            val dataSourceFactory = SmbDataSourceFactory(context)
-            val mediaSource = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(MediaItem.fromUri(android.net.Uri.parse(item.path)))
-            player.setMediaSource(mediaSource, true)
+        val remoteSource = MediaSourceRegistry.forPath(item.path)
+        if (remoteSource != null) {
+            // Remote streaming (e.g. SMB): use the source's custom Media3 media source.
+            player.setMediaSource(remoteSource.createExoMediaSource(binding.root.context, item.path), true)
         } else {
             val mediaUri = if (item.path.startsWith("content://")) {
                 Uri.parse(item.path)

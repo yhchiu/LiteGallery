@@ -192,9 +192,9 @@ object FolderMediaRepository {
 
     fun loadFolderStreamed(context: Context, folderPath: String): Flow<LoadEvent> = flow {
         try {
-            if (SmbPath.isSmb(folderPath)) {
-                val smbScanner = SmbMediaScanner(context)
-                smbScanner.scanSmbMediaInFolderStreamed(folderPath).collect { emit(it) }
+            val source = MediaSourceRegistry.forPath(folderPath)
+            if (source != null) {
+                source.scanFolderStreamed(context, folderPath).collect { emit(it) }
             } else {
                 val mediaScanner = MediaScanner(context)
                 mediaScanner.scanMediaInFolderStreamed(folderPath).collect { emit(it) }

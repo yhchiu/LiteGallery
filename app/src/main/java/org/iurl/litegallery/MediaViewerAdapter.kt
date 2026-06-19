@@ -130,7 +130,7 @@ class MediaViewerAdapter(
                 binding.videoContainer.visibility = View.VISIBLE
                 
                 // Load video thumbnail as fallback (skip for SMB - can't extract frames from network)
-                if (!mediaItem.isSmb) {
+                if (!mediaItem.isRemote) {
                     val context = binding.root.context
                     if (context is android.app.Activity && !context.isDestroyed && !context.isFinishing) {
                         binding.videoThumbnail?.clearColorFilter()

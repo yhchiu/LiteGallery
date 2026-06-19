@@ -37,21 +37,6 @@ class HomeFolderSorterTest {
     }
 
     @Test
-    fun sortByRecent_keepsSmbFolderAtEnd() {
-        val folders = listOf(
-            folder(name = "SMB", path = "smb://", latestDateModifiedMs = Long.MAX_VALUE),
-            folder(name = "Camera", path = "/storage/DCIM/Camera", latestDateModifiedMs = 1_000L)
-        )
-
-        val sorted = HomeFolderSorter.sortByRecent(folders)
-
-        assertEquals(
-            listOf("Camera", "SMB"),
-            sorted.map { it.name }
-        )
-    }
-
-    @Test
     fun sort_ordersFoldersByDateAscending() {
         val folders = listOf(
             folder(name = "Recent", path = "/storage/recent", latestDateModifiedMs = 3_000L),

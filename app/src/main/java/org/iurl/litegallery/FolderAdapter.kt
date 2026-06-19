@@ -39,7 +39,9 @@ class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
 
             // Load thumbnail
             val thumb = folder.thumbnail
-            if (thumb != null && !(SmbPath.isSmb(thumb) && !SmbModelLoader.isSmbImage(thumb))) {
+            val thumbSource = thumb?.let { MediaSourceRegistry.forPath(it) }
+            val canLoadThumb = thumb != null && (thumbSource?.canLoadThumbnail(thumb) ?: true)
+            if (canLoadThumb) {
                 Glide.with(context)
                     .load(thumb)
                     .centerCrop()
@@ -47,11 +49,7 @@ class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
                     .error(R.drawable.ic_folder)
                     .into(binding.thumbnailImageView)
             } else {
-                val iconRes = if (SmbPath.isSmb(folder.path)) {
-                    R.drawable.ic_network
-                } else {
-                    R.drawable.ic_folder
-                }
+                val iconRes = MediaSourceRegistry.forPath(folder.path)?.folderIconRes ?: R.drawable.ic_folder
                 binding.thumbnailImageView.setImageResource(iconRes)
             }
 
@@ -70,8 +68,8 @@ class FolderAdapter(private val onFolderClick: (MediaFolder) -> Unit) :
         }
 
         private fun formatMeta(folder: MediaFolder): String {
-            // SMB virtual folder has no meaningful date/size info — leave meta empty.
-            if (SmbPath.isSmb(folder.path)) return ""
+            // Remote virtual folders (e.g. SMB) have no meaningful date/size info — leave meta empty.
+            if (MediaSourceRegistry.isManaged(folder.path)) return ""
 
             val context = binding.root.context
             val datePart = if (folder.latestDateModifiedMs > 0L) {

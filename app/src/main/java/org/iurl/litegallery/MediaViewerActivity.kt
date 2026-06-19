@@ -1467,9 +1467,8 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private suspend fun scanFolderMediaForViewer(folderPath: String, targetPath: String?): List<MediaItem> {
-        if (SmbPath.isSmb(folderPath)) {
-            val smbScanner = SmbMediaScanner(this@MediaViewerActivity)
-            return smbScanner.scanSmbMediaInFolder(folderPath)
+        MediaSourceRegistry.forPath(folderPath)?.let { source ->
+            return source.scanFolder(this@MediaViewerActivity, folderPath)
         }
 
         var scannedItems = mediaScanner.scanMediaInFolder(
@@ -2674,15 +2673,14 @@ class MediaViewerActivity : AppCompatActivity() {
             return
         }
         
-        val isSmb = SmbPath.isSmb(currentMediaItem.path)
-        
+        val remoteSource = MediaSourceRegistry.forPath(currentMediaItem.path)
+
         // Extract original name based on path type
         val originalName: String
         val fileExtension: String
-        if (isSmb) {
-            val smbPath = SmbPath.parse(currentMediaItem.path) ?: return
-            originalName = smbPath.fileNameWithoutExtension
-            fileExtension = smbPath.fileExtension
+        if (remoteSource != null) {
+            originalName = currentMediaItem.nameWithoutExtension
+            fileExtension = currentMediaItem.extension
         } else {
             val currentFile = java.io.File(currentMediaItem.path)
             originalName = currentFile.nameWithoutExtension
@@ -2735,8 +2733,8 @@ class MediaViewerActivity : AppCompatActivity() {
             val newName = editText.text.toString().trim()
             if (newName.isNotEmpty() && newName != originalName) {
                 analyzeRename(originalName, newName)
-                if (isSmb) {
-                    performSmbRename(currentMediaItem, newName, fileExtension)
+                if (remoteSource != null) {
+                    performRemoteRename(remoteSource, currentMediaItem, newName, fileExtension)
                 } else {
                     performRename(java.io.File(currentMediaItem.path), newName)
                 }
@@ -2850,99 +2848,85 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
 
-    private fun performSmbRename(originalItem: MediaItem, newName: String, extension: String) {
+    private fun performRemoteRename(
+        source: MediaSource,
+        originalItem: MediaItem,
+        newName: String,
+        extension: String
+    ) {
         lifecycleScope.launch {
             try {
                 val sourcePosition = currentPosition
                 val directionForAutoNavigate = lastSwipeDirection
-                val smbPath = SmbPath.parse(originalItem.path) ?: run {
-                    android.widget.Toast.makeText(this@MediaViewerActivity,
-                        "Invalid SMB path", android.widget.Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-
                 val newFileName = if (extension.isNotEmpty()) "$newName.$extension" else newName
-                val oldFilePath = smbPath.path
-                val newFilePath = if (smbPath.parentPath.isBlank()) newFileName else "${smbPath.parentPath}/$newFileName"
-                val newSmbFullPath = "smb://${smbPath.host}/${smbPath.share}/$newFilePath"
 
-                val renameResult = withContext(Dispatchers.IO) {
-                    // Check if target exists
-                    if (SmbClient.fileExists(this@MediaViewerActivity, smbPath.host, smbPath.share, newFilePath)) {
-                        RenameOperationResult.ALREADY_EXISTS
-                    } else {
-                        if (SmbClient.rename(this@MediaViewerActivity, smbPath.host, smbPath.share, oldFilePath, newFilePath)) {
-                            RenameOperationResult.SUCCESS
-                        } else {
-                            RenameOperationResult.FAILED
-                        }
-                    }
+                val outcome = withContext(Dispatchers.IO) {
+                    source.rename(this@MediaViewerActivity, originalItem.path, newName, extension)
                 }
 
-                if (renameResult == RenameOperationResult.ALREADY_EXISTS) {
-                    android.widget.Toast.makeText(this@MediaViewerActivity,
-                        "File with name '$newFileName' already exists",
-                        android.widget.Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-
-                val success = renameResult == RenameOperationResult.SUCCESS
-
-                if (success) {
-                    if (sourcePosition !in mediaItems.indices) {
-                        android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                when (outcome) {
+                    is RenameOutcome.AlreadyExists -> {
+                        android.widget.Toast.makeText(this@MediaViewerActivity,
+                            "File with name '$newFileName' already exists",
+                            android.widget.Toast.LENGTH_SHORT).show()
                         return@launch
                     }
-
-                    // Update media item
-                    val updatedMediaItem = mediaItems[sourcePosition].copy(
-                        name = newFileName,
-                        path = newSmbFullPath
-                    )
-
-                    // Update the list
-                    val updatedList = mediaItems.toMutableList()
-                    updatedList[sourcePosition] = updatedMediaItem
-                    mediaItems = updatedList
-                    recordRenameResult(originalItem.path, updatedMediaItem)
-                    replaceSourceFolderCache(mediaItems)
-
-                    val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
-                    val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {
-                        when (directionForAutoNavigate) {
-                            1 -> if (safeCurrentPosition < mediaItems.size - 1) safeCurrentPosition + 1 else 0
-                            -1 -> if (safeCurrentPosition > 0) safeCurrentPosition - 1 else mediaItems.size - 1
-                            else -> safeCurrentPosition
-                        }
-                    } else {
-                        null
+                    is RenameOutcome.Failed -> {
+                        android.widget.Toast.makeText(this@MediaViewerActivity,
+                            "Failed to rename file",
+                            android.widget.Toast.LENGTH_SHORT).show()
+                        return@launch
                     }
+                    is RenameOutcome.Success -> {
+                        if (sourcePosition !in mediaItems.indices) {
+                            android.widget.Toast.makeText(this@MediaViewerActivity, R.string.error, android.widget.Toast.LENGTH_SHORT).show()
+                            return@launch
+                        }
 
-                    mediaViewerAdapter.submitList(mediaItems) {
-                        currentPosition = safeCurrentPosition
-                        previousPosition = safeCurrentPosition
-                        mediaViewerAdapter.setActivePosition(currentPosition)
-                        updateFileName(currentPosition)
+                        // Update media item
+                        val updatedMediaItem = mediaItems[sourcePosition].copy(
+                            name = newFileName,
+                            path = outcome.newPath
+                        )
 
-                        autoNavigateTarget?.let { target ->
-                            if (target != currentPosition) {
-                                binding.viewPager.setCurrentItem(target, true)
+                        // Update the list
+                        val updatedList = mediaItems.toMutableList()
+                        updatedList[sourcePosition] = updatedMediaItem
+                        mediaItems = updatedList
+                        recordRenameResult(originalItem.path, updatedMediaItem)
+                        replaceSourceFolderCache(mediaItems)
+
+                        val safeCurrentPosition = sourcePosition.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+                        val autoNavigateTarget = if (directionForAutoNavigate != 0 && mediaItems.size > 1) {
+                            when (directionForAutoNavigate) {
+                                1 -> if (safeCurrentPosition < mediaItems.size - 1) safeCurrentPosition + 1 else 0
+                                -1 -> if (safeCurrentPosition > 0) safeCurrentPosition - 1 else mediaItems.size - 1
+                                else -> safeCurrentPosition
+                            }
+                        } else {
+                            null
+                        }
+
+                        mediaViewerAdapter.submitList(mediaItems) {
+                            currentPosition = safeCurrentPosition
+                            previousPosition = safeCurrentPosition
+                            mediaViewerAdapter.setActivePosition(currentPosition)
+                            updateFileName(currentPosition)
+
+                            autoNavigateTarget?.let { target ->
+                                if (target != currentPosition) {
+                                    binding.viewPager.setCurrentItem(target, true)
+                                }
                             }
                         }
+
+                        android.widget.Toast.makeText(this@MediaViewerActivity,
+                            "File renamed to '$newFileName'",
+                            android.widget.Toast.LENGTH_SHORT).show()
                     }
-
-                    android.widget.Toast.makeText(this@MediaViewerActivity,
-                        "File renamed to '$newFileName'",
-                        android.widget.Toast.LENGTH_SHORT).show()
-
-                } else {
-                    android.widget.Toast.makeText(this@MediaViewerActivity,
-                        "Failed to rename file",
-                        android.widget.Toast.LENGTH_SHORT).show()
                 }
-
             } catch (e: Exception) {
-                android.util.Log.e("MediaViewerActivity", "Error renaming SMB file: ${e.message}")
+                android.util.Log.e("MediaViewerActivity", "Error renaming remote file: ${e.message}")
                 android.widget.Toast.makeText(this@MediaViewerActivity,
                     "Error renaming file: ${e.message}",
                     android.widget.Toast.LENGTH_SHORT).show()

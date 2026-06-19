@@ -206,7 +206,7 @@ class GroupedMediaAdapter(
     }
 
     private fun bindThumbnail(binding: ItemMediaBinding, skeleton: MediaItemSkeleton, mediaItem: MediaItem) {
-        if (skeleton.isSmb && skeleton.isVideo) {
+        if (skeleton.isRemote && skeleton.isVideo) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
             Glide.with(binding.root.context)
@@ -226,7 +226,7 @@ class GroupedMediaAdapter(
     }
 
     private fun bindThumbnail(binding: ItemMediaListBinding, skeleton: MediaItemSkeleton, mediaItem: MediaItem) {
-        if (skeleton.isSmb && skeleton.isVideo) {
+        if (skeleton.isRemote && skeleton.isVideo) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
             Glide.with(binding.root.context)
@@ -246,7 +246,7 @@ class GroupedMediaAdapter(
     }
 
     private fun bindThumbnail(binding: ItemMediaDetailedBinding, skeleton: MediaItemSkeleton, mediaItem: MediaItem) {
-        if (skeleton.isSmb && skeleton.isVideo) {
+        if (skeleton.isRemote && skeleton.isVideo) {
             binding.thumbnailImageView.setImageResource(R.drawable.ic_image_placeholder)
         } else {
             Glide.with(binding.root.context)

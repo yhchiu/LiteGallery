@@ -18,9 +18,9 @@ data class MediaItemSkeleton(
     val size: Long,
     val isVideo: Boolean
 ) {
-    /** Whether this item is from an SMB share. */
-    val isSmb: Boolean
-        get() = SmbPath.isSmb(path)
+    /** Whether this item is served by a non-local [MediaSource] (e.g. an SMB share). */
+    val isRemote: Boolean
+        get() = MediaSourceRegistry.isManaged(path)
 
     fun toMediaItem(): MediaItem {
         return toBaselineMediaItem()
@@ -41,7 +41,7 @@ data class MediaItemSkeleton(
     }
 
     fun thumbnailModel(): Any {
-        if (isSmb) return path
+        if (isRemote) return path
         if (path.startsWith("content://")) return Uri.parse(path)
         if (id > MediaItem.NO_MEDIASTORE_ID) {
             val baseUri = if (isVideo) {

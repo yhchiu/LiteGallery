@@ -2,7 +2,6 @@ package org.iurl.litegallery
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -29,15 +28,12 @@ class MediaItemTest {
     }
 
     @Test
-    fun getFile_returnsLocalFileButRejectsSmbPaths() {
+    fun getFile_returnsLocalFile() {
+        // With no media source registered, every path is treated as local.
         val local = imageItem(path = "C:/media/photo.jpg")
-        val smb = imageItem(path = "smb://server/share/photo.jpg")
 
         assertEquals("C:/media/photo.jpg", local.getFile().path.replace('\\', '/'))
-        assertTrue(smb.isSmb)
-        assertThrows(UnsupportedOperationException::class.java) {
-            smb.getFile()
-        }
+        assertFalse(local.isRemote)
     }
 
     @Test

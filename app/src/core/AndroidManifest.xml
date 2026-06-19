@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Glide's library manifest contributes ACCESS_NETWORK_STATE. Remove it so the
+         core build declares no network-related permissions at all (verifiably
+         network-free). The plus flavor keeps it for SMB. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+
+</manifest>
