@@ -15,7 +15,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
@@ -743,18 +745,11 @@ class SmbBrowseActivity : AppCompatActivity() {
  */
 class SmbBrowseAdapter(
     private val onItemClick: (SmbClient.SmbFileInfo) -> Unit
-) : RecyclerView.Adapter<SmbBrowseAdapter.SmbFileViewHolder>() {
-
-    private var items: List<SmbClient.SmbFileInfo> = emptyList()
+) : ListAdapter<SmbClient.SmbFileInfo, SmbBrowseAdapter.SmbFileViewHolder>(SmbFileDiffCallback()) {
 
     /** Host + share of the directory currently shown, used to build full smb:// urls for thumbnails. */
     var shareHost: String? = null
     var shareName: String? = null
-
-    fun submitList(newItems: List<SmbClient.SmbFileInfo>) {
-        items = newItems
-        notifyDataSetChanged()
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SmbFileViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -763,10 +758,8 @@ class SmbBrowseAdapter(
     }
 
     override fun onBindViewHolder(holder: SmbFileViewHolder, position: Int) {
-        holder.bind(items[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount(): Int = items.size
 
     inner class SmbFileViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val iconView: android.widget.ImageView = itemView.findViewById(R.id.fileIcon)
@@ -838,5 +831,13 @@ class SmbBrowseAdapter(
                 else -> "$bytes B"
             }
         }
+    }
+
+    private class SmbFileDiffCallback : DiffUtil.ItemCallback<SmbClient.SmbFileInfo>() {
+        override fun areItemsTheSame(oldItem: SmbClient.SmbFileInfo, newItem: SmbClient.SmbFileInfo): Boolean =
+            oldItem.path == newItem.path && oldItem.isDirectory == newItem.isDirectory
+
+        override fun areContentsTheSame(oldItem: SmbClient.SmbFileInfo, newItem: SmbClient.SmbFileInfo): Boolean =
+            oldItem == newItem
     }
 }
