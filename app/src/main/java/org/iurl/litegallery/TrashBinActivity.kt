@@ -556,40 +556,13 @@ class TrashBinActivity : AppCompatActivity() {
             path = file.absolutePath,
             dateModified = file.lastModified(),
             size = file.length(),
-            mimeType = getMimeTypeFromExtension(extension, isVideo),
+            mimeType = MediaMimeTypes.fromExtension(extension),
             duration = 0L
         )
     }
 
-    private fun getMimeTypeFromExtension(extension: String, isVideo: Boolean): String {
-        return if (isVideo) {
-            when (extension) {
-                "mp4" -> "video/mp4"
-                "avi" -> "video/x-msvideo"
-                "mov" -> "video/quicktime"
-                "mkv" -> "video/x-matroska"
-                "3gp" -> "video/3gpp"
-                "webm" -> "video/webm"
-                else -> "video/*"
-            }
-        } else {
-            when (extension) {
-                "jpg", "jpeg" -> "image/jpeg"
-                "png" -> "image/png"
-                "gif" -> "image/gif"
-                "webp" -> "image/webp"
-                "bmp" -> "image/bmp"
-                "heic" -> "image/heic"
-                "heif" -> "image/heif"
-                else -> "image/*"
-            }
-        }
-    }
-
     private fun resolveMimeTypeFromName(name: String): String {
-        val extension = name.substringAfterLast('.', "").lowercase()
-        val isVideo = videoExtensions.contains(extension)
-        return getMimeTypeFromExtension(extension, isVideo)
+        return MediaMimeTypes.fromPath(name)
     }
 
     private fun getCursorString(cursor: Cursor, columnName: String): String? {

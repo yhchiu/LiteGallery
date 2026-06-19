@@ -1528,16 +1528,18 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.fileNameTextView.text = fileName
 
         lifecycleScope.launch {
-            val dimensions = withContext(Dispatchers.IO) {
-                getMediaDimensionsFromPath(path)
+            val probe = withContext(Dispatchers.IO) {
+                val file = java.io.File(path)
+                Triple(getMediaDimensionsFromPath(path), file.lastModified(), file.length())
             }
+            val (dimensions, lastModifiedMs, sizeBytes) = probe
             val mediaItem = MediaItem(
                 id = MediaItem.NO_MEDIASTORE_ID,
                 name = fileName,
                 path = path,
-                dateModified = System.currentTimeMillis(),
-                size = 0,
-                mimeType = getMimeTypeFromPath(path),
+                dateModified = if (lastModifiedMs > 0L) lastModifiedMs else System.currentTimeMillis(),
+                size = sizeBytes.coerceAtLeast(0L),
+                mimeType = MediaMimeTypes.fromPath(path),
                 width = dimensions.first,
                 height = dimensions.second
             )
@@ -2197,14 +2199,7 @@ class MediaViewerActivity : AppCompatActivity() {
         }
     }
     
-    private fun getMimeTypeFromPath(path: String): String {
-        val extension = path.substringAfterLast(".", "").lowercase()
-        return when (extension) {
-            "jpg", "jpeg", "png", "gif", "webp", "bmp" -> "image/$extension"
-            "mp4", "avi", "mov", "mkv", "3gp", "webm" -> "video/$extension"
-            else -> if (path.contains("video", ignoreCase = true)) "video/*" else "image/*"
-        }
-    }
+    private fun getMimeTypeFromPath(path: String): String = MediaMimeTypes.fromPath(path)
     
     private fun updateFileName(position: Int) {
         if (position < mediaItems.size) {

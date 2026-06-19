@@ -159,8 +159,7 @@ class FileSystemScanner(private val context: Context) {
     
     private fun createMediaItemFromFile(file: File): MediaItem {
         val extension = file.extension.lowercase()
-        val isVideo = videoExtensions.contains(extension)
-        
+
         return MediaItem(
             id = MediaItem.NO_MEDIASTORE_ID,
             name = file.name,
@@ -168,7 +167,7 @@ class FileSystemScanner(private val context: Context) {
             dateModified = file.lastModified(),
             // Keep folder scanning lightweight; load size when detailed/properties asks for it.
             size = 0,
-            mimeType = getMimeTypeFromExtension(extension, isVideo),
+            mimeType = MediaMimeTypes.fromExtension(extension),
             // Keep folder scanning lightweight: skip expensive metadata probing.
             duration = 0,
             width = 0,
@@ -176,28 +175,4 @@ class FileSystemScanner(private val context: Context) {
         )
     }
     
-    private fun getMimeTypeFromExtension(extension: String, isVideo: Boolean): String {
-        return if (isVideo) {
-            when (extension) {
-                "mp4" -> "video/mp4"
-                "avi" -> "video/x-msvideo"
-                "mov" -> "video/quicktime"
-                "mkv" -> "video/x-matroska"
-                "3gp" -> "video/3gpp"
-                "webm" -> "video/webm"
-                else -> "video/*"
-            }
-        } else {
-            when (extension) {
-                "jpg", "jpeg" -> "image/jpeg"
-                "png" -> "image/png"
-                "gif" -> "image/gif"
-                "webp" -> "image/webp"
-                "bmp" -> "image/bmp"
-                "heic" -> "image/heic"
-                "heif" -> "image/heif"
-                else -> "image/*"
-            }
-        }
-    }
 }
