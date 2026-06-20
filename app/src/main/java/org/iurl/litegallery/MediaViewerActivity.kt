@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.documentfile.provider.DocumentFile
 import androidx.preference.PreferenceManager
 import org.iurl.litegallery.databinding.ActivityMediaViewerBinding
 import org.iurl.litegallery.theme.ThemeColorResolver
@@ -1989,31 +1988,68 @@ class MediaViewerActivity : AppCompatActivity() {
         targetUri: android.net.Uri,
         targetName: String?
     ): TreeScanResult {
-        val root = DocumentFile.fromTreeUri(this, treeUri) ?: return TreeScanResult(emptyList(), -1)
-        val children = try {
-            root.listFiles()
+        val parentDocumentId = runCatching {
+            android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+        }.getOrNull() ?: return TreeScanResult(emptyList(), -1)
+        val childrenUri = runCatching {
+            android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
+        }.getOrNull() ?: return TreeScanResult(emptyList(), -1)
+
+        // Query the children in one round trip instead of wrapping every child in a
+        // DocumentFile (which issues a separate provider call per file).
+        val projection = arrayOf(
+            android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE,
+            android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            android.provider.DocumentsContract.Document.COLUMN_SIZE
+        )
+
+        val collected = ArrayList<MediaItem>()
+        try {
+            contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                val idColumn = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                val nameColumn = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                val mimeColumn = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+                val modifiedColumn = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                val sizeColumn = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_SIZE)
+                if (idColumn < 0) return@use
+
+                while (cursor.moveToNext()) {
+                    val documentId = cursor.getString(idColumn) ?: continue
+                    val displayName = if (nameColumn >= 0) cursor.getString(nameColumn) else null
+                    val mimeType = if (mimeColumn >= 0) cursor.getString(mimeColumn) else null
+                    if (mimeType == android.provider.DocumentsContract.Document.MIME_TYPE_DIR) continue
+                    if (!isLikelyMediaDocument(displayName, mimeType)) continue
+
+                    val documentUri = android.provider.DocumentsContract
+                        .buildDocumentUriUsingTree(treeUri, documentId)
+                    val resolvedName = displayName ?: getString(R.string.unknown_value)
+                    val resolvedMime = mimeType?.takeIf { it.isNotBlank() }
+                        ?: MediaMimeTypes.fromPath(resolvedName)
+                    collected.add(
+                        MediaItem(
+                            id = MediaItem.NO_MEDIASTORE_ID,
+                            name = resolvedName,
+                            path = documentUri.toString(),
+                            dateModified = if (modifiedColumn >= 0) {
+                                cursor.getLong(modifiedColumn).coerceAtLeast(0L)
+                            } else 0L,
+                            size = if (sizeColumn >= 0) cursor.getLong(sizeColumn).coerceAtLeast(0L) else 0L,
+                            mimeType = resolvedMime,
+                            width = 0,
+                            height = 0
+                        )
+                    )
+                }
+            }
         } catch (_: Exception) {
             return TreeScanResult(emptyList(), -1)
         }
 
-        val items = children.asSequence()
-            .filter { it.isFile && isLikelyMediaDocument(it) }
-            .map { file ->
-                MediaItem(
-                    id = MediaItem.NO_MEDIASTORE_ID,
-                    name = file.name ?: getString(R.string.unknown_value),
-                    path = file.uri.toString(),
-                    dateModified = file.lastModified().coerceAtLeast(0L),
-                    size = 0L,
-                    mimeType = resolveMimeTypeForDocument(file),
-                    width = 0,
-                    height = 0
-                )
-            }
-            .sortedByDescending { it.dateModified }
-            .toList()
+        if (collected.isEmpty()) return TreeScanResult(emptyList(), -1)
 
-        if (items.isEmpty()) return TreeScanResult(emptyList(), -1)
+        val items = collected.sortedByDescending { it.dateModified }
 
         val targetPath = targetUri.toString()
         val targetIndexByUri = items.indexOfFirst { it.path == targetPath }
@@ -2032,25 +2068,14 @@ class MediaViewerActivity : AppCompatActivity() {
         return TreeScanResult(items, -1)
     }
 
-    private fun isLikelyMediaDocument(file: DocumentFile): Boolean {
-        val mimeType = resolveMimeTypeForDocument(file)
-        if (mimeType.startsWith("image/") || mimeType.startsWith("video/")) return true
+    private fun isLikelyMediaDocument(displayName: String?, mimeType: String?): Boolean {
+        if (mimeType != null && (mimeType.startsWith("image/") || mimeType.startsWith("video/"))) return true
 
-        val extension = file.name?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()
+        val extension = displayName?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()
         return extension in setOf(
             "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif",
             "mp4", "avi", "mov", "mkv", "3gp", "webm", "m4v", "flv"
         )
-    }
-
-    private fun resolveMimeTypeForDocument(file: DocumentFile): String {
-        val fileUri = file.uri
-        val resolverType = try {
-            contentResolver.getType(fileUri)
-        } catch (_: Exception) {
-            null
-        }
-        return resolverType ?: file.type ?: getMimeTypeFromPath(file.name ?: "")
     }
     
     private fun scanParentFolder(filePath: String) {
@@ -2198,8 +2223,6 @@ class MediaViewerActivity : AppCompatActivity() {
             } else null
         }
     }
-    
-    private fun getMimeTypeFromPath(path: String): String = MediaMimeTypes.fromPath(path)
     
     private fun updateFileName(position: Int) {
         if (position < mediaItems.size) {
