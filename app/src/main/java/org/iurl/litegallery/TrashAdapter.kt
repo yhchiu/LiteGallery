@@ -35,6 +35,21 @@ class TrashAdapter(
     private val getFromLabel: (MediaItem) -> String?
 ) : ListAdapter<MediaItem, TrashAdapter.TrashViewHolder>(TrashDiffCallback()) {
 
+    // path -> adapter position, rebuilt whenever the submitted list changes so a
+    // selection toggle resolves changed rows by lookup instead of scanning the list.
+    private val indexByPath = mutableMapOf<String, Int>()
+
+    override fun onCurrentListChanged(
+        previousList: MutableList<MediaItem>,
+        currentList: MutableList<MediaItem>
+    ) {
+        super.onCurrentListChanged(previousList, currentList)
+        indexByPath.clear()
+        currentList.forEachIndexed { index, item ->
+            indexByPath[item.path] = index
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TrashViewHolder {
         val binding = ItemTrashBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return TrashViewHolder(binding)
@@ -50,10 +65,9 @@ class TrashAdapter(
      */
     fun notifySelectionChanged(changedPaths: Set<String>) {
         if (changedPaths.isEmpty()) return
-        for (i in 0 until itemCount) {
-            if (getItem(i).path in changedPaths) {
-                notifyItemChanged(i)
-            }
+        changedPaths.forEach { path ->
+            val index = indexByPath[path] ?: return@forEach
+            notifyItemChanged(index)
         }
     }
 
