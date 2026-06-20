@@ -33,6 +33,7 @@ import org.iurl.litegallery.theme.ThemeColorResolver
 import org.iurl.litegallery.theme.ThemeVariant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1092,7 +1093,8 @@ class FolderViewActivity : AppCompatActivity() {
                     sortOrder = sortOrderSnapshot,
                     groupBy = groupBySnapshot,
                     labels = labels,
-                    searchQuery = searchQuerySnapshot
+                    searchQuery = searchQuerySnapshot,
+                    ensureActive = { coroutineContext.ensureActive() }
                 )
             }
             if (generation != displayGeneration) return@launch
@@ -1214,7 +1216,8 @@ class FolderViewActivity : AppCompatActivity() {
                     sortOrder = sortOrderSnapshot,
                     groupBy = groupBySnapshot,
                     labels = labels,
-                    searchQuery = searchQuerySnapshot
+                    searchQuery = searchQuerySnapshot,
+                    ensureActive = { coroutineContext.ensureActive() }
                 )
             }
             if (sortOrderSnapshot == currentSortOrder &&

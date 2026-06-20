@@ -239,6 +239,41 @@ class FolderDisplayBuilderTest {
     }
 
     @Test
+    fun buildAbortsWhenEnsureActiveThrows() {
+        val items = (1..2_000).map { item("IMG_$it.jpg", dateModified = it.toLong()) }
+        val cancellation = kotlinx.coroutines.CancellationException("stale build")
+
+        val thrown = try {
+            FolderDisplayBuilder.build(
+                items = items,
+                sortOrder = "date_desc",
+                groupBy = FolderGroupBy.DATE,
+                labels = labels,
+                ensureActive = { throw cancellation }
+            )
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            e
+        }
+
+        assertEquals(cancellation, thrown)
+    }
+
+    @Test
+    fun buildCompletesWithDefaultNoOpEnsureActive() {
+        val items = (1..1_000).map { item("IMG_$it.jpg", dateModified = it.toLong()) }
+
+        val result = FolderDisplayBuilder.build(
+            items = items,
+            sortOrder = "date_desc",
+            groupBy = FolderGroupBy.NONE,
+            labels = labels
+        )
+
+        assertEquals(1_000, result.stats.itemCount)
+    }
+
+    @Test
     fun invalidGroupPreferenceFallsBackToNone() {
         assertEquals(FolderGroupBy.NONE, FolderGroupBy.fromPreference("bad"))
         assertEquals(FolderGroupBy.NONE, FolderGroupBy.fromPreference(null))

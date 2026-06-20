@@ -37,22 +37,37 @@ data class FolderDisplayStats(
 object FolderDisplayBuilder {
     private const val TARGET_SIZE_BUCKETS = 5
 
+    // Check for cancellation every this many items so a superseded sort/group switch
+    // aborts promptly without paying a check on every single element.
+    private const val CANCELLATION_CHECK_INTERVAL = 512
+
+    /**
+     * Build the folder display model.
+     *
+     * [ensureActive] is invoked periodically inside the per-item loops; callers running this
+     * on a coroutine can pass `{ coroutineContext.ensureActive() }` so that rapidly switching
+     * sort/group cancels a stale build instead of letting it run to completion. It defaults to
+     * a no-op for non-coroutine callers (e.g. tests).
+     */
     fun build(
         items: List<MediaItemSkeleton>,
         sortOrder: String,
         groupBy: FolderGroupBy,
         labels: FolderDisplayLabels,
-        searchQuery: MediaSearchQuery? = null
+        searchQuery: MediaSearchQuery? = null,
+        ensureActive: () -> Unit = {}
     ): FolderDisplayResult {
         val filteredItems = if (searchQuery == null || searchQuery.isEmpty || items.isEmpty()) {
             items
         } else {
             items.filter { searchQuery.matches(it) }
         }
-        val stats = buildStats(filteredItems)
+        ensureActive()
+        val stats = buildStats(filteredItems, ensureActive)
         val sortedItems = sortMediaItems(filteredItems, sortOrder)
+        ensureActive()
         if (groupBy == FolderGroupBy.NONE || sortedItems.isEmpty()) {
-            val flatSections = if (sortedItems.isNotEmpty()) buildIndexForFlatList(sortedItems, sortOrder, labels) else emptyList()
+            val flatSections = if (sortedItems.isNotEmpty()) buildIndexForFlatList(sortedItems, sortOrder, labels, ensureActive) else emptyList()
             return FolderDisplayResult(
                 sortedMediaItems = sortedItems,
                 displayItems = emptyList(),
@@ -62,7 +77,7 @@ object FolderDisplayBuilder {
             )
         }
 
-        val groupedDisplay = buildDisplayItems(sortedItems, groupBy, labels)
+        val groupedDisplay = buildDisplayItems(sortedItems, groupBy, labels, ensureActive)
         return FolderDisplayResult(
             sortedMediaItems = sortedItems,
             displayItems = groupedDisplay.displayItems,
@@ -72,10 +87,11 @@ object FolderDisplayBuilder {
         )
     }
 
-    private fun buildStats(items: List<MediaItemSkeleton>): FolderDisplayStats {
+    private fun buildStats(items: List<MediaItemSkeleton>, ensureActive: () -> Unit): FolderDisplayStats {
         var totalSizeBytes = 0L
         var videoCount = 0
-        items.forEach { item ->
+        items.forEachIndexed { index, item ->
+            if (index % CANCELLATION_CHECK_INTERVAL == 0) ensureActive()
             totalSizeBytes += item.size.coerceAtLeast(0L)
             if (item.isVideo) videoCount++
         }
@@ -89,19 +105,21 @@ object FolderDisplayBuilder {
     private fun buildIndexForFlatList(
         sortedItems: List<MediaItemSkeleton>,
         sortOrder: String,
-        labels: FolderDisplayLabels
+        labels: FolderDisplayLabels,
+        ensureActive: () -> Unit
     ): List<FastScrollSection> {
         val sections = mutableListOf<FastScrollSection>()
         var currentLabel = ""
-        
+
         // Use a dummy group selector that matches the sort order
         val selector = when (sortOrder) {
             "name_asc", "name_desc" -> createGroupSelector(sortedItems, FolderGroupBy.NAME, labels)
             "size_asc", "size_desc" -> createGroupSelector(sortedItems, FolderGroupBy.SIZE, labels)
             else -> createGroupSelector(sortedItems, FolderGroupBy.DATE, labels) // Default to DATE
         }
-        
+
         sortedItems.forEachIndexed { i, item ->
+            if (i % CANCELLATION_CHECK_INTERVAL == 0) ensureActive()
             val groupInfo = selector(item)
             val label = groupInfo.title
             if (label != currentLabel) {
@@ -133,11 +151,13 @@ object FolderDisplayBuilder {
     private fun buildDisplayItems(
         sortedItems: List<MediaItemSkeleton>,
         groupBy: FolderGroupBy,
-        labels: FolderDisplayLabels
+        labels: FolderDisplayLabels,
+        ensureActive: () -> Unit
     ): GroupedDisplayResult {
         val groupSelector = createGroupSelector(sortedItems, groupBy, labels)
         val groups = linkedMapOf<GroupInfo, MutableList<FolderDisplayItem.Media>>()
         sortedItems.forEachIndexed { index, item ->
+            if (index % CANCELLATION_CHECK_INTERVAL == 0) ensureActive()
             val group = groupSelector(item)
             groups.getOrPut(group) { mutableListOf() }
                 .add(FolderDisplayItem.Media(item, mediaIndex = index))
