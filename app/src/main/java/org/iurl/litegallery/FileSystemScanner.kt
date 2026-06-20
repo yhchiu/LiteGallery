@@ -2,6 +2,8 @@ package org.iurl.litegallery
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -102,24 +104,28 @@ class FileSystemScanner(private val context: Context) {
         return paths
     }
     
-    private fun scanDirectoryRecursively(
-        directory: File, 
+    private suspend fun scanDirectoryRecursively(
+        directory: File,
         folders: MutableMap<String, MutableList<MediaItem>>,
         ignoreNomedia: Boolean,
         maxDepth: Int = 5,
         currentDepth: Int = 0
     ) {
         if (currentDepth >= maxDepth) return
-        
+        // Stop promptly if the caller cancelled (e.g. the screen was left) instead of
+        // walking the rest of a potentially huge tree.
+        currentCoroutineContext().ensureActive()
+
         try {
             // Check for .nomedia file unless we're ignoring it
             if (!ignoreNomedia && hasNomediaFile(directory)) {
                 return
             }
-            
+
             val mediaItems = mutableListOf<MediaItem>()
-            
+
             directory.listFiles()?.forEach { file ->
+                currentCoroutineContext().ensureActive()
                 when {
                     file.isFile && isMediaFile(file) -> {
                         mediaItems.add(createMediaItemFromFile(file))
@@ -136,6 +142,9 @@ class FileSystemScanner(private val context: Context) {
                 folders[directory.absolutePath] = mediaItems
             }
             
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Propagate cancellation; don't treat it as a "problematic directory".
+            throw e
         } catch (e: SecurityException) {
             // Skip directories we don't have permission to read
         } catch (e: Exception) {
