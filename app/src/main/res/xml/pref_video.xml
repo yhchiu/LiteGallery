@@ -64,6 +64,12 @@
         android:title="@string/remember_video_brightness_title" />
 
     <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="remember_media_viewer_info_sheet_state"
+        android:summary="@string/remember_media_viewer_info_sheet_state_summary"
+        android:title="@string/remember_media_viewer_info_sheet_state_title" />
+
+    <SwitchPreferenceCompat
         android:defaultValue="true"
         android:key="restore_volume"
         android:summary="@string/restore_volume_summary"

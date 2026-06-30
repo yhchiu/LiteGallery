@@ -47,6 +47,10 @@ class MediaViewerActivity : AppCompatActivity() {
         // Video brightness memory preference keys
         private const val REMEMBER_VIDEO_BRIGHTNESS_KEY = "remember_video_brightness"
         private const val SAVED_VIDEO_BRIGHTNESS_KEY = "saved_video_brightness"
+
+        // Media Viewer info sheet memory preference keys
+        private const val REMEMBER_MEDIA_VIEWER_INFO_SHEET_STATE_KEY = "remember_media_viewer_info_sheet_state"
+        private const val SAVED_MEDIA_VIEWER_INFO_SHEET_MINIMIZED_KEY = "saved_media_viewer_info_sheet_minimized"
         private const val STATE_INFO_SHEET_MINIMIZED = "state_info_sheet_minimized"
 
     }
@@ -155,7 +159,7 @@ class MediaViewerActivity : AppCompatActivity() {
         ThemeHelper.captureCustomThemeGeneration(this)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        isInfoSheetMinimized = savedInstanceState?.getBoolean(STATE_INFO_SHEET_MINIMIZED) ?: false
+        isInfoSheetMinimized = resolveInitialInfoSheetMinimized(savedInstanceState)
 
         // Track current pack so onResume can detect changes from Settings/Picker
         currentPackKey = ThemeHelper.getCurrentPack(this).key
@@ -584,7 +588,28 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun setInfoSheetMinimized(minimized: Boolean) {
         if (isInfoSheetMinimized == minimized) return
         isInfoSheetMinimized = minimized
+        saveRememberedInfoSheetMinimizedIfEnabled(minimized)
         applyInfoSheetMinimizedState()
+    }
+
+    private fun resolveInitialInfoSheetMinimized(savedInstanceState: Bundle?): Boolean {
+        savedInstanceState?.let {
+            return it.getBoolean(STATE_INFO_SHEET_MINIMIZED, false)
+        }
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(REMEMBER_MEDIA_VIEWER_INFO_SHEET_STATE_KEY, false)) {
+            return false
+        }
+
+        return prefs.getBoolean(SAVED_MEDIA_VIEWER_INFO_SHEET_MINIMIZED_KEY, false)
+    }
+
+    private fun saveRememberedInfoSheetMinimizedIfEnabled(minimized: Boolean) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(REMEMBER_MEDIA_VIEWER_INFO_SHEET_STATE_KEY, false)) return
+
+        prefs.edit().putBoolean(SAVED_MEDIA_VIEWER_INFO_SHEET_MINIMIZED_KEY, minimized).apply()
     }
 
     private fun applyInfoSheetMinimizedState() {

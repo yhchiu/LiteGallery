@@ -62,6 +62,8 @@ class SettingsExportImportHelper(private val context: Context) {
             "restore_brightness" to PreferenceType.BOOLEAN,
             "remember_video_brightness" to PreferenceType.BOOLEAN,
             "saved_video_brightness" to PreferenceType.FLOAT,
+            "remember_media_viewer_info_sheet_state" to PreferenceType.BOOLEAN,
+            "saved_media_viewer_info_sheet_minimized" to PreferenceType.BOOLEAN,
             "restore_volume" to PreferenceType.BOOLEAN,
             "enable_playback_diagnostics" to PreferenceType.BOOLEAN,
             "external_folder_access_prompt_enabled" to PreferenceType.BOOLEAN,

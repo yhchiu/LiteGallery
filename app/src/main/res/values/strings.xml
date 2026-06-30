@@ -135,6 +135,8 @@
     <string name="restore_brightness_summary">Restore original brightness when exiting app</string>
     <string name="remember_video_brightness_title">Remember Video Brightness</string>
     <string name="remember_video_brightness_summary">Use the last adjusted brightness when playing videos next time</string>
+    <string name="remember_media_viewer_info_sheet_state_title">Remember Info Sheet State</string>
+    <string name="remember_media_viewer_info_sheet_state_summary">Use the last expanded or collapsed state when opening Media Viewer next time</string>
     <string name="restore_volume_title">Restore Volume</string>
     <string name="restore_volume_summary">Restore original volume when exiting app</string>
     <string name="playback_diagnostics_setting_title">Enable Playback Diagnostics</string>

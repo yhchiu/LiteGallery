@@ -524,6 +524,47 @@ class SettingsExportImportHelperTest {
         assertTrue(prefs.all["saved_video_brightness"] is Float)
     }
 
+    @Test
+    fun exportSettings_includesRememberedMediaViewerInfoSheetState() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        prefs.edit()
+            .putBoolean("remember_media_viewer_info_sheet_state", true)
+            .putBoolean("saved_media_viewer_info_sheet_minimized", true)
+            .commit()
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val root = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+        val preferences = root.getJSONObject("preferences")
+        assertTrue(preferences.getBoolean("remember_media_viewer_info_sheet_state"))
+        assertTrue(preferences.getBoolean("saved_media_viewer_info_sheet_minimized"))
+    }
+
+    @Test
+    fun importSettings_restoresRememberedMediaViewerInfoSheetState() {
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 1)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                put("remember_media_viewer_info_sheet_state", true)
+                put("saved_media_viewer_info_sheet_minimized", true)
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(2, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        assertTrue(prefs.getBoolean("remember_media_viewer_info_sheet_state", false))
+        assertTrue(prefs.getBoolean("saved_media_viewer_info_sheet_minimized", false))
+    }
+
     private fun clearPrefs() {
         PreferenceManager.getDefaultSharedPreferences(context)
             .edit()

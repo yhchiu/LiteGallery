@@ -135,6 +135,8 @@
     <string name="restore_brightness_summary">退出应用时还原原始亮度</string>
     <string name="remember_video_brightness_title">记忆视频亮度</string>
     <string name="remember_video_brightness_summary">下次播放视频时使用上次调整的亮度</string>
+    <string name="remember_media_viewer_info_sheet_state_title">记忆信息面板状态</string>
+    <string name="remember_media_viewer_info_sheet_state_summary">下次打开媒体查看器时使用上次的展开或收起状态</string>
     <string name="restore_volume_title">还原音量</string>
     <string name="restore_volume_summary">退出应用时还原原始音量</string>
     <string name="playback_diagnostics_setting_title">启用播放诊断</string>
