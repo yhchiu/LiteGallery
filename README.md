@@ -92,6 +92,24 @@ cd LiteGallery
 4. Run on device/emulator:
    - Click **Run > Run 'app'** or press `Shift+F10` (Windows/Linux) or `Ctrl+R` (Mac)
 
+### Select an Edition in Android Studio
+
+LiteGallery variants combine one product flavor (`core` or `plus`) with one build type (`debug` or `release`):
+
+| Variant | Use it for |
+| --- | --- |
+| `coreDebug` | Running/debugging the network-free Core edition |
+| `plusDebug` | Running/debugging the Plus edition with SMB support |
+| `coreRelease` | Building a release APK/AAB for the network-free Core edition |
+| `plusRelease` | Building a release APK/AAB for the Plus edition with SMB support |
+
+To switch editions in Android Studio:
+
+1. Open **View > Tool Windows > Build Variants**.
+2. In the `app` module row, open the **Active Build Variant** dropdown.
+3. Choose `coreDebug` or `plusDebug` before clicking **Run**.
+4. If the variants are missing, click **Sync Project with Gradle Files** and reopen the Build Variants panel.
+
 ### Build APK
 
 LiteGallery has two product flavors: **core** (network-free) and **plus** (adds SMB).
