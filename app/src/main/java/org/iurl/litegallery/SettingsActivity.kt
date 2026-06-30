@@ -179,6 +179,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 "screen_storage" -> R.xml.pref_storage
                 "screen_advanced" -> R.xml.pref_advanced
                 "screen_backup" -> R.xml.pref_backup
+                "screen_about" -> R.xml.pref_about
                 else -> R.xml.pref_main
             }
             setPreferencesFromResource(xmlRes, null)
@@ -271,6 +272,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             updateTrashSettingsSummary()
             updateAdvancedStorageAccessSummary()
             updateExternalFolderGrantSummary()
+            updateAboutSummary()
         }
 
         override fun onResume() {
@@ -316,6 +318,32 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 }
             }
             packPreference.summary = ctx.getString(R.string.theme_pack_summary_format, packName, modeBadge)
+        }
+
+        private fun updateAboutSummary() {
+            val editionName = getEditionDisplayName()
+            val versionName = BuildConfig.VERSION_NAME
+            val appName = requireContext().applicationInfo.loadLabel(requireContext().packageManager)
+
+            findPreference<androidx.preference.Preference>("screen_about")?.summary =
+                getString(R.string.about_settings_summary_format, appName, editionName, versionName)
+            findPreference<androidx.preference.Preference>("about_app_name")?.summary = appName
+            findPreference<androidx.preference.Preference>("about_edition")?.summary = editionName
+            findPreference<androidx.preference.Preference>("about_version")?.summary = versionName
+            findPreference<androidx.preference.Preference>("about_build_type")?.summary = BuildConfig.BUILD_TYPE
+            findPreference<androidx.preference.Preference>("about_capabilities")?.summary =
+                if (BuildConfig.FLAVOR == "plus") {
+                    getString(R.string.about_capabilities_plus)
+                } else {
+                    getString(R.string.about_capabilities_core)
+                }
+        }
+
+        private fun getEditionDisplayName(): String {
+            return when (BuildConfig.FLAVOR) {
+                "plus" -> getString(R.string.app_edition_plus)
+                else -> getString(R.string.app_edition_core)
+            }
         }
 
         private fun updateLanguageSummary() {

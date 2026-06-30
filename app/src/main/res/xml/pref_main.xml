@@ -38,4 +38,11 @@
         android:icon="@drawable/ic_settings"
         android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
 
+    <Preference
+        android:key="screen_about"
+        android:title="@string/about_settings"
+        android:summary="@string/about_settings_summary_placeholder"
+        android:icon="@drawable/ic_info"
+        android:fragment="org.iurl.litegallery.SettingsActivity$SettingsFragment" />
+
 </PreferenceScreen>

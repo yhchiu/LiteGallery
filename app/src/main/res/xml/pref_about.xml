@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="@string/about_settings">
+
+    <Preference
+        android:key="about_app_name"
+        android:selectable="false"
+        android:title="@string/about_app_name_title" />
+
+    <Preference
+        android:key="about_edition"
+        android:selectable="false"
+        android:title="@string/about_edition_title" />
+
+    <Preference
+        android:key="about_version"
+        android:selectable="false"
+        android:title="@string/about_version_title" />
+
+    <Preference
+        android:key="about_build_type"
+        android:selectable="false"
+        android:title="@string/about_build_type_title" />
+
+    <Preference
+        android:key="about_capabilities"
+        android:selectable="false"
+        android:title="@string/about_capabilities_title" />
+
+</PreferenceScreen>
