@@ -50,6 +50,7 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val MIN_VIDEO_BRIGHTNESS = 0.1f
         private const val MAX_VIDEO_BRIGHTNESS = 1.0f
         private const val BRIGHTNESS_SEEK_BAR_MAX = 100
+        private const val VIDEO_PROGRESS_MAX = 1000
 
         // Media Viewer info sheet memory preference keys
         private const val REMEMBER_MEDIA_VIEWER_INFO_SHEET_STATE_KEY = "remember_media_viewer_info_sheet_state"
@@ -2489,15 +2490,13 @@ class MediaViewerActivity : AppCompatActivity() {
             toggleVideoPlayback()
         }
         
+        binding.progressSeekBar.max = VIDEO_PROGRESS_MAX
+
         // SeekBar listener
         binding.progressSeekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    val currentVideoHolder = getCurrentVideoHolder()
-                    currentVideoHolder?.exoPlayer?.let { player ->
-                        val seekPosition = (progress.toFloat() / 100f * player.duration).toLong()
-                        binding.currentTimeText.text = formatTime(seekPosition)
-                    }
+                    updateSeekPreview(progress)
                 }
             }
             
@@ -2507,11 +2506,7 @@ class MediaViewerActivity : AppCompatActivity() {
             
             override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {
                 isUserSeeking = false
-                val currentVideoHolder = getCurrentVideoHolder()
-                currentVideoHolder?.exoPlayer?.let { player ->
-                    val seekPosition = (seekBar!!.progress.toFloat() / 100f * player.duration).toLong()
-                    player.seekTo(seekPosition)
-                }
+                seekToProgress(seekBar?.progress ?: binding.progressSeekBar.progress)
             }
         })
 
@@ -2577,10 +2572,40 @@ class MediaViewerActivity : AppCompatActivity() {
     }
     
     private fun setupVideoControlTouchBlocking() {
-        // Block touch events on video progress bar area to prevent accidental single-tap triggers
-        binding.videoProgressBar.setOnTouchListener { _, _ ->
-            // Consume the touch event to prevent it from reaching the video player
-            true
+        // Let the whole progress row seek, including padding and time-label areas.
+        binding.videoProgressBar.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    isUserSeeking = true
+                    val progress = progressFromProgressRowTouchX(event.x)
+                    binding.progressSeekBar.progress = progress
+                    updateSeekPreview(progress)
+                    true
+                }
+
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val progress = progressFromProgressRowTouchX(event.x)
+                    binding.progressSeekBar.progress = progress
+                    updateSeekPreview(progress)
+                    true
+                }
+
+                android.view.MotionEvent.ACTION_UP -> {
+                    isUserSeeking = false
+                    val progress = progressFromProgressRowTouchX(event.x)
+                    binding.progressSeekBar.progress = progress
+                    seekToProgress(progress)
+                    true
+                }
+
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    isUserSeeking = false
+                    updateVideoProgress()
+                    true
+                }
+
+                else -> true
+            }
         }
         
         // Block touch events on video controls area to prevent accidental single-tap triggers  
@@ -2689,10 +2714,7 @@ class MediaViewerActivity : AppCompatActivity() {
             val duration = player.duration
             
             if (duration > 0) {
-                val progress = (currentPosition.toFloat() / duration.toFloat() * 100).toInt()
-                binding.progressSeekBar.progress = progress
-                binding.currentTimeText.text = formatTime(currentPosition)
-                binding.durationText.text = formatTime(duration)
+                updateVideoProgressUi(currentPosition, duration)
                 
                 // Update play/pause button icon
                 binding.playPauseButton.setImageResource(
@@ -2713,6 +2735,58 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.currentTimeText.text = "0:00"
         binding.durationText.text = "0:00"
         binding.playPauseButton.setImageResource(R.drawable.ic_play)
+    }
+
+    private fun updateSeekPreview(progress: Int) {
+        val duration = getCurrentSeekablePlayer()?.duration ?: return
+        val seekPosition = progressToVideoPosition(progress, duration)
+        updateVideoProgressUi(seekPosition, duration)
+    }
+
+    private fun seekToProgress(progress: Int): Boolean {
+        val player = getCurrentSeekablePlayer() ?: return false
+        val duration = player.duration
+        val seekPosition = progressToVideoPosition(progress, duration)
+
+        player.seekTo(seekPosition)
+        updateVideoProgressUi(seekPosition, duration)
+        return true
+    }
+
+    private fun getCurrentSeekablePlayer(): androidx.media3.exoplayer.ExoPlayer? {
+        val currentVideoHolder = getCurrentVideoHolder() ?: return null
+        currentVideoHolder.ensurePreparedIfNeeded()
+
+        val player = currentVideoHolder.exoPlayer ?: return null
+        return if (player.duration > 0) player else null
+    }
+
+    private fun updateVideoProgressUi(positionMs: Long, durationMs: Long) {
+        binding.progressSeekBar.progress = videoPositionToProgress(positionMs, durationMs)
+        binding.currentTimeText.text = formatTime(positionMs)
+        binding.durationText.text = formatTime(durationMs)
+    }
+
+    private fun progressToVideoPosition(progress: Int, durationMs: Long): Long {
+        if (durationMs <= 0) return 0L
+
+        val normalized = progress.coerceIn(0, VIDEO_PROGRESS_MAX).toDouble() / VIDEO_PROGRESS_MAX
+        return (normalized * durationMs).toLong().coerceIn(0L, durationMs)
+    }
+
+    private fun videoPositionToProgress(positionMs: Long, durationMs: Long): Int {
+        if (durationMs <= 0) return 0
+
+        val normalized = positionMs.coerceIn(0L, durationMs).toDouble() / durationMs
+        return (normalized * VIDEO_PROGRESS_MAX).toInt().coerceIn(0, VIDEO_PROGRESS_MAX)
+    }
+
+    private fun progressFromProgressRowTouchX(touchX: Float): Int {
+        val seekBar = binding.progressSeekBar
+        val seekBarLeft = seekBar.left.toFloat()
+        val seekBarWidth = seekBar.width.toFloat().coerceAtLeast(1f)
+        val normalized = ((touchX - seekBarLeft) / seekBarWidth).coerceIn(0f, 1f)
+        return (normalized * VIDEO_PROGRESS_MAX).toInt().coerceIn(0, VIDEO_PROGRESS_MAX)
     }
 
     private fun formatTime(timeMs: Long): String {
