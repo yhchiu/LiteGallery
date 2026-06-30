@@ -17,10 +17,27 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class SettingsExportImportHelperTest {
+
+    // Persisted XML preference keys that intentionally should not be exported/imported.
+    // Prefer keeping this empty; add deprecated or ephemeral keys here only deliberately.
+    private val persistentPreferenceXmlKeysExcludedFromExportImport = emptySet<String>()
+
+    private enum class XmlPreferenceType {
+        STRING,
+        BOOLEAN
+    }
+
+    private data class XmlPreferenceSetting(
+        val key: String,
+        val type: XmlPreferenceType,
+        val sampleValue: Any
+    )
 
     private lateinit var context: Context
     private lateinit var helper: SettingsExportImportHelper
@@ -193,6 +210,74 @@ class SettingsExportImportHelperTest {
         assertEquals(135, preferences.getInt(CustomThemeStore.KEY_GRADIENT_ANGLE))
         assertTrue(preferences.getBoolean(CustomThemeStore.KEY_INITIALIZED))
         assertFalse(preferences.has("custom_unknown"))
+    }
+
+    @Test
+    fun exportSettings_includesEveryPersistentPreferenceXmlKey() {
+        val settings = loadPersistentPreferenceXmlSettings()
+        assertTrue("Expected at least one persistent preference XML key", settings.isNotEmpty())
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val editor = prefs.edit()
+        settings.forEach { setting ->
+            when (setting.type) {
+                XmlPreferenceType.STRING -> editor.putString(setting.key, setting.sampleValue as String)
+                XmlPreferenceType.BOOLEAN -> editor.putBoolean(setting.key, setting.sampleValue as Boolean)
+            }
+        }
+        assertTrue(editor.commit())
+
+        val outputStream = ByteArrayOutputStream()
+        val exported = helper.exportSettings(outputStream)
+
+        assertTrue(exported)
+        val preferences = JSONObject(outputStream.toString(Charsets.UTF_8.name()))
+            .getJSONObject("preferences")
+        val missingKeys = settings
+            .map { it.key }
+            .filterNot { preferences.has(it) }
+
+        assertTrue(
+            "Missing preference XML keys from settings export/import whitelist: $missingKeys",
+            missingKeys.isEmpty()
+        )
+    }
+
+    @Test
+    fun importSettings_acceptsEveryPersistentPreferenceXmlKey() {
+        val settings = loadPersistentPreferenceXmlSettings()
+        assertTrue("Expected at least one persistent preference XML key", settings.isNotEmpty())
+
+        val settingsJson = JSONObject().apply {
+            put("app_name", "LiteGallery")
+            put("export_version", 2)
+            put("export_timestamp", System.currentTimeMillis())
+            put("preferences", JSONObject().apply {
+                settings.forEach { setting ->
+                    put(setting.key, setting.sampleValue)
+                }
+            })
+        }
+
+        val inputStream = ByteArrayInputStream(settingsJson.toString().toByteArray(Charsets.UTF_8))
+        val (importedCount, skippedCount) = helper.importSettings(inputStream)
+
+        assertEquals(settings.size, importedCount)
+        assertEquals(0, skippedCount)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        settings.forEach { setting ->
+            when (setting.type) {
+                XmlPreferenceType.STRING -> assertEquals(
+                    setting.sampleValue,
+                    prefs.getString(setting.key, null)
+                )
+                XmlPreferenceType.BOOLEAN -> assertEquals(
+                    setting.sampleValue,
+                    prefs.getBoolean(setting.key, !(setting.sampleValue as Boolean))
+                )
+            }
+        }
     }
 
     @Test
@@ -578,5 +663,81 @@ class SettingsExportImportHelperTest {
             .edit()
             .clear()
             .commit()
+    }
+
+    private fun loadPersistentPreferenceXmlSettings(): List<XmlPreferenceSetting> {
+        val xmlDir = findProjectFile("app/src/main/res/xml")
+        val settings = xmlDir
+            .listFiles { file -> file.isFile && file.name.startsWith("pref_") && file.extension == "xml" }
+            .orEmpty()
+            .sortedBy { it.name }
+            .flatMap { loadPersistentPreferenceXmlSettings(it) }
+            .filterNot { it.key in persistentPreferenceXmlKeysExcludedFromExportImport }
+
+        val duplicateKeys = settings
+            .groupBy { it.key }
+            .filterValues { it.size > 1 }
+            .keys
+            .sorted()
+        assertTrue("Duplicate persistent preference XML keys: $duplicateKeys", duplicateKeys.isEmpty())
+
+        return settings
+    }
+
+    private fun loadPersistentPreferenceXmlSettings(file: File): List<XmlPreferenceSetting> {
+        val document = DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = true
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            setFeature("http://xml.org/sax/features/external-general-entities", false)
+            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        }.newDocumentBuilder().parse(file)
+
+        val settings = mutableListOf<XmlPreferenceSetting>()
+        collectPersistentPreferenceXmlSettings(document.documentElement, settings)
+        return settings
+    }
+
+    private fun collectPersistentPreferenceXmlSettings(
+        element: org.w3c.dom.Element,
+        settings: MutableList<XmlPreferenceSetting>
+    ) {
+        when (element.tagName.substringAfterLast('.')) {
+            "ListPreference" -> {
+                val key = element.androidAttribute("key")
+                if (key.isNotBlank()) {
+                    val sampleValue = element.androidAttribute("defaultValue").ifBlank { "test_value" }
+                    settings.add(XmlPreferenceSetting(key, XmlPreferenceType.STRING, sampleValue))
+                }
+            }
+            "SwitchPreferenceCompat" -> {
+                val key = element.androidAttribute("key")
+                if (key.isNotBlank()) {
+                    val defaultValue = element.androidAttribute("defaultValue").toBooleanStrictOrNull()
+                    val sampleValue = defaultValue?.not() ?: true
+                    settings.add(XmlPreferenceSetting(key, XmlPreferenceType.BOOLEAN, sampleValue))
+                }
+            }
+        }
+
+        val children = element.childNodes
+        for (index in 0 until children.length) {
+            val child = children.item(index)
+            if (child is org.w3c.dom.Element) {
+                collectPersistentPreferenceXmlSettings(child, settings)
+            }
+        }
+    }
+
+    private fun org.w3c.dom.Element.androidAttribute(name: String): String {
+        return getAttributeNS("http://schemas.android.com/apk/res/android", name)
+            .ifBlank { getAttribute("android:$name") }
+    }
+
+    private fun findProjectFile(relativePath: String): File {
+        val userDir = requireNotNull(System.getProperty("user.dir"))
+        return generateSequence(File(userDir)) { it.parentFile }
+            .map { File(it, relativePath) }
+            .firstOrNull { it.exists() }
+            ?: error("Could not locate $relativePath from $userDir")
     }
 }

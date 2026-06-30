@@ -47,6 +47,9 @@ class MediaViewerActivity : AppCompatActivity() {
         // Video brightness memory preference keys
         private const val REMEMBER_VIDEO_BRIGHTNESS_KEY = "remember_video_brightness"
         private const val SAVED_VIDEO_BRIGHTNESS_KEY = "saved_video_brightness"
+        private const val MIN_VIDEO_BRIGHTNESS = 0.1f
+        private const val MAX_VIDEO_BRIGHTNESS = 1.0f
+        private const val BRIGHTNESS_SEEK_BAR_MAX = 100
 
         // Media Viewer info sheet memory preference keys
         private const val REMEMBER_MEDIA_VIEWER_INFO_SHEET_STATE_KEY = "remember_media_viewer_info_sheet_state"
@@ -2427,6 +2430,9 @@ class MediaViewerActivity : AppCompatActivity() {
     
     private fun toggleAdvancedControls() {
         val isVisible = binding.advancedControls.visibility == View.VISIBLE
+        if (!isVisible) {
+            updateBrightnessSeekBar(getCurrentBrightness())
+        }
         binding.advancedControls.visibility = if (isVisible) View.GONE else View.VISIBLE
     }
     
@@ -2508,6 +2514,22 @@ class MediaViewerActivity : AppCompatActivity() {
                 }
             }
         })
+
+        binding.brightnessSeekBar.max = BRIGHTNESS_SEEK_BAR_MAX
+        binding.brightnessSeekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+
+                val brightness = progressToBrightness(progress)
+                setBrightness(brightness)
+                showValueDisplay("Brightness", brightness * 100f)
+            }
+
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) = Unit
+
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) = Unit
+        })
+        updateBrightnessSeekBar(getCurrentBrightness())
         
         // Frame navigation buttons
         binding.frameBackButton.setOnClickListener {
@@ -3514,7 +3536,7 @@ class MediaViewerActivity : AppCompatActivity() {
         if (!shouldRemember || !prefs.contains(SAVED_VIDEO_BRIGHTNESS_KEY)) return
 
         val rememberedBrightness = getSavedVideoBrightnessCompat(prefs) ?: return
-        if (rememberedBrightness !in 0.1f..1.0f) return
+        if (rememberedBrightness !in MIN_VIDEO_BRIGHTNESS..MAX_VIDEO_BRIGHTNESS) return
 
         setBrightness(rememberedBrightness, persistIfEnabled = false)
     }
@@ -3552,16 +3574,52 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun setBrightness(brightness: Float, persistIfEnabled: Boolean = true) {
-        val clampedBrightness = brightness.coerceIn(0.1f, 1.0f)
+        val clampedBrightness = brightness.coerceIn(MIN_VIDEO_BRIGHTNESS, MAX_VIDEO_BRIGHTNESS)
         val layoutParams = window.attributes
         layoutParams.screenBrightness = clampedBrightness
         window.attributes = layoutParams
+        updateBrightnessSeekBar(clampedBrightness)
 
         if (persistIfEnabled) {
             saveRememberedBrightnessIfEnabled(clampedBrightness)
         }
 
         android.util.Log.d("MediaViewerActivity", "Brightness set to: $clampedBrightness")
+    }
+
+    private fun getCurrentBrightness(): Float {
+        val windowBrightness = window.attributes.screenBrightness
+        if (windowBrightness in MIN_VIDEO_BRIGHTNESS..MAX_VIDEO_BRIGHTNESS) {
+            return windowBrightness
+        }
+
+        return try {
+            val systemBrightness = android.provider.Settings.System.getInt(
+                contentResolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS
+            )
+            (systemBrightness / 255f).coerceIn(MIN_VIDEO_BRIGHTNESS, MAX_VIDEO_BRIGHTNESS)
+        } catch (_: Exception) {
+            0.5f
+        }
+    }
+
+    private fun updateBrightnessSeekBar(brightness: Float) {
+        val progress = brightnessToProgress(brightness)
+        if (binding.brightnessSeekBar.progress != progress) {
+            binding.brightnessSeekBar.progress = progress
+        }
+    }
+
+    private fun brightnessToProgress(brightness: Float): Int {
+        val normalized = (brightness.coerceIn(MIN_VIDEO_BRIGHTNESS, MAX_VIDEO_BRIGHTNESS) - MIN_VIDEO_BRIGHTNESS) /
+            (MAX_VIDEO_BRIGHTNESS - MIN_VIDEO_BRIGHTNESS)
+        return (normalized * BRIGHTNESS_SEEK_BAR_MAX).toInt().coerceIn(0, BRIGHTNESS_SEEK_BAR_MAX)
+    }
+
+    private fun progressToBrightness(progress: Int): Float {
+        val normalized = progress.coerceIn(0, BRIGHTNESS_SEEK_BAR_MAX).toFloat() / BRIGHTNESS_SEEK_BAR_MAX
+        return MIN_VIDEO_BRIGHTNESS + normalized * (MAX_VIDEO_BRIGHTNESS - MIN_VIDEO_BRIGHTNESS)
     }
 
     private fun setVolume(volume: Float) {
