@@ -43,7 +43,7 @@ class SettingsExportImportHelper(private val context: Context) {
             "filename_max_lines" to PreferenceType.STRING,
             "zoom_max_scale" to PreferenceType.STRING,
 
-            // Video Gesture Settings
+            // Video Settings
             "video_single_tap_action" to PreferenceType.STRING,
             "video_double_tap_action" to PreferenceType.STRING,
             "video_left_swipe_up_action" to PreferenceType.STRING,

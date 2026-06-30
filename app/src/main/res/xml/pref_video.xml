@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:title="@string/video_gesture_settings">
+    android:title="@string/video_settings">
 
     <ListPreference
         android:defaultValue="show_hide_ui"

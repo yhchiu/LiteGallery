@@ -252,8 +252,8 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             // Handle display settings preference changes
             setupDisplaySettingsListeners()
 
-            // Handle video gesture settings preference changes
-            setupVideoGestureSettingsListeners()
+            // Handle video settings preference changes
+            setupVideoSettingsListeners()
 
             // Handle trash settings preference changes
             setupTrashSettingsListeners()
@@ -267,7 +267,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             updateThemeSummary()
             updateRenameSummary()
             updateDisplaySummary()
-            updateVideoGestureSummary()
+            updateVideoSettingsSummary()
             updateTrashSettingsSummary()
             updateAdvancedStorageAccessSummary()
             updateExternalFolderGrantSummary()
@@ -425,7 +425,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             }
         }
 
-        private fun setupVideoGestureSettingsListeners() {
+        private fun setupVideoSettingsListeners() {
             // Handle video single tap preference change
             findPreference<androidx.preference.ListPreference>("video_single_tap_action")?.setOnPreferenceChangeListener { _, newValue ->
                 val action = newValue as String
@@ -493,7 +493,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             }
         }
 
-        private fun updateVideoGestureSummary() {
+        private fun updateVideoSettingsSummary() {
             val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())
 
             // Update video single tap summary
@@ -1075,7 +1075,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                     updateThemeSummary()
                     updateRenameSummary()
                     updateDisplaySummary()
-                    updateVideoGestureSummary()
+                    updateVideoSettingsSummary()
                     updateTrashSettingsSummary()
                     updateAdvancedStorageAccessSummary()
                     updateExternalFolderGrantSummary()

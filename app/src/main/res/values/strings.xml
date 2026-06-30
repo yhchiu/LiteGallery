@@ -308,8 +308,8 @@
     <string name="zoom_scale_8x">8x</string>
     <string name="zoom_scale_10x">10x</string>
 
-    <!-- Video Gesture Settings -->
-    <string name="video_gesture_settings">Video Gesture Settings</string>
+    <!-- Video Settings -->
+    <string name="video_settings">Video Settings</string>
     <string name="video_single_tap_title">Single Tap Action</string>
     <string name="video_single_tap_summary">Action performed on single tap</string>
     <string name="video_double_tap_title">Double Tap Action</string>

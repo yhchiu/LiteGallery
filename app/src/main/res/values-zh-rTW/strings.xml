@@ -308,8 +308,8 @@
     <string name="zoom_scale_8x">8x</string>
     <string name="zoom_scale_10x">10x</string>
 
-    <!-- Video Gesture Settings -->
-    <string name="video_gesture_settings">影片手勢設定</string>
+    <!-- Video Settings -->
+    <string name="video_settings">影片設定</string>
     <string name="video_single_tap_title">單擊動作</string>
     <string name="video_single_tap_summary">單擊時執行的動作</string>
     <string name="video_double_tap_title">雙擊動作</string>
