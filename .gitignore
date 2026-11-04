@@ -79,3 +79,8 @@ build/reports/tests/test/index.html
 *.iml
 
 # End of https://www.toptal.com/developers/gitignore/api/android,kotlin,gradle
+
+### Screenshot tooling (scripts/screenshots.sh) ###
+/screenshots/
+/scripts/screenshot-media/*
+!/scripts/screenshot-media/README.md
