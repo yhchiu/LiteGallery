@@ -2,6 +2,22 @@
 
 A lightweight, fast, and privacy-first gallery app for Android that helps you browse and manage your photos and videos.
 
+## Screenshots
+
+Light theme
+
+| Home | Folder | Viewer | Settings | Themes |
+| :---: | :---: | :---: | :---: | :---: |
+| <a href="docs/screenshots/light/01_home.png"><img src="docs/screenshots/light/01_home.png" width="160" alt="Home (light)"></a> | <a href="docs/screenshots/light/02_folder.png"><img src="docs/screenshots/light/02_folder.png" width="160" alt="Folder (light)"></a> | <a href="docs/screenshots/light/03_viewer.png"><img src="docs/screenshots/light/03_viewer.png" width="160" alt="Viewer (light)"></a> | <a href="docs/screenshots/light/04_settings.png"><img src="docs/screenshots/light/04_settings.png" width="160" alt="Settings (light)"></a> | <a href="docs/screenshots/light/05_themes.png"><img src="docs/screenshots/light/05_themes.png" width="160" alt="Themes (light)"></a> |
+
+Dark theme
+
+| Home | Folder | Viewer | Settings | Themes |
+| :---: | :---: | :---: | :---: | :---: |
+| <a href="docs/screenshots/dark/01_home.png"><img src="docs/screenshots/dark/01_home.png" width="160" alt="Home (dark)"></a> | <a href="docs/screenshots/dark/02_folder.png"><img src="docs/screenshots/dark/02_folder.png" width="160" alt="Folder (dark)"></a> | <a href="docs/screenshots/dark/03_viewer.png"><img src="docs/screenshots/dark/03_viewer.png" width="160" alt="Viewer (dark)"></a> | <a href="docs/screenshots/dark/04_settings.png"><img src="docs/screenshots/dark/04_settings.png" width="160" alt="Settings (dark)"></a> | <a href="docs/screenshots/dark/05_themes.png"><img src="docs/screenshots/dark/05_themes.png" width="160" alt="Themes (dark)"></a> |
+
+Screenshots are generated with [`scripts/screenshots.sh`](scripts/screenshots.sh). Demo photos are from [Pexels](https://www.pexels.com) ([credits](docs/screenshots/CREDITS.md)).
+
 ## Editions
 
 LiteGallery builds in two product flavors, so you can choose your own feature/trust trade-off:
